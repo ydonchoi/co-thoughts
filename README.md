@@ -1,6 +1,8 @@
 # 사고 메모 및 심화 대화 프로토콜
 
 > **Human–AI Co-Thinking Protocol for Exploratory Dialogue, Critical Review, Verification, and State Management**
+> 
+> **GPT-5.6 Luna의 도움을 받아 제작하였습니다.**
 
 [![Version](https://img.shields.io/badge/version-v1.3-blue.svg)](#버전)
 [![Status](https://img.shields.io/badge/status-final-green.svg)](#현재-상태)
