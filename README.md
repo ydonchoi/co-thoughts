@@ -827,3 +827,10 @@ A concrete LLM provider may be added through CognitiveBackend.generate().
 Provider integration remains a separate step and requires real execution, artifact retention, provenance, failure handling, adversarial tests, and CI.
 
 The runtime safety contract is documented in docs/cognitive_runtime_safety_v01.md and exercised by tests/test_runtime.py.
+
+
+## Switchable Cognitive Backend
+
+The runtime supports `AUTO`, `PROVIDER`, and `USER_INPUT` modes. `AUTO` uses a configured external provider when available and otherwise falls back to a user-mediated general-LLM response. Both paths enter the same CognitiveRuntime safety and epistemic firewall.
+
+A user-pasted general-LLM response is explicitly recorded as `USER_INPUT`; it is not treated as provider-native execution and cannot establish verification or evidence status.
