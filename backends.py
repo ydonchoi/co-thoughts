@@ -12,6 +12,11 @@ import urllib.request
 from typing import Any, Mapping
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise RuntimeError("PROVIDER_REDIRECT_BLOCKED")
+
+
 class JsonHttpCognitiveBackend:
     """Call a configured HTTPS JSON endpoint with conservative defaults."""
 
@@ -57,7 +62,8 @@ class JsonHttpCognitiveBackend:
         )
 
         try:
-            with urllib.request.urlopen(
+            opener = urllib.request.build_opener(_NoRedirectHandler)
+            with opener.open(
                 http_request,
                 timeout=self.timeout_seconds,
             ) as response:
