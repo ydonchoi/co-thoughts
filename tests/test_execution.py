@@ -53,7 +53,7 @@ def test_fast_path_does_not_require_deep_stages():
 def test_invalid_mode_is_rejected():
     try:
         CoThoughtsReferenceExecutor().run(
-            {"task": "A task", "mode": "INVALID"}
+            {"request_id": "REQ-INVALID", "task": "A task", "mode": "INVALID"}
         )
     except ValueError as exc:
         assert str(exc) == "INVALID_MODE"
