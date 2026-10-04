@@ -798,3 +798,32 @@ LLM은 답변 생성기가 될 수도 있지만,
 > **AI가 인간을 대신하여 생각하는 것이 아니라, 인간이 AI와 함께 생각하면서도 자신의 생각을 검증하고 수정할 수 있도록 만드는 것**
 
 이다.
+
+
+# 🔐 Cognitive Runtime Safety Boundary
+
+v1.3 remains the protocol baseline. The repository now also contains a provider-neutral callable runtime boundary in runtime.py.
+
+The runtime separates three concerns:
+
+Co-Thoughts Protocol
+        ↓
+Cognitive Runtime
+        ↓
+Provider Backend
+
+The runtime does not select or trust a model provider. It enforces:
+
+- THINK != VERIFY
+- execution success != research validity
+- model output != evidence
+- tool execution = default-deny
+- external side effects = default-deny
+- backend self-verification = rejected
+- evidence self-promotion = rejected
+- epistemic states = controlled vocabulary
+
+A concrete LLM provider may be added through CognitiveBackend.generate().
+Provider integration remains a separate step and requires real execution, artifact retention, provenance, failure handling, adversarial tests, and CI.
+
+The runtime safety contract is documented in docs/cognitive_runtime_safety_v01.md and exercised by tests/test_runtime.py.
