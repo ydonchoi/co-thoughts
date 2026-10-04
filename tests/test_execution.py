@@ -4,6 +4,7 @@ from execution import CoThoughtsReferenceExecutor
 def test_reference_executor_preserves_v13_separations():
     result = CoThoughtsReferenceExecutor().run(
         {
+            "request_id": "REQ-CO-1",
             "task": "Evaluate a research hypothesis",
             "mode": "DEEP",
             "claims": [
@@ -37,6 +38,7 @@ def test_reference_executor_preserves_v13_separations():
 def test_fast_path_does_not_require_deep_stages():
     result = CoThoughtsReferenceExecutor().run(
         {
+            "request_id": "REQ-FAST-1",
             "task": "Convert one hour to minutes",
             "mode": "FAST",
         }
@@ -63,6 +65,7 @@ def test_checkpoint_cannot_be_marked_as_evidence():
     try:
         CoThoughtsReferenceExecutor().run(
             {
+                "request_id": "REQ-CHK",
                 "task": "A task",
                 "mode": "MIXED",
                 "checkpoint": {"is_evidence": True},
