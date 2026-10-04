@@ -22,6 +22,7 @@ EPISTEMIC_TYPES = frozenset(
 
 @dataclass(frozen=True)
 class CoThoughtsExecutionRequest:
+    request_id: str
     task: str
     mode: str
     claims: tuple[Mapping[str, Any], ...] = ()
@@ -33,8 +34,12 @@ class CoThoughtsExecutionRequest:
 
     @classmethod
     def from_mapping(cls, request: Mapping[str, Any]) -> "CoThoughtsExecutionRequest":
+        request_id = request.get("request_id")
         task = request.get("task")
         mode = request.get("mode")
+
+        if not isinstance(request_id, str) or not request_id.strip():
+            raise ValueError("REQUEST_ID_MISSING")
 
         if not isinstance(task, str) or not task.strip():
             raise ValueError("CURRENT_TASK_MISSING")
@@ -73,6 +78,7 @@ class CoThoughtsExecutionRequest:
             raise ValueError("CHECKPOINT_IS_NOT_EVIDENCE")
 
         return cls(
+            request_id=request_id.strip(),
             task=task.strip(),
             mode=mode,
             claims=normalized_claims,
@@ -95,6 +101,8 @@ class CoThoughtsReferenceExecutor:
 
         return {
             "kind": "co_thoughts_execution",
+            "request_id": parsed.request_id,
+            "execution_id": f"reference:{parsed.request_id}",
             "protocol_version": self.protocol_version,
             "executor_revision": self.executor_revision,
             "task": parsed.task,
@@ -123,5 +131,10 @@ class CoThoughtsReferenceExecutor:
             ),
             "is_evidence": False,
             "verification_status": "UNVERIFIED",
+            "status": "SUCCEEDED",
+            "epistemic_states": tuple(item.get("epistemic_type", "UNKNOWN") for item in parsed.claims),
+            "reasoning_artifact": {"kind": "co_thoughts_reference_harness", "generated_reasoning": False},
+            "timestamp": "REFERENCE-HARNESS",
+            "environment": {"runtime": "reference-harness"},
             "execution_status": "SUCCEEDED",
         }
