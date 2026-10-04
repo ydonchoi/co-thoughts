@@ -34,7 +34,7 @@ def test_https_backend_sends_json_and_bearer(monkeypatch):
         def open(self, request, timeout):
             return fake_urlopen(request, timeout)
 
-    monkeypatch.setattr("urllib.request.build_opener", lambda handler: FakeOpener())
+    monkeypatch.setattr("urllib.request.build_opener", lambda *handlers: FakeOpener())
 
     result = JsonHttpCognitiveBackend(
         "https://example.test/cognitive",
