@@ -62,10 +62,11 @@ def test_backend_allows_local_http_only_when_explicit():
 
 
 def test_backend_rejects_oversized_response(monkeypatch):
-    def fake_urlopen(request, timeout):
-        return FakeResponse(b"x" * 20)
+    class FakeOpener:
+        def open(self, request, timeout):
+            return FakeResponse(b"x" * 20)
 
-    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("urllib.request.build_opener", lambda *handlers: FakeOpener())
 
     with pytest.raises(ValueError, match="RESPONSE_TOO_LARGE"):
         JsonHttpCognitiveBackend(
