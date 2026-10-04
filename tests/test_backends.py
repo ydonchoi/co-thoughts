@@ -30,7 +30,11 @@ def test_https_backend_sends_json_and_bearer(monkeypatch):
         seen["timeout"] = timeout
         return FakeResponse(b'{"execution_id":"E","status":"SUCCEEDED","mode":"FAST","claims":[],"epistemic_states":[],"reasoning_artifact":{}}')
 
-    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    class FakeOpener:
+        def open(self, request, timeout):
+            return fake_urlopen(request, timeout)
+
+    monkeypatch.setattr("urllib.request.build_opener", lambda handler: FakeOpener())
 
     result = JsonHttpCognitiveBackend(
         "https://example.test/cognitive",
