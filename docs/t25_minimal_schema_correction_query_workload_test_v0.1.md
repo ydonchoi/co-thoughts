@@ -78,7 +78,7 @@ Demonstrate that note-level epistemic state can differ from individual Claim sta
 
 ## 5. Execution result
 
-Q2-Q5 could not be executed because Notion Query Data Source usage limit was reached.
+Q2-Q6 could not be executed because Notion Query Data Source usage limit was reached.
 
 The attempted query had no side effects and was not executed.
 
@@ -94,7 +94,7 @@ T25 = CONDITIONAL.
 
 No schema expansion is justified yet.
 
-The correct next step is to resume Q2-Q5 when Query Data Source access becomes available, then decide between:
+The correct next step is to resume Q2-Q6 when Query Data Source access becomes available, then decide between:
 
 Path A — retain collapsed representation, if workload passes.
 
