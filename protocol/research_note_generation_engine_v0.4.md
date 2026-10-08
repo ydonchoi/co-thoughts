@@ -278,3 +278,39 @@ CONSENSUS ≠ VERIFICATION
 ## 15. Baseline Status
 
 v0.4 is a **baseline candidate**, not a final standardized specification. T2–T13 provided structural stress-test evidence; external academic validity is a separate question.
+
+
+## 15. AI Authorship / Provenance Disclosure Layer
+
+AI authorship disclosure is a cross-cutting presentation/provenance layer of the Research Note Engine and One-Stop adapter. It is not a new epistemic entity.
+
+Every generated/structured Research Note must expose:
+
+**AI 작성·구조화 연구노트**
+
+and retain generation provenance. The structured disclosure uses the existing `confession_report` representation where available.
+
+Local attribution may distinguish:
+- A1 AI-generated
+- A2 AI-structured
+- A3 Human-authored
+- A4 Human-edited
+- A5 Source-derived
+
+These labels describe authorship/provenance, not epistemic state. Uncertain local attribution must remain unresolved rather than inferred.
+
+## 16. Integrated Validation Status
+
+T14–T50 established the current semantic, lifecycle, template, traceability, D9, and one-stop regression baseline. T51–T56 additionally established AI disclosure/provenance semantics and full-pipeline semantic integration for the tested scope.
+
+Current status:
+- semantic architecture: CLOSED FOR TESTED SCOPE
+- template architecture: CLOSED FOR TESTED SCOPE
+- lifecycle / branch / merge semantics: CLOSED FOR TESTED SCOPE
+- D9 network-level semantics: CLOSED FOR TESTED SCOPE
+- one-stop orchestration semantics: CLOSED FOR TESTED SCOPE
+- AI disclosure integration: CLOSED FOR TESTED SCOPE
+- live persistence verification: OPEN / CAPABILITY-BOUND
+- empirical generation validation: OPEN
+
+These are project-level validation states, not claims of external academic validation.
