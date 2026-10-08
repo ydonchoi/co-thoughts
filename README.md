@@ -175,3 +175,46 @@ Implemented modules: `cognitive_router.py`, `epistemic_state.py`, `context.py`.
 - Epistemic state separates Claim/Premise and supports non-monotonic revision.
 - Context module enforces temporal/attribution boundaries.
 - Cognitive output remains `UNVERIFIED` and non-evidence until SARA independently evaluates it.
+ 
+## Research Note AI Authorship / Provenance Disclosure
+
+All Research Notes generated or structured through the Research Note Engine must disclose AI participation at the artifact level.
+
+Canonical visible marker:
+
+**AI 작성·구조화 연구노트**
+
+The disclosure is a provenance/presentation layer, not an epistemic state, Evidence, Verification, or Document Type. It is implemented through:
+
+- visible artifact marker;
+- generation provenance;
+- existing `confession_report` disclosure/provenance field;
+- independently reported human-review status.
+
+Where local provenance is sufficiently reliable, the system may distinguish:
+- A1 AI-generated
+- A2 AI-structured
+- A3 Human-authored
+- A4 Human-edited
+- A5 Source-derived
+
+Local attribution must not be fabricated when provenance is uncertain. AI participation does not imply that every token or proposition originated from AI.
+
+AI generation does not imply verification. Persistence does not imply verification. D9 promotion does not imply verification.
+
+T51–T56 establish the disclosure/provenance contract and full-pipeline semantic integration for the tested scope. Live durable persistence and large-scale empirical generation validation remain capability-bound/open.
+
+Canonical tests:
+- T51 AI Authorship Disclosure / Provenance Transparency
+- T52 Real-Conversation Attribution Regression
+- T53 Cross-Document-Type AI Disclosure Regression
+- T54 AI Disclosure Rendering / Actual Output
+- T55 Multi-Note Disclosure / Provenance Consistency
+- T56 Full-Pipeline Output Regression
+
+## Research Note Validation Closure
+
+The tested semantic architecture, template architecture, lifecycle semantics, AI disclosure integration, and full-pipeline semantic integration are **CLOSED FOR TESTED SCOPE**. This does not claim external academic, legal, institutional, or population-level validation.
+
+Live Notion persistence verification remains capability/state dependent. Human remains final epistemic decision authority.
+
