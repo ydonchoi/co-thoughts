@@ -6,6 +6,8 @@
 
 SARA 검증은 답변의 마지막에 부가적으로 붙는 사후 평가가 아니라, Claim/Evidence/Reasoning의 검증과 필요 시 Revision/Re-verification을 포함하는 품질관리 루프의 일부로 동작한다.
 
+SARA는 별도의 사용자-facing 검증 체계를 하나 더 만드는 것이 아니라, 프로젝트의 기존 검증 출력이 의미 있게 동작하도록 하는 **검증 엔진 / 검증 레이어**다.
+
 검증의 깊이와 사용자에게 노출되는 정보량은 분리한다.
 
 > **Always-on verification, progressive disclosure.**
@@ -13,39 +15,45 @@ SARA 검증은 답변의 마지막에 부가적으로 붙는 사후 평가가 �
 ## 2. Core Principle
 
 - 검증은 필요한 범위에서 수행한다.
-- 검증 결과의 기본 출력은 최소 충분 정보로 제한한다.
+- 사용자-facing 기본 검증 출력은 기존 프로젝트의 `☑️ 검증 결과`를 canonical summary로 사용한다.
+- SARA는 `☑️ 검증 결과`의 내부 검증 로직과 상태를 담당한다.
+- 별도의 `🛡️ SARA Verification` 섹션을 기본 출력에 병렬로 추가하지 않는다.
 - 상세 검증은 사용자가 요청하거나 중요한 검증 문제가 발견된 경우 제공한다.
 - 검증 상태는 Evidence와 분리하여 관리한다.
 - Agreement는 Verification을 상승시키지 않는다.
 - Human Agency를 보존한다.
 - 내부 추론 과정(chain-of-thought)은 출력하지 않는다. 대신 Claim → Evidence → Verification → Revision의 감사 가능한 요약을 제공한다.
 
-## 3. Default Output
+## 3. Integrated Default Output
 
-일반적인 답변에서는 다음 수준의 요약만 표시한다.
+일반적인 답변에서는 SARA 결과를 별도 섹션으로 중복 표시하지 않고 기존 `☑️ 검증 결과`에 통합한다.
+
+권장 기본 형태:
 
 ~~~text
-🛡️ SARA Verification
-🟢 양호
+☑️ 검증 결과 — SARA Summary
+상태: 🟢 양호
 핵심 주장 N · 근거 연결 M/N · 주요 문제 0
+불확실성: 낮음
 상세 검증 보기 ▸
 ~~~
 
-상태가 조건부이면:
+조건부 검증:
 
 ~~~text
-🛡️ SARA Verification
-🟡 조건부 검증
+☑️ 검증 결과 — SARA Summary
+상태: 🟡 조건부 검증
 핵심 주장 N · 근거 연결 M/N
 ⚠️ 주의 필요 K
-왜 그런지 보기 ▸
+불확실성: 중간
+상세 검증 보기 ▸
 ~~~
 
-중요한 검증 문제가 있으면:
+검증 필요:
 
 ~~~text
-🛡️ SARA Verification
-🔴 검증 필요
+☑️ 검증 결과 — SARA Summary
+상태: 🔴 검증 필요
 핵심 주장 N · 미검증 K
 ⚠️ 근거보다 강한 주장 또는 핵심 근거 부족
 상세 검증 보기 ▸
@@ -53,11 +61,13 @@ SARA 검증은 답변의 마지막에 부가적으로 붙는 사후 평가가 �
 
 정상적인 저위험 답변에서는 검증 UI가 대화의 흐름을 방해하지 않도록 최소화한다.
 
+기존 프로젝트의 별도 메타평가 항목이 존재하는 경우, 해당 항목은 SARA Verification Summary와 혼합하지 않고 **메타평가 / 실행 안정성 정보**로 구분한다. 특히 통계적 의미가 없는 Accuracy / Recall / Confidence 등의 값을 SARA의 검증 정확도로 해석하지 않는다.
+
 ## 4. Progressive Disclosure
 
 ### Level 0 — Inline Summary
 
-항상 필요한 경우에만 다음 상태를 짧게 표시한다.
+답변에 필요한 경우 기존 `☑️ 검증 결과` 안에서 다음 상태를 짧게 표시한다.
 
 - Verified / 양호
 - Conditionally Verified / 조건부 검증
@@ -100,7 +110,7 @@ Claim Identification
 → Revision (필요 시)
 → Re-verification
 → Epistemic State Update
-→ Output
+→ Integrated Output (☑️ 검증 결과)
 ~~~
 
 검증 결과에 문제가 없으면 불필요한 Revision을 수행하지 않는다.
@@ -110,22 +120,26 @@ Claim Identification
 검증 결과는 다음 축을 혼동하지 않는다.
 
 ### Epistemic Type
+
 FACT / INTERPRETATION / INFERENCE / HYPOTHESIS / SIMULATION
 
 ### Verification State
+
 VERIFIED / PARTIALLY VERIFIED / UNVERIFIED / CONTRADICTED
 
 ### Attribution
+
 AUTHOR_EXPLICIT / AUTHOR_SUPPORTED / SOURCE_INFERRED / MODERN_INTERPRETATION / SPECULATIVE / UNKNOWN
 
 ### Temporal
+
 HISTORICAL / POST_PUBLICATION / CONTEMPORARY
 
 ## 7. Metrics
 
 기존의 정성적 메타평가를 통계적 성능지표처럼 표현하지 않는다.
 
-권장 출력 지표:
+권장 SARA 검증 지표:
 
 - **Evidence Coverage**: 주요 Claim 중 Evidence가 연결된 비율.
 - **Verification Coverage**: 검증 대상으로 식별된 Claim 중 실제 검증된 비율.
@@ -137,7 +151,7 @@ HISTORICAL / POST_PUBLICATION / CONTEMPORARY
 
 ## 8. Critical Findings
 
-다음과 같은 경우 기본 요약에서도 경고를 표시한다.
+다음과 같은 경우 기본 `☑️ 검증 결과` 요약에서도 경고를 표시한다.
 
 - 핵심 Claim에 Evidence가 없음
 - Evidence보다 결론의 강도가 큼
@@ -168,6 +182,7 @@ MODEL AGREEMENT ≠ EVIDENCE
 STATE ≠ EVIDENCE
 CHECKPOINT ≠ EVIDENCE
 SUMMARY ≠ FULL AUDIT
+SARA ≠ SECONDARY DUPLICATE OUTPUT
 ~~~
 
 기본 출력이 간결하다는 이유로 중요한 검증 문제를 숨기지 않는다.
@@ -183,7 +198,7 @@ SUMMARY ≠ FULL AUDIT
 - Human Agency
 - Project Adapter Interface
 
-v2.0의 canonical architecture를 변경하지 않고, SARA 결과의 사용자 노출 및 검증 리포트 표현을 정의한다.
+v2.0의 canonical architecture를 변경하지 않고, SARA 결과를 기존 `☑️ 검증 결과`에 통합하여 사용자에게 노출하는 방식을 정의한다.
 
 ## 12. Status
 
