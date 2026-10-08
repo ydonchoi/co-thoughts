@@ -2,7 +2,7 @@
 
 > Human–AI Co-Thinking Protocol for Exploratory Dialogue, Critical Examination, Source-grounded Depth, Verification, and State Management
 
-[![Version](https://img.shields.io/badge/version-v2.0-blue.svg)](#current-status)
+[![Version](https://img.shields.io/badge/version-v2.0%2B%2B%2B-blue.svg)](#current-status)
 
 ## 프로젝트 소개
 
@@ -148,14 +148,17 @@ CHECKPOINT ≠ EVIDENCE
 | **v2.0** | **Extensive Co-thoughts Architecture** |
 | **v2.0+** | **SARA Verification Output Policy v1.0** |
 | **v2.0++** | **Research Note One-Stop Adapter / Notion Persistence Contract v0.1** |
+| **v2.0+++** | **AI Authorship Disclosure / Provenance + Full-Pipeline Regression T51–T56** |
 | **v2.0+++** | **Research Note Template Standardization + AI Authorship/Provenance Disclosure + T51–T56 integration** |
 
 v1.3 문서는 historical baseline으로 보존한다.
 
 ## Current Status
 
-**Version:** v2.0  
-**Status:** ACTIVE / ARCHITECTURAL BASELINE
+**Version:** v2.0+++  
+**Status:** ACTIVE / ARCHITECTURAL BASELINE  
+
+T51–T56: AI authorship disclosure/provenance and full-pipeline semantic integration **CLOSED FOR TESTED SCOPE**. Live Notion persistence and broad empirical generation validation remain **OPEN / CAPABILITY-BOUND**.
 
 SARA Verification Output Policy v1.0: **PROPOSED / PROJECT INTEGRATION**
 
