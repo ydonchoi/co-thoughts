@@ -97,6 +97,12 @@ G1 Relation, G2 Higher-order Question, G3 Novel Structure, G4 Claim Decompositio
 
 Promotion requires all PASS. Promotion is independent from claim truth.
 
+## Operational Persistence Representation
+
+The one-stop adapter may map the logical entities into a collapsed Notion representation. The current project target is `👨‍💻 research_assisstant_prototype_-ing- 공식 문서`. The adapter must fetch the current target schema before page mutation and must distinguish NEW, REVISION, EXTENSION, NO_CHANGE, and BLOCKED outcomes.
+
+Persistence metadata must preserve provenance and must not be interpreted as verification. Post-write fetch is the preferred persistence verification step.
+
 ## Minimum Implementation Principle
 
 Logical entity count does not dictate Notion DB count. Tables may be collapsed when semantics remain explicit and provenance is not lost.
