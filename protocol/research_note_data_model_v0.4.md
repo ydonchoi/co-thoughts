@@ -106,3 +106,33 @@ Persistence metadata must preserve provenance and must not be interpreted as ver
 ## Minimum Implementation Principle
 
 Logical entity count does not dictate Notion DB count. Tables may be collapsed when semantics remain explicit and provenance is not lost.
+
+
+## AI Disclosure / Generation Provenance Representation
+
+AI authorship disclosure is represented as cross-cutting provenance metadata rather than as a logical knowledge entity.
+
+Required artifact-level disclosure for generated/structured Research Notes:
+
+**AI 작성·구조화 연구노트**
+
+Recommended structured representation through existing `confession_report`:
+- ai_participation = YES
+- generation_system = Research Note Engine
+- artifact_attribution = AI_GENERATED / AI_STRUCTURED
+- human_review = PENDING / IN_PROGRESS / COMPLETED
+- human_editing = NONE / MATERIAL / UNKNOWN
+- source_derived_content = YES / NO / UNKNOWN
+- provenance_reference = [reference]
+- disclosure_version = v0.1
+
+Optional local attribution labels:
+A1 AI-generated; A2 AI-structured; A3 Human-authored; A4 Human-edited; A5 Source-derived.
+
+These are provenance labels, not epistemic states. No new Research Object, Claim, Evidence, Verification, or database is required.
+
+## Validation Closure Extension
+
+T51–T56 establish, for the tested scope, that AI disclosure is compatible with D1–D9, lifecycle decisions, human post-editing, D9 integration, BLOCKED persistence, and full-pipeline output semantics.
+
+Live durable persistence and broad empirical generation validation remain open/capability-bound.
