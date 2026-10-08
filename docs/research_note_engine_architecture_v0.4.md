@@ -2,6 +2,12 @@
 
 Status: **BASELINE CANDIDATE**
 
+## Operational Entry / Adapter
+
+`/연구노트`, `/변환`, or unambiguous natural-language equivalents route to the one-stop Research Note adapter. The adapter invokes the engine and, when permitted, performs existing-note consistency checking → Notion mapping → create/update → post-write verification.
+
+Canonical adapter protocol: `protocol/research_note_one_stop_pipeline_v0.1.md`.
+
 ## Architecture
 
 Conversation
@@ -69,6 +75,10 @@ Read less. Reuse valid state. Reference only what is relevant. Preserve provenan
 ## Implementation Constraint
 
 Logical entities do not require one-to-one Notion databases. Database normalization must not destroy semantic distinctions or provenance.
+
+## Persistence Boundary
+
+Notion persistence is an operational side effect, not an epistemic state transition. A saved page does not become VERIFIED, and a failed write does not invalidate the generated Research Note.
 
 ## Human Final Agency
 
