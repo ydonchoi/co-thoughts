@@ -54,7 +54,7 @@ SOURCE / INTERPRETATION / INFERENCE / SIMULATION / OUTSIDE를 구분하며 실�
 ## Temporal & Interpretive Context
 
 - HISTORICAL — 당시 이용 가능했던 지식
-- POST_PUBLICATION — 출판 이후 지식
+- POST_PUBLICATION — 출판 이후의 지식
 - CONTEMPORARY — 현재 지식
 - MODERN_INTERPRETATION — 현재 관점의 재해석
 
@@ -75,6 +75,20 @@ Aporia는 실제 논리적 충돌이 확인된 경우에만 선언한다.
 **Knowledge Gate:** External Source → Context Expansion → SARA → Evidence/Claim/Context Validation → Depth
 
 **Thought Gate:** Human ↔ Co-thoughts → Inference/New Claim → SARA → Epistemic State → Revision
+
+### SARA Verification Output
+
+SARA 검증은 답변의 마지막에 붙는 단순 사후 평가가 아니라 **Verification → Revision → Re-verification** 품질관리 루프로 동작한다.
+
+사용자에게는 **Always-on verification + progressive disclosure** 원칙을 적용한다.
+
+- 기본 출력: 검증 상태와 핵심 요약만 표시
+- 중요 문제가 발견되면 요약 수준에서 경고
+- 사용자가 요청하면 Claim / Evidence / Verification / Uncertainty / Revision / Provenance의 상세 Audit을 제공
+- 내부 chain-of-thought는 노출하지 않고 감사 가능한 검증 경로만 제공
+- Agreement와 Model Agreement는 Evidence 또는 Truth의 대체물로 사용하지 않음
+
+상세 정책은 [protocol/sara_verification_output_policy_v1.0.md](protocol/sara_verification_output_policy_v1.0.md)에 정의한다.
 
 ## Project Adapter
 
@@ -105,6 +119,7 @@ CHECKPOINT ≠ EVIDENCE
 | v1.2 | 상태 외부화·Transition Gate |
 | v1.3 | Claim/Evidence/Verification 분리 및 T1~T13 검증 |
 | **v2.0** | **Extensive Co-thoughts Architecture** |
+| **v2.0+** | **SARA Verification Output Policy v1.0** |
 
 v1.3 문서는 historical baseline으로 보존한다.
 
@@ -113,6 +128,7 @@ v1.3 문서는 historical baseline으로 보존한다.
 **Version:** v2.0  
 **Status:** ACTIVE / ARCHITECTURAL BASELINE
 
+SARA Verification Output Policy v1.0: **PROPOSED / PROJECT INTEGRATION**
 
 ## v2.0 Runtime Modules
 
