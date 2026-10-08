@@ -318,3 +318,21 @@ T40 defines structure and safety constraints but does not yet prove:
 - queryability of template-level metadata.
 
 Those require subsequent tests.
+
+
+## Cross-Type AI Disclosure Rule
+
+All D1–D9 templates inherit a common artifact-level disclosure requirement:
+
+**AI 작성·구조화 연구노트**
+
+The marker is rendered outside the type-specific body and therefore survives changes in Document Type. The provenance block should retain generation system, AI participation, human-review status, and generation provenance.
+
+D1–D9 must not reinterpret the marker as:
+- Evidence;
+- Verification;
+- a Claim state;
+- D9 promotion;
+- source authorship.
+
+Human edits and source-derived material remain separately attributable where provenance supports the distinction.
