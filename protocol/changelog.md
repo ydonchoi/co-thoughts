@@ -38,3 +38,14 @@ v1.3의 Human Agency, Anti-Sycophancy, Epistemic Separation, Revision over Consi
 ### Migration Rule
 
 v1.3 문서를 덮어쓰지 않는다. v2.0을 canonical active version으로 사용한다.
+
+
+### v2.0++ — Research Note One-Stop Adapter v0.1
+
+- `/연구노트` 및 `/변환` 명시적 호출어 도입
+- 의도가 명확한 자연어 연구노트 요청을 호출어로 수용
+- Research Note Engine → Existing-note Consistency → Notion Mapping → Create/Update → Post-write Verification 원스톱 흐름 정의
+- NEW / REVISION / EXTENSION / NO_CHANGE / BLOCKED 결과 상태 정의
+- Notion persistence와 epistemic verification을 분리
+- 잠금/접근불가 대상 우회 금지 및 실패 저장 오보고 금지
+- Canonical adapter protocol: `protocol/research_note_one_stop_pipeline_v0.1.md`
