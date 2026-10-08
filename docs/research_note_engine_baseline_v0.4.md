@@ -185,7 +185,17 @@ Existing core metadata is preserved.
 | Branch ID | Parallel revision |
 | D9 상태 | D9 applicability / promotion state; canonical states: NOT_APPLICABLE, CANDIDATE, PROMOTED |
 
-## 11. Metadata vs Page Body
+## 11. One-Stop Operational Integration
+
+The conversational entrypoint accepts `/연구노트`, `/변환`, and unambiguous natural-language equivalents. The canonical execution path is:
+
+`Invocation → Existing-State Check → Research Note Engine → Consistency Decision → Research Note → Notion Mapping → Create/Update → Post-write Verification → Result Report`.
+
+The consistency decision is NEW / REVISION / EXTENSION / NO_CHANGE / BLOCKED. The target must be checked before mutation. Locked or inaccessible targets are not bypassed. Persistence success is not epistemic verification.
+
+Canonical adapter protocol: `protocol/research_note_one_stop_pipeline_v0.1.md`.
+
+## 12. Metadata vs Page Body
 
 Metadata stores classification, lifecycle, provenance, and state.
 
@@ -195,7 +205,7 @@ Do not encode an entire claim/evidence graph only in prose.
 
 Do not force every logical entity into a separate Notion database. Separate databases are justified only when they improve queryability, lifecycle management, or provenance without increasing semantic ambiguity.
 
-## 12. Canonical Invariants
+## 13. Canonical Invariants
 
 - Research Purpose ≠ Method
 - Research Purpose ≠ Document Type
@@ -214,7 +224,7 @@ Do not force every logical entity into a separate Notion database. Separate data
 - Conflict ≠ Error
 - D9 Promotion ≠ Verification
 
-## 13. Version Authority
+## 14. Version Authority
 
 Current:
 - protocol/research_note_generation_engine_v0.4.md
@@ -230,7 +240,7 @@ Historical:
 
 Current baseline overrides historical rules where they differ.
 
-## 14. Baseline Constraints
+## 15. Baseline Constraints
 
 This baseline does not claim external academic validation of the entire architecture.
 
@@ -240,7 +250,7 @@ New project-level terms remain (가칭) until independently established or expli
 
 Human remains final epistemic decision authority.
 
-## 15. Baseline Decision
+## 16. Baseline Decision
 
 **BASELINE v0.4 — CONSOLIDATED**
 
