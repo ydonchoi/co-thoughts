@@ -49,3 +49,22 @@ v1.3 문서를 덮어쓰지 않는다. v2.0을 canonical active version으로 �
 - Notion persistence와 epistemic verification을 분리
 - 잠금/접근불가 대상 우회 금지 및 실패 저장 오보고 금지
 - Canonical adapter protocol: `protocol/research_note_one_stop_pipeline_v0.1.md`
+
+
+## v2.0+++ — T51–T56 Research Note Disclosure / Full-Pipeline Integration
+
+- Added T51 AI Authorship Disclosure / Provenance Transparency Test.
+- Added T52 Real-Conversation Research Note Attribution Regression Test.
+- Added T53 Cross-Document-Type AI Disclosure Regression Test.
+- Added T54 AI Disclosure Rendering / Actual Research Note Output Test.
+- Added T55 Multi-Note AI Disclosure / Provenance Consistency Test.
+- Added T56 Research Note Full-Pipeline Output Regression Test.
+- Established mandatory artifact-level disclosure: **AI 작성·구조화 연구노트**.
+- Established cross-cutting provenance model using visible marker + provenance block + existing `confession_report` + human-review status.
+- Added optional local provenance distinctions A1 AI-generated, A2 AI-structured, A3 Human-authored, A4 Human-edited, A5 Source-derived; uncertain local attribution must not be fabricated.
+- Confirmed compatibility with D1–D9, NEW / REVISION / EXTENSION / NO_CHANGE / BLOCKED, Branch/Merge, D9, and human post-editing for tested scope.
+- Full-pipeline semantic integration is CLOSED FOR TESTED SCOPE.
+- Live Notion persistence and broad empirical generation validation remain OPEN / CAPABILITY-BOUND.
+- No new epistemic entity or Notion database introduced.
+
+Human remains final epistemic decision authority.
