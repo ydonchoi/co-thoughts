@@ -94,6 +94,6 @@ Primary blockers for implementation closure:
 1. stale D9 HOLD option
 2. Claim-level epistemic state not independently queryable
 3. Evidence/Transformation/Relation objects represented as text rather than structured relations
-4. T16 Q2-Q5 query coverage remains unavailable
+4. Q2-Q6 query coverage remains unavailable
 
 Next: T25 — choose the minimal schema correction path and test whether collapsed text representation is sufficient for the intended query workload before introducing separate data sources.
