@@ -219,3 +219,47 @@ Current known condition at integration drafting:
 - full operational closure: PENDING
 
 Human remains final epistemic decision authority.
+
+
+## 13. AI Authorship / Provenance Disclosure
+
+Every Research Note generated or structured through this adapter must include the artifact-level disclosure:
+
+**AI 작성·구조화 연구노트**
+
+The disclosure is a cross-cutting presentation/provenance requirement. It does not create a new Research Object, Claim, Evidence, Verification, Document Type, or Notion database.
+
+Minimum rendered disclosure:
+- generation/structuring system: Research Note Engine
+- AI participation: YES
+- human review: independently reported
+- generation provenance: Conversation → Research Object → Claim/Evidence → Transformation → SARA → Research Note
+- persistence state: independently reported
+
+Use the existing `confession_report` field for structured disclosure/provenance where available.
+
+Local attribution may distinguish A1 AI-generated, A2 AI-structured, A3 Human-authored, A4 Human-edited, and A5 Source-derived only when provenance supports the distinction. If local attribution is uncertain, preserve artifact-level AI disclosure without inventing precision.
+
+The following are explicitly distinct:
+
+AI authorship ≠ Evidence  
+AI generation ≠ Verification  
+AI synthesis ≠ Consensus  
+Persistence ≠ Verification  
+D9 Promotion ≠ Verification
+
+The disclosure must remain present for NEW, REVISION, EXTENSION, NO_CHANGE, and BLOCKED outcomes. Human editing may add human-edit provenance but must not erase the fact of AI generation/structuring.
+
+## 14. Validation / Closure State
+
+T51–T56 validate the AI disclosure contract, cross-document consistency, actual output rendering requirements, and full-pipeline semantic integration for the tested scope.
+
+Current closure:
+- AI disclosure semantic architecture: CLOSED FOR TESTED SCOPE
+- Cross-document consistency: CLOSED FOR TESTED SCOPE
+- Full-pipeline semantic integration: CLOSED FOR TESTED SCOPE
+- Live writable Notion persistence: OPEN / CAPABILITY-BOUND
+- Post-write verification: OPEN / CAPABILITY-BOUND
+- Empirical repeated/large-scale generation validation: OPEN
+
+Do not restart architecture design solely because live persistence or empirical generation validation remains open. Re-enter through capability check and controlled implementation validation.
