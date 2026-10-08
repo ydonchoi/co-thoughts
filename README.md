@@ -98,6 +98,25 @@ Canonical operational contract: `protocol/research_note_one_stop_pipeline_v0.1.m
 
 Persistence is not verification. Locked or inaccessible Notion targets are not bypassed, and failed writes are never reported as saved.
 
+## Research Note AI Authorship Disclosure
+
+Every Research Note generated/structured through the Research Note Engine must carry an explicit artifact-level disclosure:
+
+> **AI 작성·구조화 연구노트**
+
+The disclosure is a provenance/presentation layer, not an epistemic state. It is accompanied by generation provenance and human-review status, using the existing `confession_report` representation where available.
+
+The project distinguishes, when provenance is sufficiently reliable:
+- A1 AI-generated
+- A2 AI-structured
+- A3 Human-authored
+- A4 Human-edited
+- A5 Source-derived
+
+AI participation does not imply that every proposition or token originated from AI. AI generation is not Evidence or Verification, and persistence is not Verification. When local attribution is uncertain, the artifact-level disclosure is retained and false precision is avoided.
+
+T51–T56 establish this disclosure as a cross-cutting layer across D1–D9 and the tested lifecycle states. No separate authorship entity or Notion database is currently justified.
+
 ## Project Adapter
 
 PROJECT_CONTEXT / DOMAIN_RULES / EVIDENCE_POLICY / ALLOWED_OPERATIONS / OUTPUT_SCHEMA / DECISION_BOUNDARY를 통해 SARA, Research, Recruitment 등 다른 프로젝트에 연결한다.
@@ -129,6 +148,7 @@ CHECKPOINT ≠ EVIDENCE
 | **v2.0** | **Extensive Co-thoughts Architecture** |
 | **v2.0+** | **SARA Verification Output Policy v1.0** |
 | **v2.0++** | **Research Note One-Stop Adapter / Notion Persistence Contract v0.1** |
+| **v2.0+++** | **Research Note Template Standardization + AI Authorship/Provenance Disclosure + T51–T56 integration** |
 
 v1.3 문서는 historical baseline으로 보존한다.
 
@@ -140,6 +160,12 @@ v1.3 문서는 historical baseline으로 보존한다.
 SARA Verification Output Policy v1.0: **PROPOSED / PROJECT INTEGRATION**
 
 Research Note One-Stop Adapter v0.1: **PROJECT INTEGRATION / OPERATIONAL PROTOCOL CANDIDATE**
+
+Research Note Template Contract T39 / D1–D9 Template Specification T40: **PASS / PROJECT-LEVEL**
+
+AI Authorship Disclosure T51–T55: **CLOSED FOR TESTED SCOPE**
+
+Full-Pipeline Regression T56: **CONDITIONAL PASS / SEMANTIC INTEGRATION CLOSED FOR TESTED SCOPE; LIVE PERSISTENCE CAPABILITY-BOUND**
 
 ## v2.0 Runtime Modules
 
