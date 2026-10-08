@@ -1,7 +1,7 @@
 # Research Note Generation Engine v0.4 (가칭)
 
 Status: **BASELINE CANDIDATE**  
-Scope: research-note decomposition, classification, verification, traceability, revision, branch/merge, and D9 synthesis promotion.
+Scope: research-note decomposition, classification, verification, traceability, revision, branch/merge, D9 synthesis promotion, and conversational one-stop execution through the Research Note adapter.
 
 ## 1. Purpose
 
@@ -28,7 +28,15 @@ Conversation
 → Re-verification
 → Promotion Re-entry
 
-## 2. Research Object
+## 2. Invocation and Operational Adapter
+
+The engine is callable through the project-level Research Note one-stop adapter. Explicit triggers include `/연구노트` and `/변환`; equivalent natural-language requests are accepted when intent is unambiguous. The adapter orchestrates generation, existing-note consistency checking, Notion property mapping, persistence, and post-write verification. The adapter does not change the engine's epistemic semantics.
+
+Canonical operational contract: `protocol/research_note_one_stop_pipeline_v0.1.md`.
+
+A successful write is a persistence event, not epistemic verification. Locked or inaccessible targets must not be bypassed, and failed writes must not be reported as saved.
+
+## 3. Research Object
 
 Candidate object types:
 - Research Question
@@ -45,7 +53,7 @@ Split when an object has an independent question, purpose, evidence structure, c
 
 Do not force all conversation content into notes.
 
-## 3. Classification
+## 4. Classification
 
 Primary Purpose: max 1. Secondary Purpose: 0+.
 
@@ -64,7 +72,7 @@ Purpose is distinct from:
 
 Initial classification is provisional. Evidence may trigger RETAIN, RECLASSIFY, SPLIT, MERGE, UPGRADE, or DOWNGRADE.
 
-## 4. Candidate Document Types
+## 5. Candidate Document Types
 
 D1 Exploratory  
 D2 Descriptive/Current State  
@@ -78,7 +86,7 @@ D9 Integrated Synthesis
 
 Document Type is a representation/output structure, not a truth state.
 
-## 5. Evidence Mapping
+## 6. Evidence Mapping
 
 Evidence roles:
 - SUPPORT
@@ -91,7 +99,7 @@ Source ≠ Evidence. Evidence ≠ Verification.
 
 Evidence is mapped to claims or relations rather than automatically attached to an entire note.
 
-## 6. Claim Transformation Traceability (가칭)
+## 7. Claim Transformation Traceability (가칭)
 
 Integrated structures must be decomposed into truth-evaluable claims.
 
@@ -113,7 +121,7 @@ ATTRIBUTE, MEASURE, ANALYZE, SYNTHESIZE, MODEL, GENERALIZE, INTERPRET, RECLASSIF
 
 Transformation Event ≠ Evidence, Verification, Claim, Research Purpose, or Method.
 
-## 7. SARA
+## 8. SARA
 
 SARA is:
 Verification → Revision → Re-verification.
@@ -128,7 +136,7 @@ HYPOTHESIS → UNVERIFIED
 
 A state mutation requires an explicit Verification/Revision record.
 
-## 8. Provenance
+## 9. Provenance
 
 Interpretive provenance:
 SOURCE/TEXT
@@ -166,7 +174,7 @@ MODEL SPECIFICATION
 → PREDICTIVE EVIDENCE
 → FORECAST CLAIM
 
-## 9. Revision Lifecycle
+## 10. Revision Lifecycle
 
 Revision is non-destructive.
 
@@ -188,7 +196,7 @@ Mutation may include:
 - research-gap extraction
 - document-type reclassification
 
-## 10. Branch / Conflict / Merge
+## 11. Branch / Conflict / Merge
 
 Parallel revisions are preserved as branches.
 
@@ -210,7 +218,7 @@ If branches cannot be reconciled:
 
 Branch ≠ Truth. Merge ≠ Agreement. Synthesis ≠ Consensus.
 
-## 11. D9 Promotion
+## 12. D9 Promotion
 
 D9 Gate:
 G1 Relation
@@ -226,7 +234,7 @@ D9 PROMOTED ≠ Model VERIFIED.
 
 If G6 is partial, revision is required and promotion re-entry occurs after affected components are rechecked.
 
-## 12. Human Final Agency
+## 13. Human Final Agency
 
 The human remains the final epistemic decision authority.
 
@@ -237,7 +245,7 @@ Automation must not:
 - treat agreement as verification
 - silently overwrite revision history
 
-## 13. Core Invariants
+## 14. Core Invariants
 
 MODE ≠ OPERATION  
 MODE ≠ STATE  
@@ -267,6 +275,6 @@ BRANCH ≠ TRUTH
 MERGE ≠ AGREEMENT  
 CONSENSUS ≠ VERIFICATION
 
-## 14. Baseline Status
+## 15. Baseline Status
 
 v0.4 is a **baseline candidate**, not a final standardized specification. T2–T13 provided structural stress-test evidence; external academic validity is a separate question.
