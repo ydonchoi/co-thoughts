@@ -9,12 +9,12 @@ Research Note Engine v0.4 — Baseline Consolidation.
 Independently re-apply current v0.4 classification, evidence, transformation, SARA, and D9 rules to stored source pages, without treating existing metadata as authoritative evidence. Compare reconstructed outputs with stored state.
 
 ## Sample A — RN-40
-Reconstructed: R1 / D1 / HYPOTHESIS / evidence UNMAPPED / SARA revision required / D9 HOLD.
-Stored: R1 / D1 / HYPOTHESIS / evidence UNMAPPED / SARA revision required / D9 not applicable.
+Reconstructed: R1 / D1 / HYPOTHESIS / evidence UNMAPPED / SARA revision required / D9 NOT_APPLICABLE.
+Stored: R1 / D1 / HYPOTHESIS / evidence UNMAPPED / SARA revision required / D9 NOT_APPLICABLE.
 Match: PASS.
 
 ## Sample B — RN-50
-Reconstructed: R3 / D9 / HYPOTHESIS; G1 PASS, G2 PASS, G3 PASS, G4 PASS, G5 PARTIAL, G6 PARTIAL PASS / REVISION REQUIRED; D9 PROMOTED withheld.
+Reconstructed: R3 / D9 / HYPOTHESIS; G1 PASS, G2 PASS, G3 PASS, G4 PASS, G5 PARTIAL, G6 PARTIAL PASS / REVISION REQUIRED; D9 state CANDIDATE; D9 PROMOTED withheld.
 Stored: same classification, epistemic state, gate results, revision loop and promotion decision.
 Match: PASS.
 
