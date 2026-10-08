@@ -15,7 +15,7 @@ Freeze the decision procedure for determining whether the collapsed Notion repre
 
 ## 3. Decision matrix
 
-### Gate A — Q2-Q5 all pass
+### Gate A — Q2-Q6 all pass
 Decision: RETAIN COLLAPSED REPRESENTATION.
 
 Action:
@@ -75,7 +75,7 @@ Record actual returned rows/results. Do not infer results from schema inspection
 Implementation closure requires:
 1. semantic baseline PASS;
 2. sample migration/reproducibility PASS;
-3. Q2-Q5 executed;
+3. Q2-Q6 executed;
 4. collapsed-vs-extended representation decision supported by query evidence;
 5. broader population reproducibility completed.
 
@@ -90,4 +90,4 @@ Until these conditions are met, implementation status remains CONDITIONAL.
 - No D9 promotion from candidate state.
 - No epistemic upgrade from metadata migration.
 
-Next: T27 — broader population migration/reproducibility preparation, while T26 Q2-Q6 remains pending until query access is restored.
+Next: T27 — broader population migration/reproducibility preparation, while T26 Q2-Q6 remains pending until Query Data Source access is restored.
