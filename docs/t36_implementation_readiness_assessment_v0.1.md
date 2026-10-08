@@ -36,7 +36,8 @@ The following remain unverified:
 - population-level query coverage;
 - broader reproducibility sampling;
 - live write capability;
-- post-write verification.
+- post-write verification;
+- end-to-end Notion persistence under a writable target.
 
 The current blocker is capability/access related, not demonstrated schema insufficiency.
 
@@ -94,7 +95,20 @@ OPERATIONAL VERIFICATION PENDING
         ↓
 LIVE MIGRATION DEFERRED
 
-## 6. Re-entry trigger
+## 6. Research Note One-Stop Integration
+
+T37 adds the conversational adapter contract:
+
+`/연구노트` / `/변환` / unambiguous natural language
+→ Research Note Engine
+→ Existing-note consistency
+→ Notion mapping
+→ Create/Update
+→ Post-write verification.
+
+T37 = CONDITIONAL PASS. Invocation routing and generation are ready. The current Notion target is locked, so live persistence remains blocked. This does not establish schema insufficiency.
+
+## 7. Re-entry trigger
 
 When the blocked capabilities become available, do not restart the architecture analysis.
 
@@ -111,7 +125,7 @@ Follow T31:
 9. reproducibility;
 10. closure decision.
 
-## 7. Safety conclusions
+## 8. Safety conclusions
 
 The following must not be inferred:
 
@@ -122,7 +136,7 @@ The following must not be inferred:
 - dry-run success ≠ live-state correctness;
 - documentation consistency ≠ empirical workload validation.
 
-## 8. Decision
+## 9. Decision
 
 T36 = CONDITIONAL.
 
