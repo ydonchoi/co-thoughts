@@ -57,7 +57,9 @@ Verification = explicit evaluation/revision/re-verification record.
 
 Relation = typed relation between knowledge objects.
 
-Research Note = document representation, not an epistemic object.
+Research Note = document representation, not an independent claim-level epistemic object.
+
+Note-level epistemic state is a document-level assessment of the note's principal proposition set. Claim-level epistemic state belongs to each truth-evaluable Claim. A note-level state must not be interpreted as uniform verification of all claims; heterogeneous claim states require an explicit basis for any aggregate note-level assessment.
 
 Taxonomy = classification metadata, not evidence or truth.
 
@@ -101,6 +103,8 @@ Evidence does not automatically determine epistemic state.
 Agreement is not verification.
 
 D9 promotion does not imply that every component claim is verified.
+
+D9 applicability is distinct from promotion state: NOT_APPLICABLE ≠ CANDIDATE-not-promoted. HOLD is an operational review label, not a canonical promotion state unless explicitly defined.
 
 ## 6. SARA
 
@@ -162,7 +166,7 @@ Existing core metadata is preserved.
 | 문서 형식 | Legacy / auxiliary representation label |
 | 분류 코드 | Taxonomy code |
 | 분류 근거 | Classification provenance/rationale |
-| 인식론적 상태 | Claim/note epistemic state |
+| 인식론적 상태 | Note-level epistemic state; Claim-level state is stored at Claim layer |
 | 근거 상태 | Evidence mapping state |
 | SARA 상태 | Verification/revision lifecycle |
 | 연구 설계 | Research Design |
@@ -179,7 +183,7 @@ Existing core metadata is preserved.
 | Transformation Trace | Transformation provenance |
 | Revision Type | Revision event |
 | Branch ID | Parallel revision |
-| D9 상태 | Promotion state |
+| D9 상태 | D9 applicability / promotion state; canonical states: NOT_APPLICABLE, CANDIDATE, PROMOTED |
 
 ## 11. Metadata vs Page Body
 
