@@ -90,6 +90,14 @@ SARA 검증은 답변의 마지막에 붙는 단순 사후 평가가 아니라 *
 
 상세 정책은 [protocol/sara_verification_output_policy_v1.0.md](protocol/sara_verification_output_policy_v1.0.md)에 정의한다.
 
+## Research Note One-Stop Adapter
+
+Research-note generation is callable through `/연구노트`, `/변환`, or unambiguous natural-language equivalents. The adapter routes the request through the Research Note Engine and, when the Notion persistence path is available, performs existing-note consistency check → generation → Notion mapping → create/update → post-write verification in one continuous workflow.
+
+Canonical operational contract: `protocol/research_note_one_stop_pipeline_v0.1.md`.
+
+Persistence is not verification. Locked or inaccessible Notion targets are not bypassed, and failed writes are never reported as saved.
+
 ## Project Adapter
 
 PROJECT_CONTEXT / DOMAIN_RULES / EVIDENCE_POLICY / ALLOWED_OPERATIONS / OUTPUT_SCHEMA / DECISION_BOUNDARY를 통해 SARA, Research, Recruitment 등 다른 프로젝트에 연결한다.
@@ -120,6 +128,7 @@ CHECKPOINT ≠ EVIDENCE
 | v1.3 | Claim/Evidence/Verification 분리 및 T1~T13 검증 |
 | **v2.0** | **Extensive Co-thoughts Architecture** |
 | **v2.0+** | **SARA Verification Output Policy v1.0** |
+| **v2.0++** | **Research Note One-Stop Adapter / Notion Persistence Contract v0.1** |
 
 v1.3 문서는 historical baseline으로 보존한다.
 
@@ -129,6 +138,8 @@ v1.3 문서는 historical baseline으로 보존한다.
 **Status:** ACTIVE / ARCHITECTURAL BASELINE
 
 SARA Verification Output Policy v1.0: **PROPOSED / PROJECT INTEGRATION**
+
+Research Note One-Stop Adapter v0.1: **PROJECT INTEGRATION / OPERATIONAL PROTOCOL CANDIDATE**
 
 ## v2.0 Runtime Modules
 
