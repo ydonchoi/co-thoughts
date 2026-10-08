@@ -113,3 +113,12 @@ v1.3 문서는 historical baseline으로 보존한다.
 **Version:** v2.0  
 **Status:** ACTIVE / ARCHITECTURAL BASELINE
 
+
+## v2.0 Runtime Modules
+
+Implemented modules: `cognitive_router.py`, `epistemic_state.py`, `context.py`.
+
+- Router selects minimal cognitive operations.
+- Epistemic state separates Claim/Premise and supports non-monotonic revision.
+- Context module enforces temporal/attribution boundaries.
+- Cognitive output remains `UNVERIFIED` and non-evidence until SARA independently evaluates it.
