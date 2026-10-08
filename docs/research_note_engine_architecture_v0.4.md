@@ -87,3 +87,24 @@ The architecture supports human judgment; it does not delegate final epistemic a
 ## Scope Note
 
 This architecture is a project-level proposal. New concepts marked (가칭) are not claimed to be established academic terminology.
+
+
+## AI Disclosure / Provenance Cross-Cutting Layer
+
+The architecture includes a cross-cutting AI authorship/provenance presentation layer:
+
+**Visible Marker + Provenance Block + `confession_report` + Human Review Status**
+
+Canonical marker:
+
+**AI 작성·구조화 연구노트**
+
+This layer does not add a logical epistemic entity. It remains independent from Claim, Evidence, Verification, D9 Gate, and persistence state.
+
+Local attribution, when reliable, may distinguish A1 AI-generated, A2 AI-structured, A3 Human-authored, A4 Human-edited, and A5 Source-derived. Uncertain local attribution remains unresolved.
+
+## Validation State
+
+T51–T56: AI disclosure and full-pipeline semantic integration **CLOSED FOR TESTED SCOPE**.
+
+Live persistence verification and large-scale empirical generation remain open/capability-bound. No architecture expansion is justified by the current evidence.
