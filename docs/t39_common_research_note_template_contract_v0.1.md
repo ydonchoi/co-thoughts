@@ -306,3 +306,23 @@ T40 should translate the existing D1–D9 proposal structures into contract-comp
 This document is a project-level architecture proposal for template execution. It is not an established external academic standard.
 
 Human remains final epistemic decision authority.
+
+
+## AI Disclosure Rendering Contract
+
+AI disclosure is a common cross-document layer and must not depend on any D1–D9 body section.
+
+Required artifact marker:
+
+**AI 작성·구조화 연구노트**
+
+The common rendering contract should expose:
+- generation/structuring system;
+- AI participation;
+- human review status;
+- generation provenance;
+- persistence state where applicable.
+
+AI disclosure is presentation/provenance metadata, not Claim, Evidence, Verification, or epistemic state.
+
+Human/source attribution must remain distinct from AI generation when provenance supports that distinction.
