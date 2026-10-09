@@ -5,6 +5,10 @@
 - [한국어 README](README.md)
 - [Documentation language guide](docs/LANGUAGE.md)
 
+## Origin and Background
+
+This repository began as an autobiographical record. It started with an effort to examine patterns in my accumulated conversation history and to structure and implement the thinking processes that emerge during communication. Over time, observing and organizing these personal thinking and dialogue patterns expanded into the design of protocols and execution rules for human–AI co-thinking, along with research-note structures and verification practices.
+
 ## License
 
 This repository is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** license.
