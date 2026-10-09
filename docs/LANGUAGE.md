@@ -6,10 +6,10 @@ This repository maintains Korean source documents and English companion translat
 
 - Korean files remain the source of truth unless a document explicitly states otherwise.
 - English companion files use the suffix `.en.md` and remain beside their Korean originals.
-- Translations must preserve version, status, epistemic qualifications, safety boundaries, and operational meaning.
+- Translations preserve the source document's version, status, epistemic qualifications, safety boundaries, and operational meaning.
 - A translation does not create a new policy, version, or verification result.
-- When a discrepancy is found, consult the Korean source and record the correction in the English companion.
-- Historical and archived documents are not silently upgraded or rewritten as part of current-document translation work.
+- When a discrepancy is found, consult the Korean source and correct the English companion.
+- Historical documents are translated as historical records; translation does not activate or upgrade superseded rules.
 
 ## Core English companions
 
@@ -30,7 +30,15 @@ This repository maintains Korean source documents and English companion translat
 | Execution contract | [v0.1](contracts/execution_contract_v01.md) | [v0.1](contracts/execution_contract_v01.en.md) |
 | Switchable backend contract | [v0.1](contracts/switchable_backend_contract_v01.md) | [v0.1](contracts/switchable_backend_contract_v01.en.md) |
 | SARA verification output policy | [v1.0](verification/sara_verification_output_policy_v1.0.md) | [v1.0](verification/sara_verification_output_policy_v1.0.en.md) |
+| Historical v1.3 protocol | [v1.3](../archive/protocol/human-ai_co-thoughts_protocol_v1.3.md) | [v1.3](../archive/protocol/human-ai_co-thoughts_protocol_v1.3.en.md) |
+| Latest template test | [T55](testing/t55_multi_note_ai_disclosure_provenance_consistency_test_v0.1.md) | [T55](testing/t55_multi_note_ai_disclosure_provenance_consistency_test_v0.1.en.md) |
 
-## Scope
+## Coverage and navigation
 
-The first English set covers the active protocol and the principal design, contract, and verification documents. Per-test reports, historical archive documents, and short directory READMEs can be translated in a later pass. No source document is removed or replaced by its translation.
+The initial translation pass now provides an English companion for each of the repository's 75 original Markdown documents, including active protocols, architecture/contract documents, test specifications, directory READMEs, and archived project history. This page itself is the language guide and is not a translation pair.
+
+- Start with [English README](../README.en.md) or the [Korean README](../README.md).
+- Test specifications are under [docs/testing](testing/README.md) and [English testing guide](testing/README.en.md).
+- Historical project design records are under [archive](../archive/README.md) and [English archive guide](../archive/README.en.md).
+
+No Korean source document was removed or replaced by its translation.
