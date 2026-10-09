@@ -2,6 +2,8 @@
 
 Human-AI Co-Thinking Protocol — current baseline v2.0+++
 
+**Languages:** [English](README.en.md) · [Documentation language guide](docs/LANGUAGE.md)
+
 ## License
 
 This repository is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** license.
