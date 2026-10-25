@@ -47,3 +47,11 @@ Core v1.3 principles remain in v2.0. Do not overwrite v1.3; use v2.0 as canonica
 ---
 
 [Korean source](changelog.md)
+
+## 2026-10-25 — Verification-Domain Routing Addendum (guidance v0.1)
+
+- Added pre-hypothesis domain scanning and post-hypothesis domain reassessment to the provisional problem-solving guidance.
+- Added a provisional top-level verification-domain taxonomy inspired by academic classifications, without claiming it is an official universal taxonomy.
+- Added claim-level primary/secondary tags, criticality, temporal sensitivity, evidence strategy, unresolved-domain reporting, and risk/decision-impact prioritization.
+- Added domain-fit examples for law, health/sciences, data/statistics, finance/operations, social science/policy, humanities, ethics, and spatial/housing issues.
+- Added test candidates for domain routing, source-fit, and verification efficiency. Runtime automation and measured cost reduction remain unverified.
