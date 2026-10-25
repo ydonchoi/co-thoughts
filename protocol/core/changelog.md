@@ -75,3 +75,11 @@ Human remains final epistemic decision authority.
 - Clarified SARA's independent, repeated verification boundary across relevant stages, including honest NOT RUN / UNVERIFIED / BLOCKED reporting and re-verification after material changes.
 - Explicitly separated execution state, epistemic verification state, and provisional solution state.
 - Status: ACTIVE GUIDANCE CANDIDATE / DESIGN-LEVEL; runtime implementation, CI, and empirical performance remain unverified.
+
+### 2026-10-25 — Verification-Domain Routing Addendum (guidance v0.1)
+
+- Added a pre-hypothesis domain scan and a post-hypothesis domain reclassification step to the provisional problem-solving guidance.
+- Added a provisional top-level verification-domain taxonomy inspired by academic classifications, without claiming to adopt a single official taxonomy.
+- Added claim-level primary/secondary domain tags, criticality, temporal sensitivity, evidence/source strategy, unresolved-domain reporting, and risk/decision-impact-based verification prioritization.
+- Added domain-fit verification examples for law, health/sciences, data/statistics, finance/operations, social science/policy, humanities, ethics, and spatial/housing questions.
+- Added regression-test candidates for domain routing, source-fit, and verification efficiency. No runtime automation or measured cost reduction is claimed.
