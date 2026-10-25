@@ -39,7 +39,6 @@ v1.3의 Human Agency, Anti-Sycophancy, Epistemic Separation, Revision over Consi
 
 v1.3 문서를 덮어쓰지 않는다. v2.0을 canonical active version으로 사용한다.
 
-
 ### v2.0++ — Research Note One-Stop Adapter v0.1
 
 - `/연구노트` 및 `/변환` 명시적 호출어 도입
@@ -49,7 +48,6 @@ v1.3 문서를 덮어쓰지 않는다. v2.0을 canonical active version으로 �
 - Notion persistence와 epistemic verification을 분리
 - 잠금/접근불가 대상 우회 금지 및 실패 저장 오보고 금지
 - Canonical adapter protocol: `protocol/research_note_one_stop_pipeline_v0.1.md`
-
 
 ## v2.0+++ — T51–T56 Research Note Disclosure / Full-Pipeline Integration
 
@@ -68,3 +66,12 @@ v1.3 문서를 덮어쓰지 않는다. v2.0을 canonical active version으로 �
 - No new epistemic entity or Notion database introduced.
 
 Human remains final epistemic decision authority.
+
+## 2026-10-25 — Problem-Solving Co-Thinking Guidance v0.1 (provisional)
+
+- Added `protocol/core/problem_solving_cothinking_guidance_v0.1.md` and its English companion.
+- Mapped the prior stage-by-stage comparison to existing v2.0 operations without replacing the canonical architecture.
+- Added guidance for problem framing, competing causal hypotheses, stakeholder frames, fact/value/inference separation, provisional solution hypotheses, feasibility/consequence evaluation, and Human–AI Hypothesis Delta.
+- Clarified SARA's independent, repeated verification boundary across relevant stages, including honest NOT RUN / UNVERIFIED / BLOCKED reporting and re-verification after material changes.
+- Explicitly separated execution state, epistemic verification state, and provisional solution state.
+- Status: ACTIVE GUIDANCE CANDIDATE / DESIGN-LEVEL; runtime implementation, CI, and empirical performance remain unverified.
