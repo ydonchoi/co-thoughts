@@ -33,6 +33,8 @@ This repository maintains Korean source documents and English companion translat
 | Historical v1.3 protocol | [v1.3](../archive/protocol/human-ai_co-thoughts_protocol_v1.3.md) | [v1.3](../archive/protocol/human-ai_co-thoughts_protocol_v1.3.en.md) |
 | Latest template test | [T55](testing/t55_multi_note_ai_disclosure_provenance_consistency_test_v0.1.md) | [T55](testing/t55_multi_note_ai_disclosure_provenance_consistency_test_v0.1.en.md) |
 
+| Problem-solving co-thinking guidance | [v0.1](../protocol/core/problem_solving_cothinking_guidance_v0.1.md) | [v0.1](../protocol/core/problem_solving_cothinking_guidance_v0.1.en.md) |
+
 ## Coverage and navigation
 
 The initial translation pass now provides an English companion for each of the repository's 75 original Markdown documents, including active protocols, architecture/contract documents, test specifications, directory READMEs, and archived project history. This page itself is the language guide and is not a translation pair.
