@@ -35,6 +35,78 @@ TASK DIAGNOSIS → PROBLEM FRAMING → COMPETING CAUSAL HYPOTHESES
 
 This is a state-based conceptual path, not a fixed linear pipeline. SARA's review is not confined to the final step; it recurs for relevant claims, premises, sources, solutions, and revisions.
 
+### 3.0 Verification-domain routing before and after hypothesis formation
+
+**Before** developing a concrete provisional solution, identify likely fact-verification domains from the problem statement and current premises. **After** deriving and comparing provisional solutions, re-extract the domains from the actual proposed mechanisms and claims, then add any missed domains. This initial routing prioritizes verification; it must not become a permanent restriction that excludes necessary checks.
+
+#### A. Minimum routing output
+
+- **Primary domain:** the one domain most directly connected to the decisive claims.
+- **Secondary domains:** additional domains that can materially change judgments about legality, effect, cost, operation, or acceptability.
+- **Claim units:** facts, premises, causal claims, legal/policy claims, figures, and source attributions to check within each domain.
+- **Criticality:** impact of error on the conclusion or implementation, e.g. decisive / important / supporting.
+- **Temporal sensitivity:** whether current law, policy, prices, statistics, or technical conditions must be checked.
+- **Verification criteria and source types:** what evidence can support or challenge each claim, and how it will be independently checked.
+- **Unresolved domains / hold conditions:** areas lacking accessible evidence or requiring specialist judgment.
+
+Classify important claims rather than assigning one domain to the whole answer. A claim may span multiple domains; allow multiple tags.
+
+#### B. Top-level routing taxonomy (provisional operational taxonomy)
+
+The following is a **working taxonomy inspired by academic classifications**, not a verbatim adoption of any institution's official classification. Subdivide only when useful; do not investigate the full taxonomy for every task.
+
+1. **Natural sciences:** physics, chemistry, biology, earth and environmental sciences.
+2. **Medicine, health and public health:** clinical questions, epidemiology, environmental health and health risks.
+3. **Engineering, technology and information science:** design, systems, technical performance, software and information systems.
+4. **Mathematics, statistics and data methodology:** measurement, sampling, estimation, statistical claims and reproducibility.
+5. **Social sciences:** sociology, psychology, political science, anthropology, education and related fields.
+6. **Economics, business, finance and organizational management:** costs and benefits, incentives, budgets, operations and governance.
+7. **Law, legal systems and regulation:** authority, statutes and rules, duties, liability, sanctions, procedure and jurisdiction.
+8. **Public administration, policy and policy evaluation:** public enforcement, policy instruments, administrative procedure, effects and evaluation.
+9. **Humanities, history, language and culture:** texts, concepts, historical context and interpretive accuracy.
+10. **Ethics, philosophy and normative judgment:** rights, justice, legitimacy, value conflicts and responsibility.
+11. **Spatial, urban, housing and environmental planning:** spatial layout, access, housing management and spatial externalities.
+12. **Interdisciplinary / other specialist domains:** combinations or specialist areas outside the categories above; state the subdomain and why it matters.
+
+Do not assume this taxonomy is exhaustive or mutually exclusive. Do not bury high-stakes constraints such as law, ethics, safety, or privacy under a primary domain; add cross-cutting tags when needed.
+
+#### C. Domain-specific verification strategy
+
+A domain label alone is not verification. Identify **what kind of evidence could support or challenge the claim**.
+
+- Law and regulation: establish jurisdiction and reference date; prioritize authoritative primary sources such as current legislation, official interpretations, and case law. Do not infer legal sanctioning authority merely from the existence of a private rule.
+- Medicine, health and natural sciences: match evidence type to the claim; assess systematic reviews, original studies, public-authority sources, evidence strength and applicability.
+- Statistics and data: inspect source data, definitions, sampling and measurement, methods, uncertainty, and reproducibility.
+- Economics, finance and operations: inspect cost components, assumptions, funding sources, recurring costs, opportunity costs, and sensitivity conditions.
+- Social science, policy and education: inspect research design, population and context, alternative explanations, causal-inference limits, and external validity.
+- Humanities, history and language: inspect original text, edition, context, source lineage, and the distinction between factual statement and interpretation.
+- Ethics and normative claims: factual verification alone cannot settle a value conclusion. State normative premises and evaluation criteria; separately verify empirical claims embedded in them.
+- Spatial, urban and housing questions: separate spatial conditions, applicable rules, exposure or movement paths, field observations, and design assumptions.
+
+Source authority varies by domain, and one source type cannot verify every claim. Record conflicts between sources rather than averaging them away.
+
+#### D. Efficiency and verification depth
+
+Prioritize review using these factors together:
+
+- **Decision impact:** would a false claim change the solution or conclusion?
+- **Error cost / risk:** does it affect legal rights, health, safety, finances, or serious harm?
+- **Uncertainty:** is evidence missing or conflicting?
+- **Temporal sensitivity:** does it require current confirmation?
+- **Verifiability / marginal cost:** can reliable evidence be checked at reasonable cost?
+
+Review high-risk, decisive claims first even when verification is costly. For low-risk supporting claims, reduce depth or explicitly retain an unverified status. Efficiency must not justify skipping decisive legal authority, safety premises, or facts that determine the conclusion. If scoring is used, define the scale, weights, and thresholds first; do not present an unvalidated score as an empirical measure.
+
+#### E. Two-pass routing around provisional hypotheses
+
+1. **Pre-hypothesis scan:** examine the problem statement and key premises; identify primary/secondary domains, decisive factual claims, and high-risk constraints. Use this to plan initial verification.
+2. **Derive and compare hypotheses:** propose the most defensible concrete provisional solution with current information and compare alternatives. Do not confuse proposal with completed verification.
+3. **Post-hypothesis scan:** decompose claims arising from each solution's mechanism, authority, costs, predicted effects, and side effects; reassess domain tags. Expand the verification scope if a new domain or high-risk claim appears.
+4. **SARA routing and iterative review:** independently review decisive claims using domain-appropriate criteria and re-verify material changes.
+5. **Exit decision:** determine whether decisive claims were reviewed or the reason for non-verification is recorded. Report solution status separately from factual verification status.
+
+The two scans do not require investigating the same sources twice. The first creates the verification plan; the second finds claims and domains introduced or exposed by the proposed solution.
+
 ### 3.1 Problem framing
 
 Preserve the user's original problem statement. Separate symptoms, core problem, possible causes, affected parties, and target state. State relevant boundaries: subject, place, time, jurisdiction, affected groups, and decision authority. Consider alternative framings when they could change the solution. Distinguish observed facts from model interpretation.
