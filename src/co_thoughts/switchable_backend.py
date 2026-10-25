@@ -50,6 +50,17 @@ class UserInputCognitiveBackend:
                 "reasoning_artifact": "object",
             },
         }
+        if "workflow" in request:
+            envelope["workflow"] = request["workflow"]
+            envelope["workflow_instructions"] = (
+                "Apply only this selected workflow cluster in this single response. "
+                "Do not launch other workflow clusters. Keep verification UNVERIFIED unless a separate verifier runs."
+            )
+            if "external_tool_plan" in request["workflow"]:
+                envelope["external_tool_instructions"] = (
+                    "Treat the external tool plan as a requirements and availability check only. "
+                    "Do not claim a tool was called unless its execution result is supplied."
+                )
         return (
             "You are a cognitive reasoning backend for Co-Thoughts. "
             "Return only JSON matching the supplied contract. "

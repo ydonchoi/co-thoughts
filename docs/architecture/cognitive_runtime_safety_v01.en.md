@@ -34,6 +34,31 @@ Even valid cognitive output is normalized to:
 
 Verification belongs to an independent verification layer.
 
+## External Tool Boundary
+
+Workflow planning can report required/recommended tool capabilities and whether
+an adapter is registered. The current catalog includes `web_search`,
+`calculator`, `data_analysis`, and `spatial_lookup`. The runtime provides a
+provider-neutral `ToolRegistry`; the host must register concrete adapters.
+Plans never execute automatically. `invoke_external_tool()` requires
+`allow_tool_execution=True`, and side-effecting adapters also require
+`allow_external_side_effects=True`. Tool output remains UNVERIFIED and is not
+promoted to evidence.
+
+## SARA Connection
+
+`CognitiveRuntime` lazily connects to the sibling SARA v2.4
+`CoThoughtsSARAAdapter` by default. Set `CO_THOUGHTS_SARA_V24_ROOT` to use a
+different checkout. After backend generation, each returned claim is passed
+through the adapter's epistemic-state and attribution checks; backend-supplied
+claim verification labels are reset to `UNVERIFIED` first. A missing adapter
+is reported as `NOT_CONNECTED` and never treated as successful verification.
+
+The v2.4 adapter does not search sources or assess factual truth. SARA v2.5's
+dialogue judgment and source-verification providers remain separate and require
+their own provider configuration. Runtime-level `verification_status` remains
+`UNVERIFIED` unless a real independent verifier integration is added.
+
 ## Promotion Gate
 
 A concrete provider may be considered for integration only after:

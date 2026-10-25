@@ -44,6 +44,36 @@ def user_response(prompt):
     })
 
 
+def test_user_input_prompt_includes_only_selected_workflow():
+    captured = {}
+
+    def input_fn(prompt):
+        captured["prompt"] = prompt
+        return json.dumps({
+            "execution_id": "USER-WORKFLOW-1",
+            "status": "SUCCEEDED",
+            "mode": "DEEP",
+            "claims": [],
+            "epistemic_states": [],
+            "reasoning_artifact": {},
+        })
+
+    backend = UserInputCognitiveBackend(input_fn)
+    request = dict(REQUEST)
+    request["workflow"] = {
+        "name": "problem_diagnosis",
+        "stages": ["problem_framing"],
+        "operations": ["EXPLORE"],
+        "verification_status": "UNVERIFIED",
+        "external_tool_plan": {"execution_status": "NOT_RUN"},
+    }
+    backend.generate(request)
+
+    assert '"name": "problem_diagnosis"' in captured["prompt"]
+    assert "Do not launch other workflow clusters" in captured["prompt"]
+    assert "Do not claim a tool was called" in captured["prompt"]
+
+
 def test_auto_prefers_external_provider():
     provider = Provider()
     backend = SwitchableCognitiveBackend(

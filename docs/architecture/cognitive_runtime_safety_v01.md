@@ -42,6 +42,15 @@ The runtime does not execute tools or external side effects unless an explicit
 policy enables them. Enabling those capabilities is a separate security
 review concern and must never be inferred from backend output.
 
+Workflow planning can report required/recommended tool capabilities and whether
+an adapter is registered. The current catalog includes `web_search`,
+`calculator`, `data_analysis`, and `spatial_lookup`. The runtime has a
+provider-neutral `ToolRegistry`; a host must register concrete adapters. Tool
+plans do not execute automatically. `invoke_external_tool()` requires
+`allow_tool_execution=True`, and side-effecting adapters also require
+`allow_external_side_effects=True`. Tool output remains UNVERIFIED and is not
+promoted to evidence.
+
 ## Epistemic firewall
 
 A backend returning verification_status=ESTABLISHED or is_evidence=true is
@@ -53,6 +62,20 @@ Even valid cognitive output is normalized to:
 - is_evidence=false
 
 Verification belongs to an independent verification layer.
+
+## SARA connection
+
+`CognitiveRuntime` lazily connects to the sibling SARA v2.4
+`CoThoughtsSARAAdapter` by default. Set `CO_THOUGHTS_SARA_V24_ROOT` to use a
+different checkout. After backend generation, each returned claim is passed
+through the adapter's epistemic-state and attribution checks; backend-supplied
+claim verification labels are reset to `UNVERIFIED` first. A missing adapter
+is reported as `NOT_CONNECTED` and never treated as successful verification.
+
+The v2.4 adapter does not search sources or assess factual truth. SARA v2.5's
+dialogue judgment and source-verification providers remain separate and require
+their own provider configuration. Runtime-level `verification_status` remains
+`UNVERIFIED` unless a real independent verifier integration is added.
 
 ## Promotion gate
 

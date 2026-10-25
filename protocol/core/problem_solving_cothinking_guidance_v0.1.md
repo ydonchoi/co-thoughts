@@ -6,6 +6,8 @@
 > 적용 범위: 복합 문제 해결, 정책·운영 대안 설계, 조직·공동체 갈등 해결 및 실행 가능한 권고가 필요한 과제
 > 비적용 기본값: 단순 사실 질의·계산·번역 등에 전체 절차를 강제하지 않는다.
 
+> 구현 현황: `cognitive_router.route_verification_domains()`가 키워드 기반의 잠정 분야 라우팅을 제공한다. 주장 추출, 근거 탐색, SARA 검증, 전체 문제 해결 워크플로우의 자동 실행은 구현 범위에 포함되지 않는다.
+
 이 문서는 기존 co-thoughts 인지 연산을 대체하거나 SARA의 검증 권한을 흡수하지 않는다. 기존 EXPLORE, EXAMINE, COUNTER, COMPETE, VERIFY, SYNTHESIZE, REVISE를 문제 해결형 과제에서 어떻게 연결할지 규정하는 보강 지침이다. 문서의 존재만으로 새 Cognitive Operation의 런타임 구현, 독립 SARA 프로세스의 실제 상시 실행 또는 검증 성능이 입증되는 것은 아니다.
 
 ## 1. 목적과 변경 근거
@@ -56,6 +58,8 @@ SARA의 검증 루프는 이 흐름의 마지막 한 칸만 차지하지 않는�
 ### 3.0 검증 영역 사전 분류 및 재분류 (Verification-Domain Routing)
 
 구체적인 잠정 해결가설을 도출하기 **전**, 문제 진술과 현재 확인된 전제를 바탕으로 사실 검증이 필요한 영역을 우선 특정한다. 잠정 해결가설을 도출·비교한 **후**에는 실제로 제안된 해결책과 핵심 주장으로부터 검증 영역을 다시 추출하고, 사전 분류에서 빠진 영역을 보완한다. 이는 검증 범위를 좁히기 위한 영구적 제한이 아니라, 필요한 검증을 우선순위화하기 위한 초기 라우팅이다.
+
+현재 참조 라우터는 문제 텍스트와 선택적으로 제공된 `proposed_solution`, `claims`의 키워드로 분야 힌트를 반환한다. 분야 이름은 분류 후보이며 전체 문맥의 의미를 판정하지 않는다. `claims`는 호출자가 제공해야 하며 자동 주장 추출은 하지 않는다. 반환되는 분야 태그·출처 전략·최신성 신호는 검증 완료를 뜻하지 않고, 모든 검증 상태는 `UNVERIFIED`로 남는다. 따라서 기본 출력의 primary domain은 키워드 일치 수가 많은 후보를 우선한 추정값이며 사용 맥락에 맞게 확인해야 한다.
 
 #### A. 영역 분류의 최소 출력
 
@@ -293,6 +297,20 @@ CLAIM / PREMISE / SOURCE / SOLUTION HYPOTHESIS
 - 사용자가 잠정 해결안이나 권고를 명시적으로 요청하면 SYNTHESIZE는 분석 반복에 그치지 않고 현재 근거로 방어 가능한 잠정안을 제시한다.
 - 법률·재정·안전·권리가 결론을 좌우하면 VERIFY/SARA 검토를 생략하지 않는다. 검증 자원이 없으면 불확실성 또는 BLOCKED를 표시한다.
 - 현재 deterministic keyword router의 선택만으로 이 지침의 의미적 단계가 실제 실행되었다고 간주하지 않는다. 자연어 호스트의 준수는 별도 실행·회귀 시험으로 확인한다.
+
+### 6.1 필요 시 호출하는 워크플로우 묶음
+
+런타임은 전체 절차를 자동으로 연쇄 실행하지 않고, 호출자가 선택한 한 묶음만 단일 backend 호출로 전달한다. `CognitiveRuntime.run_workflow(name, request)`에서 지원하는 이름은 `problem_diagnosis`, `solution_design`, `feasibility_review`, `hypothesis_delta`다. 각 묶음은 관련 stage와 기존 Cognitive Operation 힌트를 backend에 전달한다. 이는 묶음별 프롬프트 실행이지, 각 stage의 독립적인 결정론적 실행 또는 SARA 검증이 아니다. 도메인 사전·사후 분류는 별도 `route_verification_domains()` 호출로 사용할 수 있다.
+
+자연어 엔트리포인트 `CognitiveRuntime.run_natural_language(request)`는 작업 문장에서 명시적인 한국어·영어 호출 표현을 찾아 하나의 워크플로우로 라우팅한다. `CognitiveRouter.route()`도 `workflow_routing`에 `MATCHED`, `NO_MATCH`, `AMBIGUOUS` 및 후보를 제공한다. 매칭이 없으면 기존 단일 실행 경로를 사용하고, 서로 다른 묶음이 둘 이상 감지되면 임의 조합이나 다중 호출을 하지 않고 `WORKFLOW_AMBIGUOUS`로 반환한다.
+
+### 6.2 외부 도구 필요성 계획 및 연결 경계
+
+`CognitiveRuntime.plan_natural_language()`와 `plan_workflow_tools()`는 외부 도구 필요성, 연결 여부, 미호출 상태를 사전 점검한다. 현재 capability는 `web_search`, `calculator`, `data_analysis`, `spatial_lookup`이며, 최신·고위험·근거 확인은 검색, 수치·비용 계산은 계산기, 데이터·통계는 데이터 분석, 지도·경로·위치 조회는 공간 조회로 연결한다. 단순히 계획된 도구는 자동 실행되지 않는다.
+
+호스트는 `ToolRegistry.register(capability, adapter)`로 실제 어댑터를 등록하고, `CognitiveRuntime.invoke_external_tool()`로 명시 호출할 수 있다. 실행에는 `SafetyPolicy.allow_tool_execution=True`가 필요하며, 외부 변경을 일으키는 어댑터에는 별도로 `allow_external_side_effects=True`가 필요하다. 현재 저장소에는 검색·계산·데이터·공간 서비스의 실제 공급자 어댑터나 인증정보가 포함되어 있지 않다. 도구 출력은 관찰 데이터로 취급하고 `UNVERIFIED`, `is_evidence=False`를 유지한다.
+
+`CognitiveRuntime`은 기본적으로 sibling SARA v2.4 `CoThoughtsSARAAdapter`에 연결하고, 생성된 claim의 epistemic state와 attribution 제약을 검사한다. 연결 경로는 `CO_THOUGHTS_SARA_V24_ROOT`로 바꿀 수 있다. 이는 사실의 진위나 출처를 확인하는 SARA v2.5 judgment/source-verification provider 연결과 다르며, 그 provider는 별도 설정이 필요하다. 실제 출처 검증이 실행되지 않으면 상태는 `UNVERIFIED`다.
 
 ## 7. 종료 및 결정 규칙
 

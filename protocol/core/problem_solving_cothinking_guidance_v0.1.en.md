@@ -3,6 +3,7 @@
 > Status: ACTIVE GUIDANCE CANDIDATE / DESIGN-LEVEL
 > Target: co-thoughts v2.0 architecture
 > Verification partner: SARA independent verification layer
+> Implementation status: `cognitive_router.route_verification_domains()` provides provisional keyword-based domain hints. Claim extraction, evidence search, SARA verification, and automatic execution of the full problem-solving workflow are outside its scope.
 
 This guidance connects existing co-thoughts operations for complex problem-solving tasks. It does not replace EXPLORE, EXAMINE, COUNTER, COMPETE, VERIFY, SYNTHESIZE, or REVISE, and does not absorb SARA's verification authority. This document alone does not prove runtime implementation or continuous execution of SARA.
 
@@ -38,6 +39,8 @@ This is a state-based conceptual path, not a fixed linear pipeline. SARA's revie
 ### 3.0 Verification-domain routing before and after hypothesis formation
 
 **Before** developing a concrete provisional solution, identify likely fact-verification domains from the problem statement and current premises. **After** deriving and comparing provisional solutions, re-extract the domains from the actual proposed mechanisms and claims, then add any missed domains. This initial routing prioritizes verification; it must not become a permanent restriction that excludes necessary checks.
+
+The reference router returns domain hints from problem text and optional `proposed_solution` and caller-supplied `claims`. Domain labels are candidates and do not resolve the full meaning of the context. Claims are not extracted automatically. Domain tags, source strategies, and temporal-sensitivity signals do not indicate completed verification; all verification states remain `UNVERIFIED`. The primary domain is an estimate based on keyword-match counts and should be checked against task context.
 
 #### A. Minimum routing output
 
@@ -189,6 +192,20 @@ Stop or move to human decision when a concrete provisional answer and its unknow
 Test candidates (not passing results): concrete provisional response; fact/inference separation; SARA independence; re-verification after material change; hard-constraint gate; side-effect/displacement analysis; hypothesis-delta quality; human agency; state consistency; and avoidance of unnecessary complexity. Use fixed cases with explicit expected outcomes where possible. Do not report accuracy/recall without defined labels and denominators. Synthetic test success alone does not prove real-world reasoning quality or continuous production SARA involvement.
 
 Status remains ACTIVE GUIDANCE CANDIDATE / DESIGN-LEVEL. Do not change the canonical v2.0 architecture or SARA state schema here. Runtime operations, enums, schemas, and automation require separate compatibility design and tests. Consider formal promotion only after repeated cases, regression tests, SARA independence, and provenance boundaries are validated.
+
+### 6.1 On-demand workflow clusters
+
+The runtime does not chain the full workflow automatically. The caller selects one cluster through `CognitiveRuntime.run_workflow(name, request)`: `problem_diagnosis`, `solution_design`, `feasibility_review`, or `hypothesis_delta`. Each cluster sends its related stages and existing Cognitive Operation hints in one backend call. This is a cluster-level prompt invocation, not deterministic execution of each stage or SARA verification. Pre/post domain scans remain available separately through `route_verification_domains()`.
+
+The natural-language entry point `CognitiveRuntime.run_natural_language(request)` detects explicit Korean and English cues in the task and routes to at most one workflow. `CognitiveRouter.route()` also returns `workflow_routing` with `MATCHED`, `NO_MATCH`, or `AMBIGUOUS` and candidate names. No match uses the existing single-run path. If cues select multiple clusters, execution stops with `WORKFLOW_AMBIGUOUS`; it does not silently combine clusters or make multiple calls.
+
+### 6.2 External-tool planning and connection boundary
+
+`CognitiveRuntime.plan_natural_language()` and `plan_workflow_tools()` inspect tool needs, connector availability, and whether execution has occurred. Current capabilities are `web_search`, `calculator`, `data_analysis`, and `spatial_lookup`: current/high-risk/source-checking tasks route to search; numerical or cost calculations to a calculator; datasets/statistics to data analysis; and map/route/location lookups to spatial tools. A planned tool is never executed automatically.
+
+A host registers a concrete adapter with `ToolRegistry.register(capability, adapter)` and invokes it explicitly through `CognitiveRuntime.invoke_external_tool()`. Execution requires `SafetyPolicy.allow_tool_execution=True`; adapters with external side effects separately require `allow_external_side_effects=True`. The repository does not include live search, calculator, data, or spatial service adapters or credentials. Tool output remains unverified observation data and cannot promote `verification_status` or `is_evidence`.
+
+By default, `CognitiveRuntime` connects to the sibling SARA v2.4 `CoThoughtsSARAAdapter` and checks epistemic-state and attribution constraints on generated claims. Set `CO_THOUGHTS_SARA_V24_ROOT` to change the checkout path. This is separate from SARA v2.5 judgment/source-verification providers, which require their own configuration. Unless actual source verification runs, the status remains `UNVERIFIED`.
 
 ## Related documents
 

@@ -55,3 +55,38 @@ Core v1.3 principles remain in v2.0. Do not overwrite v1.3; use v2.0 as canonica
 - Added claim-level primary/secondary tags, criticality, temporal sensitivity, evidence strategy, unresolved-domain reporting, and risk/decision-impact prioritization.
 - Added domain-fit examples for law, health/sciences, data/statistics, finance/operations, social science/policy, humanities, ethics, and spatial/housing issues.
 - Added test candidates for domain routing, source-fit, and verification efficiency. Runtime automation and measured cost reduction remain unverified.
+
+### 2026-10-25 — Verification-Domain Routing Reference Implementation
+
+- Added deterministic keyword-based domain routing to `src/co_thoughts/cognitive_router.py`, with optional pre/post solution scans and caller-supplied claim tagging.
+- Returned evidence-strategy hints, high-risk cross-tags, and temporal-sensitivity hints while keeping verification status `UNVERIFIED`.
+- Added unit regression cases for domain identification, new post-solution domains, low-signal tasks, public route integration, and malformed claims.
+- Verified: all 30 unit and integration tests pass. Claim extraction, evidence retrieval, SARA execution, and the complete problem-solving workflow are not implemented.
+
+### 2026-10-25 — On-Demand Problem-Solving Workflow Clusters
+
+- Added `CognitiveRuntime.run_workflow()` for explicit single-cluster invocation: problem diagnosis, solution design, feasibility review, or hypothesis delta.
+- Each request carries only the selected cluster's stages and existing operation hints and uses one backend call; ordinary `run()` remains available.
+- Added regression tests for one-call execution, unknown workflow rejection, and inclusion in the user-mediated prompt. Full suite: 33 passed.
+- These are cluster-level backend prompts, not deterministic per-stage execution or SARA verification.
+
+### 2026-10-25 — Natural-Language Workflow Routing
+
+- Added Korean and English trigger phrases for the four on-demand workflow clusters.
+- Exposed routing status and candidates through `CognitiveRouter.route()` and added `CognitiveRuntime.run_natural_language()` as the NL dispatch entry point.
+- Unmatched requests use the normal run path; ambiguous multi-cluster requests stop before backend execution.
+- Added regression coverage for both languages, fallback, ambiguity, and zero-call behavior. Full suite: 37 passed.
+
+### 2026-10-25 — External Tool Need Planning and Adapter Boundary
+
+- Added workflow-level tool need assessment for web/source search, calculation, dataset analysis, and spatial lookup.
+- Added a provider-neutral `ToolRegistry`, connection availability reporting, and explicit runtime invocation guarded by default-deny tool and side-effect policies.
+- Tool outputs remain unverified observations; plans never invoke tools automatically. Concrete service adapters and credentials remain host-provided.
+- Added tests for need routing, availability checks, no-auto-execution, default-deny behavior, side-effect gating, and non-promotion of tool output. Full suite: 44 passed.
+
+### 2026-10-25 — Default SARA v2.4 Adapter Connection
+
+- Connected `CognitiveRuntime` by default to the sibling SARA v2.4 epistemic-state adapter, configurable with `CO_THOUGHTS_SARA_V24_ROOT`.
+- Runtime assessments validate claim-state and attribution constraints after generation and reset backend-supplied claim verification labels to `UNVERIFIED`.
+- Missing adapters fail closed with `NOT_CONNECTED`; adapter execution is explicitly not source search or factual truth verification. SARA v2.5 live judgment/source-verification providers remain separately configured.
+- Added default-connection, injection, missing-adapter, and runtime-boundary tests. Full suite: 48 passed.
