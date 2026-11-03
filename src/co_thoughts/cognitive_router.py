@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 from workflows import route_workflow_natural_language
 from explanation_format_router import plan_explanation_format_safely
-from request_validation import validate_routing_request
+from request_validation import normalize_mode, validate_routing_request
 
 MODES = {"FAST", "MIXED", "DEEP"}
 OPERATIONS = {
@@ -143,12 +143,7 @@ class CognitiveRouter:
     def route(self, request: Mapping[str, Any]) -> CognitivePlan:
         if not isinstance(request, Mapping):
             raise TypeError("REQUEST_MUST_BE_MAPPING")
-        raw_mode = request.get("mode")
-        if raw_mode is None:
-            raw_mode = "MIXED"
-        if not isinstance(raw_mode, str) or raw_mode.strip().upper() not in MODES:
-            raise ValueError("INVALID_MODE")
-        mode = raw_mode.strip().upper()
+        mode = normalize_mode(request.get("mode"))
 
         task, context = validate_routing_request(request)
         task = task.strip()

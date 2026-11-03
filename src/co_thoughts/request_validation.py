@@ -10,11 +10,20 @@ Rules:
 - ``context`` defaults to ``{}`` only when absent or ``None``; any other
   non-mapping value, including falsey ones such as ``[]`` or ``""``, is
   rejected (``CONTEXT_INVALID``).
+- ``mode`` defaults to ``MIXED`` only when absent or ``None``; it must otherwise
+  be a string naming one of FAST/MIXED/DEEP, case- and whitespace-insensitive
+  (``INVALID_MODE``).
+
+Used by the Cognitive Router, the explanation format planner, and the runtime
+``SafetyGate``.
 """
 from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
+
+MODES = frozenset({"FAST", "MIXED", "DEEP"})
+DEFAULT_MODE = "MIXED"
 
 
 def validate_routing_request(request: Any) -> tuple[str, Mapping[str, Any]]:
@@ -33,3 +42,12 @@ def validate_routing_request(request: Any) -> tuple[str, Mapping[str, Any]]:
         raise ValueError("CONTEXT_INVALID")
 
     return task, context
+
+
+def normalize_mode(value: Any) -> str:
+    """Return the canonical mode for ``value`` (``None`` means the default)."""
+    if value is None:
+        return DEFAULT_MODE
+    if not isinstance(value, str) or value.strip().upper() not in MODES:
+        raise ValueError("INVALID_MODE")
+    return value.strip().upper()
