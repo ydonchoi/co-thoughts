@@ -1,6 +1,6 @@
 # 적응형 설명 형식 라우터 연동 설계 v0.1
 
-> 상태: DESIGN PROPOSAL / NOT IMPLEMENTED
+> 상태: PARTIALLY IMPLEMENTED / PR #2 OPEN / CI PENDING
 > 대상: co-thoughts v2.0 Cognitive Router 및 Adaptive Explanation Format Protocol v0.1
 > 범위: 인지 작업 계획에서 사용자에게 제시할 설명 형식 계획을 분리·연결하는 인터페이스 설계
 
@@ -20,7 +20,7 @@ Cognitive Router가 선택한 인지 연산과 작업 맥락을 입력으로 받
 - `CognitiveRuntime`은 백엔드 응답을 검증하고 인식론적 상태 승격을 차단한다.
 - Adaptive Explanation Format Protocol v0.1은 설계 지침이며 런타임 매체 선택기는 아니다.
 
-따라서 본 문서는 신규 라우터의 계약과 연결 지점을 제안한다. 코드 구현, 실제 렌더링, 매체 생성 또는 사용자 인터페이스 통합을 완료했다고 주장하지 않는다.
+현재 구현에서는 별도 규칙 기반 planner와 Cognitive Router 연결이 추가되었다. 실제 렌더링, 매체 생성, 사용자 인터페이스 통합은 완료되지 않았다. 구현은 PR #2에서 검토 중이며 CI 결과를 확인해야 한다.
 
 ## 3. 권장 아키텍처
 
@@ -62,7 +62,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 선택 이유와 기존 워크플로우·검증 분야 라우팅 결과를 보존한다.
 - 설명 형식 선택을 이유로 인지 연산을 추가하거나 제거하지 않는다.
 
-### 4.2 Explanation Format Router (신규 제안)
+### 4.2 Explanation Format Router (구현됨: 규칙 기반 planner)
 
 - 작업 목적, 개념 구조, 시간성, 데이터 유무, 사용자 조작 필요, 위험도, 요청된 출력 매체를 평가한다.
 - 가장 낮은 복잡도로 목적을 달성하는 기본 형식을 선택한다.
@@ -76,7 +76,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 실제 렌더러·이미지·영상·웹 실행 기능을 호출할 수 있는지 확인한다.
 - 생성, 렌더링, 기능 시험, 출처 검증 상태를 별도로 기록한다.
 
-## 5. 입력 계약 초안
+## 5. 입력 계약 (구현 기준)
 
 ```python
 {
@@ -103,7 +103,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 
 필수 입력은 작업(task)이다. 누락된 선택 입력은 임의로 사실처럼 채우지 않고 기본값 또는 UNKNOWN으로 처리한다. 사용자 지정 매체가 지원되지 않으면 제한을 알리고 대안을 제시한다.
 
-## 6. 출력 계약 초안
+## 6. 출력 계약 (구현 기준)
 
 ```python
 {
@@ -129,7 +129,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 }
 ```
 
-형식 식별자 후보: TEXT, DIAGRAM, IMAGE, INTERACTIVE, ANIMATION, VIDEO, SIMULATION. 실제 구현 전 기존 프로젝트 스키마와 충돌 여부를 확인하고 고정 enum을 확정한다.
+형식 식별자: TEXT, DIAGRAM, IMAGE, INTERACTIVE, ANIMATION, VIDEO, SIMULATION. 구현은 비텍스트 기능을 호스트가 명시적으로 선언한 경우에만 사용 가능하다고 취급한다. 기능 맵이 없으면 TEXT만 사용 가능하다고 가정한다.
 
 ## 7. 선택 규칙
 
@@ -179,19 +179,21 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 ## 10. 단계별 구현 계획
 
 ### Phase 0 — 설계 기준선
-- 본 계약 검토 및 승인
-- 형식 enum, 입력·출력 스키마 확정
-- Cognitive Router 및 Project Adapter 호환성 검토
+- 설계 계약과 형식 enum 확정
+- 입력·출력 스키마 정의
+- Cognitive Router 호환성 검토 (완료)
 
-### Phase 1 — 순수 규칙 기반 선택기
-- 외부 생성 기능 없이 결정적 format planner 구현
+### Phase 1 — 순수 규칙 기반 선택기 (구현됨)
+- `src/co_thoughts/explanation_format_router.py`에 결정적 planner 구현
 - 사용자 지정 형식, 기본 텍스트, capability fallback 처리
-- 선택 이유와 불확실성 반환
+- 선택 이유, 가정, 불확실성 및 상태 반환
+- 비텍스트 생성·렌더링은 수행하지 않음
 
-### Phase 2 — Cognitive Router 연결
-- `route()` 출력에 `format_routing`을 추가하거나 별도 public API로 제공
-- 기존 `operations`, `verification_routing`, `workflow_routing`의 의미와 결과를 변경하지 않음
-- 하위 호환성 테스트
+### Phase 2 — Cognitive Router 연결 (구현됨, PR 검토 중)
+- `route()` 출력에 `format_routing` 추가
+- 기존 `operations`, `verification_routing`, `workflow_routing`의 의미를 보존하도록 통합
+- 단위·통합 회귀 테스트 추가
+- CI 결과는 PR에서 확인 필요
 
 ### Phase 3 — Host/Adapter 렌더링 연결
 - 실제 사용 가능한 렌더러만 연결
@@ -215,11 +217,12 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 
 ## 12. 현재 상태 선언
 
-- 설계 문서: 작성
-- 기존 런타임 연결: 미구현
-- 신규 format planner: 미구현
-- 렌더러 연결: 미구현
-- 테스트: 본 설계의 구현 테스트는 미실시
+- 설계 문서: 작성 및 구현 상태 갱신
+- 신규 format planner: 구현됨 (feature branch)
+- Cognitive Router 연결: 구현됨 (feature branch)
+- 단위·통합 테스트: 추가됨, CI 결과 대기
+- 렌더러 연결: 미구현; 현재 조사 범위에서 사용 가능한 host renderer 확인 안 됨
+- 매체 생성·렌더링·기능 시험: 미실행
 - 독립 검증: 미실시
 
-이 문서는 구현 지시를 위한 설계 기준선이다. 실제 구현과 테스트 증거가 확보되기 전까지 런타임 기능으로 간주하지 않는다.
+PR #2가 병합되기 전까지 main 브랜치에 반영된 것으로 간주하지 않는다. CI 및 독립 검토가 끝나기 전까지 구현은 부분 검증 상태다.
