@@ -2,6 +2,13 @@
 
 This module plans presentation only. It does not generate media, render output,
 or verify claims and never changes epistemic or verification status.
+
+Plan fields:
+- ``fallback``: the format to use if rendering ``primary`` fails; ``None`` when
+  ``primary`` is already TEXT.
+- ``excluded_formats``: the candidate format that was considered but not
+  selected (FALLBACK), otherwise empty.
+- ``secondary``: reserved; v0.1 plans a single primary format and returns ``[]``.
 """
 from __future__ import annotations
 
@@ -73,15 +80,17 @@ _FORMAT_PATTERNS: tuple[tuple[str, tuple[re.Pattern[str], ...]], ...] = tuple(
     for format_name, keywords in _FORMAT_KEYWORDS.items()
 )
 
-# Ordered by precedence: the first true signal wins.
-_CONTEXT_SIGNALS = {
-    "simulation_required": "SIMULATION",
-    "requires_interaction": "INTERACTIVE",
-    "time_dependent_behavior": "ANIMATION",
-    "visual_subject": "IMAGE",
-    "process_or_structure": "DIAGRAM",
-    "has_competing_hypotheses": "DIAGRAM",
-}
+# Explicit precedence: the first true signal wins. Richer formats that subsume
+# simpler ones come first (a simulation is also interactive; an animation of a
+# process is also a diagram). Pinned by tests.
+_CONTEXT_SIGNAL_PRECEDENCE: tuple[tuple[str, str], ...] = (
+    ("simulation_required", "SIMULATION"),
+    ("requires_interaction", "INTERACTIVE"),
+    ("time_dependent_behavior", "ANIMATION"),
+    ("visual_subject", "IMAGE"),
+    ("process_or_structure", "DIAGRAM"),
+    ("has_competing_hypotheses", "DIAGRAM"),
+)
 
 
 def _normalize_requested_format(value: Any) -> str | None:
@@ -96,7 +105,7 @@ def _normalize_requested_format(value: Any) -> str | None:
 
 
 def _validate_context_signals(context: Mapping[str, Any]) -> None:
-    for signal in _CONTEXT_SIGNALS:
+    for signal, _ in _CONTEXT_SIGNAL_PRECEDENCE:
         value = context.get(signal, False)
         if not isinstance(value, bool):
             raise ValueError(f"CONTEXT_SIGNAL_INVALID:{signal}")
@@ -111,7 +120,7 @@ def _normalize_task_text(task: str) -> str:
 
 def _infer_format(task: str, context: Mapping[str, Any]) -> tuple[str, str]:
     # Explicit, typed context signals take precedence over lexical hints.
-    for signal, format_name in _CONTEXT_SIGNALS.items():
+    for signal, format_name in _CONTEXT_SIGNAL_PRECEDENCE:
         if context.get(signal, False):
             return format_name, f"context signal: {signal}"
 
@@ -200,7 +209,8 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
     else:
         primary = "TEXT"
         selection_status = "FALLBACK"
-        fallback = "TEXT"
+        # primary is already TEXT; there is nothing further to fall back to.
+        fallback = None
         if candidate_declared:
             rationale.append(
                 f"{candidate} is declared unavailable by the host; using TEXT"
@@ -228,9 +238,10 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "format_plan": {
             "primary": primary,
+            # Reserved: v0.1 plans a single primary format and never fills this.
             "secondary": [],
             "rationale": rationale,
-            "excluded_formats": [],
+            "excluded_formats": [] if selection_status == "SELECTED" else [candidate],
             "assumptions": ["Format planning does not generate or render media"],
             "uncertainties": uncertainties,
             "fallback": fallback,
@@ -270,7 +281,7 @@ def plan_explanation_format_safely(request: Mapping[str, Any]) -> dict[str, Any]
                 "uncertainties": [
                     "Requested format and host capabilities could not be evaluated"
                 ],
-                "fallback": "TEXT",
+                "fallback": None,
                 "selection_status": "INVALID_INPUT",
             },
             "capability_status": {

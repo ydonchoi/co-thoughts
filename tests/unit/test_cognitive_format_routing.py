@@ -47,3 +47,4 @@ def test_invalid_format_input_does_not_break_public_route(bad_request_fields, er
     assert format_routing["format_plan"]["selection_status"] == "INVALID_INPUT"
     assert format_routing["error"] == error
     assert format_routing["is_evidence"] is False
+    assert format_routing["format_plan"]["fallback"] is None

@@ -115,7 +115,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
         "excluded_formats": [],
         "assumptions": [],
         "uncertainties": [],
-        "fallback": "TEXT",
+        "fallback": None,
         "selection_status": "SELECTED"
     },
     "capability_status": {
@@ -130,6 +130,8 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
     "is_evidence": False
 }
 ```
+
+계획 필드 의미: `fallback`은 `primary` 렌더링 실패 시 사용할 형식이며, `primary`가 이미 TEXT인 경우(FALLBACK·INVALID_INPUT 포함) `None`이다. `excluded_formats`는 검토했으나 선택되지 않은 후보 형식(FALLBACK)이며 그 외에는 `[]`이다. `secondary`는 예약 필드로, v0.1은 단일 primary 형식만 계획하므로 `[]`을 반환한다. context 신호는 고정 우선순위 `simulation_required` > `requires_interaction` > `time_dependent_behavior` > `visual_subject` > `process_or_structure` = `has_competing_hypotheses`로 평가하며, 참인 신호는 과제 키워드보다 우선한다.
 
 형식 식별자: TEXT, DIAGRAM, IMAGE, INTERACTIVE, ANIMATION, VIDEO, SIMULATION. 구현은 비텍스트 기능을 호스트가 명시적으로 선언한 경우에만 사용 가능하다고 취급한다. 기능 맵이 없으면 TEXT만 사용 가능하다고 가정한다.
 
