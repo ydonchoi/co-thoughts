@@ -10,4 +10,4 @@ Active executable implementation. Keep runtime modules here; add corresponding t
 
 ## Request validation
 
-- `request_validation.py` validates shared routing fields (`request`, `task`, `context`) with one rule set used by `cognitive_router`, `explanation_format_router`, and `runtime.SafetyGate`; `normalize_mode()` gives the shared `mode` rule. The runtime passes the normalized request copy to backends.
+- `request_validation.py` validates shared routing fields (`request`, `task`, `context`) with one rule set used by `cognitive_router`, `explanation_format_router`, and `runtime.SafetyGate`; `normalize_mode()` gives the shared `mode` rule. `execution.CoThoughtsExecutionRequest` reuses `require_mapping()`, `validate_task()`, and `normalize_mode(required=True)`, keeping `mode` and `request_id` required per the execution contract. The runtime passes the normalized request copy to backends.

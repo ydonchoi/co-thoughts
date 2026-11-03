@@ -119,3 +119,43 @@ def test_safety_gate_size_limits_still_apply():
         gate.validate_request({"task": "too long task"})
     with pytest.raises(ValueError, match="CONTEXT_TOO_LARGE"):
         gate.validate_request({"task": "ok", "context": {"k": "x" * 50}})
+
+
+# --- v1.3 reference executor shares request/task/mode rules ----------------
+
+from execution import CoThoughtsExecutionRequest  # noqa: E402
+
+
+@pytest.mark.parametrize("request_value, exc, code", [
+    ("not a mapping", TypeError, "REQUEST_MUST_BE_MAPPING"),
+    ({"request_id": "R", "task": 123, "mode": "FAST"}, ValueError, "TASK_REQUIRED"),
+    ({"request_id": "R", "task": "  ", "mode": "FAST"}, ValueError, "TASK_REQUIRED"),
+    ({"request_id": "R", "task": "Explain", "mode": 1}, ValueError, "INVALID_MODE"),
+    ({"request_id": "R", "task": "Explain", "mode": "TURBO"}, ValueError, "INVALID_MODE"),
+])
+def test_execution_request_rejects_like_the_routers(request_value, exc, code):
+    with pytest.raises(exc, match=code):
+        CoThoughtsExecutionRequest.from_mapping(request_value)
+
+
+@pytest.mark.parametrize("extra", [{}, {"mode": None}])
+def test_execution_request_still_requires_a_selected_mode(extra):
+    # The execution contract requires a selected mode, so unlike the routers
+    # and runtime, the reference executor does not default to MIXED.
+    with pytest.raises(ValueError, match="INVALID_MODE"):
+        CoThoughtsExecutionRequest.from_mapping(
+            {"request_id": "R", "task": "Explain", **extra}
+        )
+
+
+def test_execution_request_still_requires_request_id():
+    with pytest.raises(ValueError, match="REQUEST_ID_MISSING"):
+        CoThoughtsExecutionRequest.from_mapping({"task": "Explain", "mode": "FAST"})
+
+
+@pytest.mark.parametrize("mode, expected", [("fast", "FAST"), (" Deep ", "DEEP")])
+def test_execution_request_normalizes_mode_case(mode, expected):
+    parsed = CoThoughtsExecutionRequest.from_mapping(
+        {"request_id": "R", "task": "Explain", "mode": mode}
+    )
+    assert parsed.mode == expected

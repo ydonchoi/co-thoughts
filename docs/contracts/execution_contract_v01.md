@@ -132,7 +132,8 @@ The protocol does not require exposing all internal state to the human-facing re
 
 - `CoThoughtsExecutionRequest`: validated input boundary.
 - `CoThoughtsReferenceExecutor.run()`: deterministic reference execution harness.
-- mode validation for FAST/MIXED/DEEP;
+- mode validation for FAST/MIXED/DEEP: a selected mode is required (missing or `None` is `INVALID_MODE`); case and surrounding whitespace are normalized;
+- shared request validation via `request_validation` (`REQUEST_MUST_BE_MAPPING`, `TASK_REQUIRED`, `INVALID_MODE`), the same rules used by the routers and runtime, except that the executor keeps `mode` required and `request_id` required (`REQUEST_ID_MISSING`);
 - epistemic-type validation;
 - checkpoint/evidence separation;
 - explicit `execution_status` and `verification_status` separation.
