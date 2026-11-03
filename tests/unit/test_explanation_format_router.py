@@ -25,7 +25,8 @@ def test_unsupported_inferred_format_falls_back_to_text():
     assert result["format_plan"]["primary"] == "TEXT"
     assert result["format_plan"]["selection_status"] == "FALLBACK"
     assert result["capability_status"]["unavailable"] == ["IMAGE"]
-    assert result["format_plan"]["fallback"] == "TEXT"
+    assert result["format_plan"]["fallback"] is None
+    assert result["format_plan"]["excluded_formats"] == ["IMAGE"]
 
 
 def test_explicit_requested_format_takes_priority_when_available():
@@ -202,3 +203,45 @@ def test_fallback_rationale_matches_declaration_state():
     assert declared_false["format_plan"]["rationale"][-1] == (
         "IMAGE is declared unavailable by the host; using TEXT"
     )
+
+
+def test_selected_non_text_keeps_text_fallback_and_no_exclusions():
+    result = route_explanation_format({
+        "task": "Show a diagram",
+        "capabilities": {"diagram": True},
+    })
+    plan = result["format_plan"]
+    assert plan["primary"] == "DIAGRAM"
+    assert plan["fallback"] == "TEXT"
+    assert plan["excluded_formats"] == []
+    assert plan["secondary"] == []
+
+
+@pytest.mark.parametrize("value", ["diagram", " Diagram ", "DIAGRAM"])
+def test_requested_format_is_case_and_whitespace_insensitive(value):
+    result = route_explanation_format({
+        "task": "Summarize",
+        "output_intent": {"requested_format": value},
+        "capabilities": {"diagram": True},
+    })
+    assert result["format_plan"]["primary"] == "DIAGRAM"
+
+
+@pytest.mark.parametrize("signals, expected", [
+    ({"simulation_required": True, "requires_interaction": True}, "SIMULATION"),
+    ({"requires_interaction": True, "time_dependent_behavior": True}, "INTERACTIVE"),
+    ({"time_dependent_behavior": True, "visual_subject": True}, "ANIMATION"),
+    ({"visual_subject": True, "process_or_structure": True}, "IMAGE"),
+    ({"process_or_structure": True, "has_competing_hypotheses": True}, "DIAGRAM"),
+])
+def test_context_signal_precedence_is_pinned(signals, expected):
+    result = route_explanation_format({"task": "Explain", "context": signals})
+    assert result["capability_status"]["requested"] == [expected]
+
+
+def test_context_signal_overrides_task_keyword():
+    result = route_explanation_format({
+        "task": "Make a video",
+        "context": {"process_or_structure": True},
+    })
+    assert result["capability_status"]["requested"] == ["DIAGRAM"]

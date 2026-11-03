@@ -115,7 +115,7 @@ The task is the only required input. Missing optional inputs must not be fabrica
         "excluded_formats": [],
         "assumptions": [],
         "uncertainties": [],
-        "fallback": "TEXT",
+        "fallback": None,
         "selection_status": "SELECTED"
     },
     "capability_status": {
@@ -130,6 +130,8 @@ The task is the only required input. Missing optional inputs must not be fabrica
     "is_evidence": False
 }
 ```
+
+Plan field semantics: `fallback` is the format to use if rendering `primary` fails and is `None` when `primary` is already TEXT (including FALLBACK and INVALID_INPUT plans). `excluded_formats` lists the candidate that was considered but not selected (FALLBACK), otherwise `[]`. `secondary` is reserved; v0.1 plans a single primary format and returns `[]`. Context signals are evaluated in a fixed precedence: `simulation_required` > `requires_interaction` > `time_dependent_behavior` > `visual_subject` > `process_or_structure` = `has_competing_hypotheses`; any true signal takes precedence over task keywords.
 
 Format identifiers: TEXT, DIAGRAM, IMAGE, INTERACTIVE, ANIMATION, VIDEO, SIMULATION. Non-text capabilities are considered available only when explicitly declared by the host. If no capability map is supplied, only TEXT is assumed available.
 
