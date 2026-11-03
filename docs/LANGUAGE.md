@@ -16,11 +16,11 @@ This repository maintains Korean source documents and English companion translat
 | Topic | Korean source | English companion |
 |---|---|---|
 | Co-thoughts protocol | [v2.0](../protocol/core/human-ai_co-thoughts_protocol_v2.0.md) | [v2.0](../protocol/core/human-ai_co-thoughts_protocol_v2.0.en.md) |
+| Adaptive explanation format | [v0.1](../protocol/core/adaptive_explanation_format_v0.1.md) | [v0.1](../protocol/core/adaptive_explanation_format_v0.1.en.md) |
 | Research Note data model | [v0.4](../protocol/research_note/research_note_data_model_v0.4.md) | [v0.4](../protocol/research_note/research_note_data_model_v0.4.en.md) |
 | Research Note generation engine | [v0.4](../protocol/research_note/research_note_generation_engine_v0.4.md) | [v0.4](../protocol/research_note/research_note_generation_engine_v0.4.en.md) |
 | One-stop pipeline | [v0.1](../protocol/research_note/research_note_one_stop_pipeline_v0.1.md) | [v0.1](../protocol/research_note/research_note_one_stop_pipeline_v0.1.en.md) |
 | Research Note taxonomy | [v0.3](../protocol/research_note/research_note_taxonomy_v0.3.md) | [v0.3](../protocol/research_note/research_note_taxonomy_v0.3.en.md) |
-| Document types | [v0.1](../protocol/research_note/research_note_document_types_v0.1.md) | [v0.1](../protocol/research_note/research_note_document_types_v0.1.en.md) |
 | SARA output policy | [v1.0](../protocol/verification/sara_verification_output_policy_v1.0.md) | [v1.0](../protocol/verification/sara_verification_output_policy_v1.0.en.md) |
 | D9 promotion gate | [v0.2](../protocol/lifecycle/d9_promotion_gate_v0.2.md) | [v0.2](../protocol/lifecycle/d9_promotion_gate_v0.2.en.md) |
 | Claim transformation traceability | [v0.1](../protocol/core/claim_transformation_traceability_v0.1.md) | [v0.1](../protocol/core/claim_transformation_traceability_v0.1.en.md) |
