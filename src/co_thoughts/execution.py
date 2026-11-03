@@ -13,8 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from request_validation import MODES, normalize_mode, require_mapping, validate_task
 
-MODES = frozenset({"FAST", "MIXED", "DEEP"})
 EPISTEMIC_TYPES = frozenset(
     {"FACT", "INTERPRETATION", "INFERENCE", "HYPOTHESIS", "UNKNOWN"}
 )
@@ -34,17 +34,14 @@ class CoThoughtsExecutionRequest:
 
     @classmethod
     def from_mapping(cls, request: Mapping[str, Any]) -> "CoThoughtsExecutionRequest":
+        require_mapping(request)
         request_id = request.get("request_id")
-        task = request.get("task")
-        mode = request.get("mode")
-
         if not isinstance(request_id, str) or not request_id.strip():
             raise ValueError("REQUEST_ID_MISSING")
 
-        if not isinstance(task, str) or not task.strip():
-            raise ValueError("CURRENT_TASK_MISSING")
-        if mode not in MODES:
-            raise ValueError("INVALID_MODE")
+        task = validate_task(request)
+        # The execution contract requires a selected mode: no default here.
+        mode = normalize_mode(request.get("mode"), required=True)
 
         claims = request.get("claims", ())
         evidence = request.get("evidence", ())

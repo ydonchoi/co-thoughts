@@ -8,9 +8,8 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 from workflows import route_workflow_natural_language
 from explanation_format_router import plan_explanation_format_safely
-from request_validation import normalize_mode, validate_routing_request
+from request_validation import MODES, normalize_mode, validate_routing_request
 
-MODES = {"FAST", "MIXED", "DEEP"}
 OPERATIONS = {
     "EXPLORE", "DEPTH", "EXAMINE", "COUNTER", "COMPETE",
     "VERIFY", "SYNTHESIZE", "REVISE",
