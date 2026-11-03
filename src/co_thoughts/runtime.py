@@ -7,7 +7,7 @@ from typing import Any, Mapping, Protocol
 
 from execution import MODES, EPISTEMIC_TYPES
 from external_tools import ToolRegistry, assess_external_tool_needs
-from sara_integration import SARAConnection
+from sara_integration import SARAConnection, SARAv3Connection, validate_assessment_envelopes
 from workflows import build_workflow_request, route_workflow_natural_language
 
 
@@ -50,6 +50,12 @@ class SafetyGate:
             raise PermissionError("TOOL_EXECUTION_DISABLED")
         if request.get("external_side_effects") and not self.policy.allow_external_side_effects:
             raise PermissionError("EXTERNAL_SIDE_EFFECTS_DISABLED")
+
+        envelopes = request.get("sara_assessment_envelopes")
+        if envelopes is not None:
+            validate_assessment_envelopes(envelopes)
+            if len(repr(envelopes)) > self.policy.max_context_chars:
+                raise ValueError("SARA_ENVELOPES_TOO_LARGE")
 
     def validate_tool_execution(self, payload: Mapping[str, Any], *, side_effects: bool) -> None:
         if not self.policy.allow_tool_execution:
@@ -133,24 +139,39 @@ class CognitiveRuntime:
         safety_gate: SafetyGate | None = None,
         tool_registry: ToolRegistry | None = None,
         sara_connection: SARAConnection | None = None,
+        sara_v3_connection: SARAv3Connection | None = None,
     ) -> None:
         self.backend = backend
         self.safety_gate = safety_gate or SafetyGate()
         self.tool_registry = tool_registry or ToolRegistry()
         self.sara_connection = sara_connection or SARAConnection()
+        # SARA v3 calls external LLM/search providers, so it runs only when the
+        # host configures it explicitly.
+        self.sara_v3_connection = sara_v3_connection
 
     def run(self, request: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(request, Mapping):
             raise TypeError("REQUEST_MUST_BE_MAPPING")
 
         self.safety_gate.validate_request(request)
+        # Envelopes from an earlier turn reach the backend as context, but the
+        # copies kept here stay authoritative over anything the backend echoes.
+        prior_envelopes = validate_assessment_envelopes(request.get("sara_assessment_envelopes", []))
         raw = self.backend.generate(request)
         if not isinstance(raw, Mapping):
             raise TypeError("BACKEND_RESPONSE_MUST_BE_MAPPING")
 
         self.safety_gate.validate_response(raw)
         output = self.safety_gate.sanitize_response(raw)
+        if prior_envelopes or "sara_assessment_envelopes" in raw:
+            echoed = raw.get("sara_assessment_envelopes", prior_envelopes)
+            output["sara_envelope_integrity"] = (
+                "PRESERVED" if echoed == prior_envelopes else "BACKEND_MODIFICATION_DISCARDED"
+            )
+            output["sara_assessment_envelopes"] = prior_envelopes
         output["sara_assessment"] = self.sara_connection.assess_output(output)
+        if self.sara_v3_connection is not None:
+            output["sara_v3_assessment"] = self.sara_v3_connection.assess_turn(request, output)
         output.setdefault("runtime_revision", self.runtime_revision)
         output.setdefault("request_id", request.get("request_id"))
         return output
