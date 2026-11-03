@@ -168,3 +168,37 @@ def test_explicit_text_request_has_no_fallback():
     })
     assert result["format_plan"]["primary"] == "TEXT"
     assert result["format_plan"]["fallback"] is None
+
+
+@pytest.mark.parametrize("field, value, error", [
+    ("context", [], "CONTEXT_INVALID"),
+    ("context", "", "CONTEXT_INVALID"),
+    ("output_intent", [], "OUTPUT_INTENT_INVALID"),
+    ("output_intent", "", "OUTPUT_INTENT_INVALID"),
+])
+def test_falsey_non_mapping_fields_are_rejected(field, value, error):
+    with pytest.raises(ValueError, match=error):
+        route_explanation_format({"task": "Explain", field: value})
+
+
+def test_draw_a_flowchart_selects_diagram_not_image():
+    result = route_explanation_format({
+        "task": "Draw a flowchart of the approval process",
+        "capabilities": {"diagram": True},
+    })
+    assert result["format_plan"]["primary"] == "DIAGRAM"
+    assert result["format_plan"]["selection_status"] == "SELECTED"
+
+
+def test_fallback_rationale_matches_declaration_state():
+    undeclared = route_explanation_format({"task": "Show an image of the cell"})
+    declared_false = route_explanation_format({
+        "task": "Show an image of the cell",
+        "capabilities": {"image": False},
+    })
+    assert undeclared["format_plan"]["rationale"][-1] == (
+        "IMAGE capability was not declared by the host; using TEXT"
+    )
+    assert declared_false["format_plan"]["rationale"][-1] == (
+        "IMAGE is declared unavailable by the host; using TEXT"
+    )
