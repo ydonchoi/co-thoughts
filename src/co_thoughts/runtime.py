@@ -9,6 +9,7 @@ from execution import MODES, EPISTEMIC_TYPES
 from external_tools import ToolRegistry, assess_external_tool_needs
 from sara_integration import SARAConnection, SARAv3Connection, validate_assessment_envelopes
 from workflows import build_workflow_request, route_workflow_natural_language
+from request_validation import normalize_mode, validate_routing_request
 
 
 class CognitiveBackend(Protocol):
@@ -31,18 +32,18 @@ class SafetyGate:
     def __init__(self, policy: SafetyPolicy | None = None) -> None:
         self.policy = policy or SafetyPolicy()
 
-    def validate_request(self, request: Mapping[str, Any]) -> None:
-        task = request.get("task")
-        if not isinstance(task, str) or not task.strip():
-            raise ValueError("TASK_REQUIRED")
+    def validate_request(self, request: Mapping[str, Any]) -> dict[str, Any]:
+        """Validate ``request`` and return a normalized copy.
+
+        Shared fields follow ``request_validation``: ``context`` and ``mode``
+        default to ``{}`` / ``MIXED`` only when absent or ``None``, and ``mode``
+        is case-normalized. The returned copy carries the canonical values so
+        backends always see a valid ``mode`` and a mapping ``context``.
+        """
+        mode = normalize_mode(request.get("mode") if isinstance(request, Mapping) else None)
+        task, context = validate_routing_request(request)
         if len(task) > self.policy.max_task_chars:
             raise ValueError("TASK_TOO_LARGE")
-        if request.get("mode") not in MODES:
-            raise ValueError("INVALID_MODE")
-
-        context = request.get("context", {})
-        if not isinstance(context, Mapping):
-            raise ValueError("CONTEXT_INVALID")
         if len(repr(context)) > self.policy.max_context_chars:
             raise ValueError("CONTEXT_TOO_LARGE")
 
@@ -56,6 +57,11 @@ class SafetyGate:
             validate_assessment_envelopes(envelopes)
             if len(repr(envelopes)) > self.policy.max_context_chars:
                 raise ValueError("SARA_ENVELOPES_TOO_LARGE")
+
+        normalized = dict(request)
+        normalized["mode"] = mode
+        normalized["context"] = context
+        return normalized
 
     def validate_tool_execution(self, payload: Mapping[str, Any], *, side_effects: bool) -> None:
         if not self.policy.allow_tool_execution:
@@ -153,7 +159,7 @@ class CognitiveRuntime:
         if not isinstance(request, Mapping):
             raise TypeError("REQUEST_MUST_BE_MAPPING")
 
-        self.safety_gate.validate_request(request)
+        request = self.safety_gate.validate_request(request)
         # Envelopes from an earlier turn reach the backend as context, but the
         # copies kept here stay authoritative over anything the backend echoes.
         prior_envelopes = validate_assessment_envelopes(request.get("sara_assessment_envelopes", []))

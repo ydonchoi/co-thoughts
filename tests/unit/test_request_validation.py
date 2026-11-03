@@ -56,3 +56,66 @@ def test_public_route_rejects_falsey_context_consistently():
     # format routing reported INVALID_INPUT; both now reject it up front.
     with pytest.raises(ValueError, match="CONTEXT_INVALID"):
         route({"task": "Summarize", "mode": "FAST", "context": []})
+
+
+# --- runtime SafetyGate uses the same rules --------------------------------
+
+from runtime import CognitiveRuntime, SafetyGate, SafetyPolicy  # noqa: E402
+
+
+class _RecordingBackend:
+    def __init__(self):
+        self.seen = None
+
+    def generate(self, request):
+        self.seen = request
+        return {
+            "execution_id": "EXEC-V",
+            "status": "SUCCEEDED",
+            "mode": request["mode"],
+            "claims": [],
+            "epistemic_states": [],
+            "reasoning_artifact": {},
+        }
+
+
+@pytest.mark.parametrize("request_value, exc, code", [
+    ("not a mapping", TypeError, "REQUEST_MUST_BE_MAPPING"),
+    ({"task": 123}, ValueError, "TASK_REQUIRED"),
+    ({"task": "   "}, ValueError, "TASK_REQUIRED"),
+    ({"task": "Explain", "context": []}, ValueError, "CONTEXT_INVALID"),
+    ({"task": "Explain", "context": ""}, ValueError, "CONTEXT_INVALID"),
+    ({"task": "Explain", "mode": 1}, ValueError, "INVALID_MODE"),
+    ({"task": "Explain", "mode": "TURBO"}, ValueError, "INVALID_MODE"),
+])
+def test_safety_gate_rejects_like_the_routers(request_value, exc, code):
+    with pytest.raises(exc, match=code):
+        SafetyGate().validate_request(request_value)
+    with pytest.raises(exc, match=code):
+        CognitiveRouter().route(request_value)
+
+
+@pytest.mark.parametrize("extra, expected_mode", [
+    ({}, "MIXED"),
+    ({"mode": None, "context": None}, "MIXED"),
+    ({"mode": " fast "}, "FAST"),
+    ({"mode": "deep"}, "DEEP"),
+])
+def test_runtime_passes_normalized_request_to_backend(extra, expected_mode):
+    backend = _RecordingBackend()
+    request = {"request_id": "REQ-V", "task": "Explore", **extra}
+    result = CognitiveRuntime(backend).run(request)
+    assert backend.seen["mode"] == expected_mode
+    assert backend.seen["context"] == {}
+    assert result["mode"] == expected_mode
+    assert result["verification_status"] == "UNVERIFIED"
+    # The caller's mapping is not mutated.
+    assert request.get("mode") == extra.get("mode")
+
+
+def test_safety_gate_size_limits_still_apply():
+    gate = SafetyGate(SafetyPolicy(max_task_chars=5, max_context_chars=10))
+    with pytest.raises(ValueError, match="TASK_TOO_LARGE"):
+        gate.validate_request({"task": "too long task"})
+    with pytest.raises(ValueError, match="CONTEXT_TOO_LARGE"):
+        gate.validate_request({"task": "ok", "context": {"k": "x" * 50}})
