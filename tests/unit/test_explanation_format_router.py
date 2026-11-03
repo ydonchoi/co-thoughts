@@ -103,3 +103,68 @@ def test_text_capability_cannot_be_disabled():
             "task": "Explain",
             "capabilities": {"text": False},
         })
+
+
+@pytest.mark.parametrize("task", [
+    "Give me the big picture of inflation",
+    "What are the drawbacks of remote work",
+    "Why is a virus considered inanimate?",
+    "그림자 금융이란?",
+    "영상의학과 진료 범위 설명",
+])
+def test_keyword_false_positives_stay_text(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]
+    assert result["format_plan"]["selection_status"] == "SELECTED"
+
+
+@pytest.mark.parametrize("task, expected", [
+    ("Show me images of cells", "IMAGE"),
+    ("Show the simulated outcomes", "SIMULATION"),
+    ("Create flowcharts for onboarding", "DIAGRAM"),
+    ("시스템 구조도를 보여줘", "DIAGRAM"),
+])
+def test_keyword_inflections_and_korean_particles_still_match(task, expected):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == [expected]
+
+
+def test_invalid_context_signal_is_rejected_even_with_explicit_request():
+    with pytest.raises(ValueError, match="CONTEXT_SIGNAL_INVALID:visual_subject"):
+        route_explanation_format({
+            "task": "Explain",
+            "context": {"visual_subject": "yes"},
+            "output_intent": {"requested_format": "TEXT"},
+        })
+
+
+def test_unknown_capability_key_is_rejected():
+    with pytest.raises(ValueError, match="CAPABILITY_UNKNOWN:Diagram"):
+        route_explanation_format({
+            "task": "Explain",
+            "capabilities": {"Diagram": True},
+        })
+
+
+def test_fallback_uncertainty_distinguishes_declared_false_from_undeclared():
+    declared = route_explanation_format({
+        "task": "Summarize",
+        "output_intent": {"requested_format": "VIDEO"},
+        "capabilities": {"video": False},
+    })
+    undeclared = route_explanation_format({
+        "task": "Summarize",
+        "output_intent": {"requested_format": "VIDEO"},
+        "capabilities": {"diagram": True},
+    })
+    assert "The host explicitly declared VIDEO unavailable" in declared["format_plan"]["uncertainties"]
+    assert "The host did not declare VIDEO capability" in undeclared["format_plan"]["uncertainties"]
+
+
+def test_explicit_text_request_has_no_fallback():
+    result = route_explanation_format({
+        "task": "Draw a diagram",
+        "output_intent": {"requested_format": "text"},
+    })
+    assert result["format_plan"]["primary"] == "TEXT"
+    assert result["format_plan"]["fallback"] is None

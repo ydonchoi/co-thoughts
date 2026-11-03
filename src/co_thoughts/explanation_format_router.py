@@ -5,6 +5,7 @@ or verify claims and never changes epistemic or verification status.
 """
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -23,21 +24,21 @@ _CAPABILITY_KEYS = {
 
 _FORMAT_KEYWORDS: dict[str, tuple[str, ...]] = {
     "SIMULATION": (
-        "simulation", "simulate", "시뮬레이션", "모의실험", "가정별 결과",
+        "simulation", "simulate", "simulating", "시뮬레이션", "모의실험", "가정별 결과",
     ),
     "INTERACTIVE": (
         "interactive", "interactivity", "slider", "manipulate variables",
         "대화형", "인터랙티브", "변수 조작", "직접 조작", "상호작용",
     ),
     "ANIMATION": (
-        "animation", "animated", "animate", "애니메이션", "움직이는 설명",
+        "animation", "animated", "animate", "animating", "애니메이션", "움직이는 설명",
         "동작을 움직임으로",
     ),
     "VIDEO": (
         "video", "movie", "영상", "동영상", "설명 영상",
     ),
     "IMAGE": (
-        "image", "illustration", "draw", "picture", "이미지", "그림",
+        "image", "illustration", "draw", "drawing", "picture", "이미지", "그림",
         "일러스트", "삽화", "외관을 그려",
     ),
     "DIAGRAM": (
@@ -47,6 +48,30 @@ _FORMAT_KEYWORDS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+# Phrases whose substrings collide with format keywords but do not request a
+# format (e.g. "big picture", "그림자" = shadow, "영상의학" = radiology).
+_KEYWORD_EXCLUSIONS: tuple[str, ...] = (
+    "big picture", "bigger picture", "draw conclusions", "draw a conclusion",
+    "draw on", "draw upon", "그림자", "영상의학",
+)
+
+
+def _keyword_pattern(keyword: str) -> re.Pattern[str]:
+    escaped = re.escape(keyword.casefold())
+    if keyword.isascii():
+        # ASCII keywords must match whole words ("draw" must not match "drawbacks"),
+        # allowing simple plural/past suffixes ("images", "simulated").
+        return re.compile(rf"(?<![a-z0-9]){escaped}(?:s|es|d|ed)?(?![a-z0-9])")
+    # Korean keywords are matched as substrings so particles (e.g. "도식을") still match.
+    return re.compile(escaped)
+
+
+_FORMAT_PATTERNS: tuple[tuple[str, tuple[re.Pattern[str], ...]], ...] = tuple(
+    (format_name, tuple(_keyword_pattern(k) for k in keywords))
+    for format_name, keywords in _FORMAT_KEYWORDS.items()
+)
+
+# Ordered by precedence: the first true signal wins.
 _CONTEXT_SIGNALS = {
     "simulation_required": "SIMULATION",
     "requires_interaction": "INTERACTIVE",
@@ -68,18 +93,29 @@ def _normalize_requested_format(value: Any) -> str | None:
     return normalized
 
 
-def _infer_format(task: str, context: Mapping[str, Any]) -> tuple[str, str]:
-    normalized = task.casefold()
-    # Explicit, typed context signals take precedence over lexical hints.
-    for signal, format_name in _CONTEXT_SIGNALS.items():
+def _validate_context_signals(context: Mapping[str, Any]) -> None:
+    for signal in _CONTEXT_SIGNALS:
         value = context.get(signal, False)
         if not isinstance(value, bool):
             raise ValueError(f"CONTEXT_SIGNAL_INVALID:{signal}")
-        if value:
+
+
+def _normalize_task_text(task: str) -> str:
+    normalized = task.casefold()
+    for phrase in _KEYWORD_EXCLUSIONS:
+        normalized = normalized.replace(phrase, " ")
+    return normalized
+
+
+def _infer_format(task: str, context: Mapping[str, Any]) -> tuple[str, str]:
+    # Explicit, typed context signals take precedence over lexical hints.
+    for signal, format_name in _CONTEXT_SIGNALS.items():
+        if context.get(signal, False):
             return format_name, f"context signal: {signal}"
 
-    for format_name, keywords in _FORMAT_KEYWORDS.items():
-        if any(keyword.casefold() in normalized for keyword in keywords):
+    normalized = _normalize_task_text(task)
+    for format_name, patterns in _FORMAT_PATTERNS:
+        if any(pattern.search(normalized) for pattern in patterns):
             return format_name, f"task wording indicates {format_name.lower()}"
 
     return "TEXT", "text is the least-complex sufficient default"
@@ -101,6 +137,7 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
     context = request.get("context") or {}
     if not isinstance(context, Mapping):
         raise ValueError("CONTEXT_INVALID")
+    _validate_context_signals(context)
 
     output_intent = request.get("output_intent") or {}
     if not isinstance(output_intent, Mapping):
@@ -116,6 +153,11 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
     else:
         if not isinstance(capabilities, Mapping):
             raise ValueError("CAPABILITIES_INVALID")
+        unknown = sorted(
+            str(key) for key in capabilities if key not in _CAPABILITY_KEYS.values()
+        )
+        if unknown:
+            raise ValueError(f"CAPABILITY_UNKNOWN:{unknown[0]}")
         normalized_capabilities = {"TEXT": True}
         for format_name, key in _CAPABILITY_KEYS.items():
             if key in capabilities:
@@ -159,9 +201,15 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
             "Only TEXT is assumed available because the host supplied no capability map"
         )
     if selection_status == "FALLBACK":
-        uncertainties.append(
-            "Media generation and rendering capability were not declared by the host"
-        )
+        declared = capabilities is not None and _CAPABILITY_KEYS[candidate] in capabilities
+        if declared:
+            uncertainties.append(
+                f"The host explicitly declared {candidate} unavailable"
+            )
+        else:
+            uncertainties.append(
+                f"The host did not declare {candidate} capability"
+            )
 
     return {
         "format_plan": {
@@ -185,3 +233,41 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
         "verification_status": "UNVERIFIED",
         "is_evidence": False,
     }
+
+
+def plan_explanation_format_safely(request: Mapping[str, Any]) -> dict[str, Any]:
+    """Like ``route_explanation_format`` but never raises on invalid format input.
+
+    Used by ``cognitive_router.route()`` so that malformed format-planning input
+    (capabilities, output_intent, context signals) cannot break cognitive or
+    verification routing. The failure is reported as ``INVALID_INPUT`` with a
+    TEXT plan instead.
+    """
+    try:
+        return route_explanation_format(request)
+    except (TypeError, ValueError) as exc:
+        return {
+            "format_plan": {
+                "primary": "TEXT",
+                "secondary": [],
+                "rationale": ["format planning input was invalid; using TEXT"],
+                "excluded_formats": [],
+                "assumptions": ["Format planning does not generate or render media"],
+                "uncertainties": [
+                    "Requested format and host capabilities could not be evaluated"
+                ],
+                "fallback": "TEXT",
+                "selection_status": "INVALID_INPUT",
+            },
+            "capability_status": {
+                "requested": [],
+                "available": ["TEXT"],
+                "unavailable": [],
+            },
+            "error": str(exc),
+            "execution_status": "NOT_RUN",
+            "render_status": "NOT_RUN",
+            "functional_test_status": "NOT_RUN",
+            "verification_status": "UNVERIFIED",
+            "is_evidence": False,
+        }
