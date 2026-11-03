@@ -22,6 +22,8 @@ _CAPABILITY_KEYS = {
     "SIMULATION": "simulation",
 }
 
+# Checked in order: DIAGRAM precedes IMAGE so specific wording ("draw a
+# flowchart") wins over the generic "draw".
 _FORMAT_KEYWORDS: dict[str, tuple[str, ...]] = {
     "SIMULATION": (
         "simulation", "simulate", "simulating", "시뮬레이션", "모의실험", "가정별 결과",
@@ -37,14 +39,14 @@ _FORMAT_KEYWORDS: dict[str, tuple[str, ...]] = {
     "VIDEO": (
         "video", "movie", "영상", "동영상", "설명 영상",
     ),
-    "IMAGE": (
-        "image", "illustration", "draw", "drawing", "picture", "이미지", "그림",
-        "일러스트", "삽화", "외관을 그려",
-    ),
     "DIAGRAM": (
         "diagram", "flowchart", "process flow", "architecture diagram",
         "structure diagram", "도식", "다이어그램", "흐름도", "구조도",
         "관계도", "순서도", "절차도", "개념도",
+    ),
+    "IMAGE": (
+        "image", "illustration", "draw", "drawing", "picture", "이미지", "그림",
+        "일러스트", "삽화", "외관을 그려",
     ),
 }
 
@@ -134,12 +136,16 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(task, str) or not task.strip():
         raise ValueError("TASK_REQUIRED")
 
-    context = request.get("context") or {}
+    context = request.get("context")
+    if context is None:
+        context = {}
     if not isinstance(context, Mapping):
         raise ValueError("CONTEXT_INVALID")
     _validate_context_signals(context)
 
-    output_intent = request.get("output_intent") or {}
+    output_intent = request.get("output_intent")
+    if output_intent is None:
+        output_intent = {}
     if not isinstance(output_intent, Mapping):
         raise ValueError("OUTPUT_INTENT_INVALID")
 
@@ -181,6 +187,10 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
     )
     unavailable = [candidate] if candidate not in available else []
 
+    candidate_declared = (
+        capabilities is not None and _CAPABILITY_KEYS[candidate] in capabilities
+    )
+
     if candidate in available:
         primary = candidate
         selection_status = "SELECTED"
@@ -191,9 +201,14 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
         primary = "TEXT"
         selection_status = "FALLBACK"
         fallback = "TEXT"
-        rationale.append(
-            f"{candidate} is unavailable in the declared host capabilities; using TEXT"
-        )
+        if candidate_declared:
+            rationale.append(
+                f"{candidate} is declared unavailable by the host; using TEXT"
+            )
+        else:
+            rationale.append(
+                f"{candidate} capability was not declared by the host; using TEXT"
+            )
 
     uncertainties = []
     if capabilities is None:
@@ -201,8 +216,7 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
             "Only TEXT is assumed available because the host supplied no capability map"
         )
     if selection_status == "FALLBACK":
-        declared = capabilities is not None and _CAPABILITY_KEYS[candidate] in capabilities
-        if declared:
+        if candidate_declared:
             uncertainties.append(
                 f"The host explicitly declared {candidate} unavailable"
             )
