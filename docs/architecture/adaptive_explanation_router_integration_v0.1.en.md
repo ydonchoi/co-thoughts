@@ -1,6 +1,6 @@
 # Adaptive Explanation Format Router Integration Design v0.1
 
-> Status: PARTIALLY IMPLEMENTED / PR #2 OPEN / CI PENDING
+> Status: PARTIALLY IMPLEMENTED / PR #2 OPEN (CI: see PR #2 checks)
 > Target: co-thoughts v2.0 Cognitive Router and Adaptive Explanation Format Protocol v0.1
 > Scope: An interface design that separates and connects cognitive planning with human-facing explanation-format planning.
 
@@ -20,7 +20,7 @@ The inspected implementation currently provides:
 - `CognitiveRuntime` validates backend responses and prevents epistemic-status promotion.
 - Adaptive Explanation Format Protocol v0.1 is design guidance, not a runtime media selector.
 
-A rule-based planner and its Cognitive Router connection have now been added on a feature branch. Actual rendering, media generation, and UI integration are not implemented. The change is under review in PR #2; CI results remain pending.
+A rule-based planner and its Cognitive Router connection have now been added on a feature branch. Actual rendering, media generation, and UI integration are not implemented. The change is under review in PR #2. CI status is tracked by the GitHub Actions checks on PR #2 and is not recorded here, so this document does not go stale as commits are added.
 
 ## 3. Recommended Architecture
 
@@ -177,6 +177,8 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Functional test not run: set functional_test_status=NOT_RUN.
 - Unknown data source: disclose the unknown source; do not add visual authority.
 - High-risk decisions: do not present visualization as the sole conclusion; include evidence, uncertainty, and need for expert review.
+- Invalid format-planning input (non-boolean context signal, unknown or non-boolean capability key, `text: false`, unsupported `requested_format`): `route_explanation_format()` raises `ValueError` with a stable code (e.g. `CAPABILITY_UNKNOWN:<key>`). The public `cognitive_router.route()` does not propagate it; `format_routing` returns a TEXT plan with `selection_status=INVALID_INPUT` and the code in `error`, so cognitive and verification routing are unaffected.
+- Keyword hints: ASCII keywords match whole words (simple plural/past suffixes allowed); Korean keywords match as substrings, with an exclusion list for known collisions (e.g. "big picture", "그림자", "영상의학").
 
 ## 10. Phased Implementation Plan
 
@@ -195,7 +197,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Adds `format_routing` to `route()` output.
 - Integrates while preserving existing `operations`, `verification_routing`, and `workflow_routing` semantics.
 - Adds unit and integration regression tests.
-- CI result pending.
+- CI: see PR #2 checks.
 
 ### Phase 3 — Host/Adapter Rendering Integration
 - Connect only renderers that are actually available.
@@ -222,7 +224,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Design document: authored and status updated
 - New format planner: implemented on feature branch
 - Cognitive Router integration: implemented on feature branch
-- Unit and integration tests: added; GitHub Actions pytest passed for PR #2 head commit `1591336636f3de35560a2f04ab9dc15eafe8f378`
+- Unit and integration tests: added. CI status is tracked by the GitHub Actions checks on PR #2 and is not recorded here, so this document does not go stale as commits are added.
 - Renderer integration: not implemented; no usable host renderer was identified in the inspected scope
 - Media generation, rendering, and functional testing: not run
 - Independent verification: not performed

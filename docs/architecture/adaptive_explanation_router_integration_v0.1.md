@@ -1,6 +1,6 @@
 # 적응형 설명 형식 라우터 연동 설계 v0.1
 
-> 상태: PARTIALLY IMPLEMENTED / PR #2 OPEN / CI PENDING
+> 상태: PARTIALLY IMPLEMENTED / PR #2 OPEN (CI: PR #2 체크 참조)
 > 대상: co-thoughts v2.0 Cognitive Router 및 Adaptive Explanation Format Protocol v0.1
 > 범위: 인지 작업 계획에서 사용자에게 제시할 설명 형식 계획을 분리·연결하는 인터페이스 설계
 
@@ -20,7 +20,7 @@ Cognitive Router가 선택한 인지 연산과 작업 맥락을 입력으로 받
 - `CognitiveRuntime`은 백엔드 응답을 검증하고 인식론적 상태 승격을 차단한다.
 - Adaptive Explanation Format Protocol v0.1은 설계 지침이며 런타임 매체 선택기는 아니다.
 
-현재 구현에서는 별도 규칙 기반 planner와 Cognitive Router 연결이 추가되었다. 실제 렌더링, 매체 생성, 사용자 인터페이스 통합은 완료되지 않았다. 구현은 PR #2에서 검토 중이며 CI 결과를 확인해야 한다.
+현재 구현에서는 별도 규칙 기반 planner와 Cognitive Router 연결이 추가되었다. 실제 렌더링, 매체 생성, 사용자 인터페이스 통합은 완료되지 않았다. 구현은 PR #2에서 검토 중이다. CI 상태는 PR #2의 GitHub Actions 체크에서 확인하며, 커밋 추가 시 문서가 낡지 않도록 본 문서에는 기록하지 않는다.
 
 ## 3. 권장 아키텍처
 
@@ -177,6 +177,8 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 기능 시험 미실시: functional_test_status=NOT_RUN
 - 출처 불명 데이터: 출처 미확인 표시, 시각적 권위 부여 금지
 - 고위험 판단: 시각화 단독 결론 금지, 근거·불확실성·전문가 검토 필요성 표시
+- 형식 계획 입력 오류(불리언이 아닌 context 신호, 알 수 없거나 불리언이 아닌 capability 키, `text: false`, 미지원 `requested_format`): `route_explanation_format()`은 고정 코드(예: `CAPABILITY_UNKNOWN:<key>`)로 `ValueError`를 발생시킨다. 공개 `cognitive_router.route()`는 이를 전파하지 않고, `format_routing`에 `selection_status=INVALID_INPUT`인 TEXT 계획과 `error` 코드를 담아 반환하므로 인지·검증 라우팅은 영향을 받지 않는다.
+- 키워드 힌트: 영문 키워드는 단어 단위로 일치(단순 복수·과거형 접미사 허용), 한국어 키워드는 부분 문자열로 일치하되 알려진 충돌(예: "big picture", "그림자", "영상의학")은 제외 목록으로 처리한다.
 
 ## 10. 단계별 구현 계획
 
@@ -195,7 +197,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - `route()` 출력에 `format_routing` 추가
 - 기존 `operations`, `verification_routing`, `workflow_routing`의 의미를 보존하도록 통합
 - 단위·통합 회귀 테스트 추가
-- CI 결과는 PR에서 확인 필요
+- CI: PR #2 체크 참조
 
 ### Phase 3 — Host/Adapter 렌더링 연결
 - 실제 사용 가능한 렌더러만 연결
@@ -222,7 +224,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 설계 문서: 작성 및 구현 상태 갱신
 - 신규 format planner: 구현됨 (feature branch)
 - Cognitive Router 연결: 구현됨 (feature branch)
-- 단위·통합 테스트: 추가됨, CI 결과 대기
+- 단위·통합 테스트: 추가됨. CI 상태는 PR #2의 GitHub Actions 체크에서 확인하며, 커밋 추가 시 문서가 낡지 않도록 본 문서에는 기록하지 않는다.
 - 렌더러 연결: 미구현; 현재 조사 범위에서 사용 가능한 host renderer 확인 안 됨
 - 매체 생성·렌더링·기능 시험: 미실행
 - 독립 검증: 미실시
