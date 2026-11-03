@@ -1,6 +1,6 @@
 # Adaptive Explanation Format Router Integration Design v0.1
 
-> Status: DESIGN PROPOSAL / NOT IMPLEMENTED
+> Status: PARTIALLY IMPLEMENTED / PR #2 OPEN (CI: see PR #2 checks)
 > Target: co-thoughts v2.0 Cognitive Router and Adaptive Explanation Format Protocol v0.1
 > Scope: An interface design that separates and connects cognitive planning with human-facing explanation-format planning.
 
@@ -20,7 +20,7 @@ The inspected implementation currently provides:
 - `CognitiveRuntime` validates backend responses and prevents epistemic-status promotion.
 - Adaptive Explanation Format Protocol v0.1 is design guidance, not a runtime media selector.
 
-This document proposes a new router contract and integration point. It does not claim code implementation, actual rendering, media generation, or UI integration.
+A rule-based planner and its Cognitive Router connection have now been added on a feature branch. Actual rendering, media generation, and UI integration are not implemented. The change is under review in PR #2. CI status is tracked by the GitHub Actions checks on PR #2 and is not recorded here, so this document does not go stale as commits are added.
 
 ## 3. Recommended Architecture
 
@@ -62,9 +62,10 @@ The explanation-format router is not a cognitive operation. Both plans are deriv
 - Preserves reasons and existing workflow and verification-domain routing results.
 - Does not add or remove cognitive operations because of format selection.
 
-### 4.2 Explanation Format Router (proposed)
+### 4.2 Explanation Format Router (implemented: rule-based planner)
 
-- Evaluates task purpose, conceptual structure, temporality, data availability, need for user interaction, risk, and requested output medium.
+- The v0.1 implementation evaluates explicit format requests, a limited set of task keywords, predefined boolean context signals, and host capability declarations.
+- It does not semantically assess user expertise, detail level, risk, or data quality. Those remain future evaluation and improvement targets.
 - Selects the least complex format that serves the task.
 - Adds secondary formats only when useful.
 - Does not report unsupported or unverified capabilities as generated.
@@ -76,7 +77,7 @@ The explanation-format router is not a cognitive operation. Both plans are deriv
 - Checks whether actual renderers and image, video, or web execution capabilities are available.
 - Records generation, rendering, functional testing, and source verification separately.
 
-## 5. Draft Input Contract
+## 5. Input Contract (implementation baseline)
 
 ```python
 {
@@ -86,8 +87,8 @@ The explanation-format router is not a cognitive operation. Both plans are deriv
     "context": Mapping[str, Any],
     "output_intent": {
         "requested_format": str | None,
-        "audience": str | None,
-        "detail_level": str | None
+        "audience": str | None,      # reserved; not used by planner v0.1
+        "detail_level": str | None   # reserved; not used by planner v0.1
     },
     "capabilities": {
         "text": bool,
@@ -103,7 +104,7 @@ The explanation-format router is not a cognitive operation. Both plans are deriv
 
 The task is the only required input. Missing optional inputs must not be fabricated as facts; use defaults or UNKNOWN. If a requested medium is unsupported, disclose the limitation and offer an alternative.
 
-## 6. Draft Output Contract
+## 6. Output Contract (implementation baseline)
 
 ```python
 {
@@ -124,12 +125,13 @@ The task is the only required input. Missing optional inputs must not be fabrica
     },
     "execution_status": "NOT_RUN",
     "render_status": "NOT_RUN",
+    "functional_test_status": "NOT_RUN",
     "verification_status": "UNVERIFIED",
     "is_evidence": False
 }
 ```
 
-Candidate format identifiers: TEXT, DIAGRAM, IMAGE, INTERACTIVE, ANIMATION, VIDEO, SIMULATION. Before implementation, check compatibility with existing project schemas and finalize the enum.
+Format identifiers: TEXT, DIAGRAM, IMAGE, INTERACTIVE, ANIMATION, VIDEO, SIMULATION. Non-text capabilities are considered available only when explicitly declared by the host. If no capability map is supplied, only TEXT is assumed available.
 
 ## 7. Selection Rules
 
@@ -175,23 +177,27 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Functional test not run: set functional_test_status=NOT_RUN.
 - Unknown data source: disclose the unknown source; do not add visual authority.
 - High-risk decisions: do not present visualization as the sole conclusion; include evidence, uncertainty, and need for expert review.
+- Invalid format-planning input (non-boolean context signal, unknown or non-boolean capability key, `text: false`, unsupported `requested_format`): `route_explanation_format()` raises `ValueError` with a stable code (e.g. `CAPABILITY_UNKNOWN:<key>`). The public `cognitive_router.route()` does not propagate it; `format_routing` returns a TEXT plan with `selection_status=INVALID_INPUT` and the code in `error`, so cognitive and verification routing are unaffected.
+- Keyword hints: ASCII keywords match whole words (simple plural/past suffixes allowed); Korean keywords match as substrings, with an exclusion list for known collisions (e.g. "big picture", "그림자", "영상의학").
 
 ## 10. Phased Implementation Plan
 
 ### Phase 0 — Design Baseline
-- Review and approve this contract.
-- Finalize format enum and input/output schemas.
-- Check compatibility with the Cognitive Router and Project Adapter.
+- Finalize the design contract and format enum.
+- Define input/output schemas.
+- Cognitive Router compatibility review (complete).
 
-### Phase 1 — Pure Rule-Based Selector
-- Implement a deterministic format planner without external generation capabilities.
-- Handle user-requested formats, text defaults, and capability fallback.
-- Return rationale and uncertainty.
+### Phase 1 — Pure Rule-Based Selector (implemented)
+- Deterministic planner added in `src/co_thoughts/explanation_format_router.py`.
+- Handles explicit requests, text defaults, and capability fallback.
+- Returns rationale, assumptions, uncertainty, and status.
+- Does not generate or render non-text media.
 
-### Phase 2 — Cognitive Router Integration
-- Add `format_routing` to `route()` output or expose a separate public API.
-- Preserve the semantics and results of existing `operations`, `verification_routing`, and `workflow_routing`.
-- Add backward-compatibility tests.
+### Phase 2 — Cognitive Router Integration (implemented, PR review pending)
+- Adds `format_routing` to `route()` output.
+- Integrates while preserving existing `operations`, `verification_routing`, and `workflow_routing` semantics.
+- Adds unit and integration regression tests.
+- CI: see PR #2 checks.
 
 ### Phase 3 — Host/Adapter Rendering Integration
 - Connect only renderers that are actually available.
@@ -215,11 +221,12 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 
 ## 12. Current Status
 
-- Design document: authored
-- Existing runtime integration: not implemented
-- New format planner: not implemented
-- Renderer integration: not implemented
-- Tests: implementation tests for this design not run
+- Design document: authored and status updated
+- New format planner: implemented on feature branch
+- Cognitive Router integration: implemented on feature branch
+- Unit and integration tests: added. CI status is tracked by the GitHub Actions checks on PR #2 and is not recorded here, so this document does not go stale as commits are added.
+- Renderer integration: not implemented; no usable host renderer was identified in the inspected scope
+- Media generation, rendering, and functional testing: not run
 - Independent verification: not performed
 
-This document is a design baseline for future implementation. It must not be treated as a runtime capability until implementation and test evidence exist.
+Do not treat the changes as merged into `main` before PR #2 is merged. Implementation remains partially verified until CI and independent review are complete.
