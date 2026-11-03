@@ -64,7 +64,8 @@ The explanation-format router is not a cognitive operation. Both plans are deriv
 
 ### 4.2 Explanation Format Router (implemented: rule-based planner)
 
-- Evaluates task purpose, conceptual structure, temporality, data availability, need for user interaction, risk, and requested output medium.
+- The v0.1 implementation evaluates explicit format requests, a limited set of task keywords, predefined boolean context signals, and host capability declarations.
+- It does not semantically assess user expertise, detail level, risk, or data quality. Those remain future evaluation and improvement targets.
 - Selects the least complex format that serves the task.
 - Adds secondary formats only when useful.
 - Does not report unsupported or unverified capabilities as generated.
@@ -86,8 +87,8 @@ The explanation-format router is not a cognitive operation. Both plans are deriv
     "context": Mapping[str, Any],
     "output_intent": {
         "requested_format": str | None,
-        "audience": str | None,
-        "detail_level": str | None
+        "audience": str | None,      # reserved; not used by planner v0.1
+        "detail_level": str | None   # reserved; not used by planner v0.1
     },
     "capabilities": {
         "text": bool,
@@ -124,6 +125,7 @@ The task is the only required input. Missing optional inputs must not be fabrica
     },
     "execution_status": "NOT_RUN",
     "render_status": "NOT_RUN",
+    "functional_test_status": "NOT_RUN",
     "verification_status": "UNVERIFIED",
     "is_evidence": False
 }
@@ -220,7 +222,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Design document: authored and status updated
 - New format planner: implemented on feature branch
 - Cognitive Router integration: implemented on feature branch
-- Unit and integration tests: added; CI result pending
+- Unit and integration tests: added; GitHub Actions pytest passed for PR #2 head commit `1591336636f3de35560a2f04ab9dc15eafe8f378`
 - Renderer integration: not implemented; no usable host renderer was identified in the inspected scope
 - Media generation, rendering, and functional testing: not run
 - Independent verification: not performed
