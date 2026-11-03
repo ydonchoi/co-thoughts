@@ -64,7 +64,8 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 
 ### 4.2 Explanation Format Router (구현됨: 규칙 기반 planner)
 
-- 작업 목적, 개념 구조, 시간성, 데이터 유무, 사용자 조작 필요, 위험도, 요청된 출력 매체를 평가한다.
+- v0.1 구현은 명시적 매체 요청, 제한된 작업 키워드, 사전에 정의된 불리언 context 신호, 호스트 capability 선언을 평가한다.
+- 사용자 숙련도·세부 수준·위험도·데이터 품질을 의미적으로 평가하지 않는다. 해당 기능은 후속 평가 및 개선 대상이다.
 - 가장 낮은 복잡도로 목적을 달성하는 기본 형식을 선택한다.
 - 필요할 때만 보조 형식을 추가한다.
 - 지원되지 않거나 실행 능력이 확인되지 않은 형식은 생성 완료로 표시하지 않는다.
@@ -86,8 +87,8 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
     "context": Mapping[str, Any],
     "output_intent": {
         "requested_format": str | None,
-        "audience": str | None,
-        "detail_level": str | None
+        "audience": str | None,      # reserved; not used by planner v0.1
+        "detail_level": str | None   # reserved; not used by planner v0.1
     },
     "capabilities": {
         "text": bool,
@@ -124,6 +125,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
     },
     "execution_status": "NOT_RUN",
     "render_status": "NOT_RUN",
+    "functional_test_status": "NOT_RUN",
     "verification_status": "UNVERIFIED",
     "is_evidence": False
 }
