@@ -17,6 +17,7 @@ This repository maintains Korean source documents and English companion translat
 |---|---|---|
 | Co-thoughts protocol | [v2.0](../protocol/core/human-ai_co-thoughts_protocol_v2.0.md) | [v2.0](../protocol/core/human-ai_co-thoughts_protocol_v2.0.en.md) |
 | Adaptive explanation format | [v0.1](../protocol/core/adaptive_explanation_format_v0.1.md) | [v0.1](../protocol/core/adaptive_explanation_format_v0.1.en.md) |
+| Adaptive explanation router integration design | [v0.1](architecture/adaptive_explanation_router_integration_v0.1.md) | [v0.1](architecture/adaptive_explanation_router_integration_v0.1.en.md) |
 | Research Note data model | [v0.4](../protocol/research_note/research_note_data_model_v0.4.md) | [v0.4](../protocol/research_note/research_note_data_model_v0.4.en.md) |
 | Research Note generation engine | [v0.4](../protocol/research_note/research_note_generation_engine_v0.4.md) | [v0.4](../protocol/research_note/research_note_generation_engine_v0.4.en.md) |
 | One-stop pipeline | [v0.1](../protocol/research_note/research_note_one_stop_pipeline_v0.1.md) | [v0.1](../protocol/research_note/research_note_one_stop_pipeline_v0.1.en.md) |
