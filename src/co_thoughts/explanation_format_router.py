@@ -16,6 +16,8 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
+from request_validation import validate_routing_request
+
 FORMATS = frozenset({
     "TEXT", "DIAGRAM", "IMAGE", "INTERACTIVE", "ANIMATION", "VIDEO", "SIMULATION",
 })
@@ -138,18 +140,7 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
     Only TEXT is assumed available when the host supplies no capability map.
     Non-text formats require an explicit capability declaration from the host.
     """
-    if not isinstance(request, Mapping):
-        raise TypeError("REQUEST_MUST_BE_MAPPING")
-
-    task = request.get("task")
-    if not isinstance(task, str) or not task.strip():
-        raise ValueError("TASK_REQUIRED")
-
-    context = request.get("context")
-    if context is None:
-        context = {}
-    if not isinstance(context, Mapping):
-        raise ValueError("CONTEXT_INVALID")
+    task, context = validate_routing_request(request)
     _validate_context_signals(context)
 
     output_intent = request.get("output_intent")

@@ -180,6 +180,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 출처 불명 데이터: 출처 미확인 표시, 시각적 권위 부여 금지
 - 고위험 판단: 시각화 단독 결론 금지, 근거·불확실성·전문가 검토 필요성 표시
 - 형식 계획 입력 오류(불리언이 아닌 context 신호, 알 수 없거나 불리언이 아닌 capability 키, `text: false`, 미지원 `requested_format`): `route_explanation_format()`은 고정 코드(예: `CAPABILITY_UNKNOWN:<key>`)로 `ValueError`를 발생시킨다. 공개 `cognitive_router.route()`는 이를 전파하지 않고, `format_routing`에 `selection_status=INVALID_INPUT`인 TEXT 계획과 `error` 코드를 담아 반환하므로 인지·검증 라우팅은 영향을 받지 않는다.
+- 공통 요청 필드(`request`는 mapping, `task`는 공백이 아닌 문자열, `context`는 mapping이며 없거나 `None`일 때만 `{}`로 대체)는 Cognitive Router와 format planner 모두 `request_validation.validate_routing_request()`로 검증한다. 따라서 공통 필드 오류는 라우팅 전에 `route()`에서 `REQUEST_MUST_BE_MAPPING` / `TASK_REQUIRED` / `CONTEXT_INVALID`로 발생하며, `INVALID_INPUT`은 형식 전용 필드에만 적용된다.
 - 키워드 힌트: 영문 키워드는 단어 단위로 일치(단순 복수·과거형 접미사 허용), 한국어 키워드는 부분 문자열로 일치하되 알려진 충돌(예: "big picture", "그림자", "영상의학")은 제외 목록으로 처리한다.
 
 ## 10. 단계별 구현 계획
