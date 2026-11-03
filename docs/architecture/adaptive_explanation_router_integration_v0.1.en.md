@@ -180,6 +180,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Unknown data source: disclose the unknown source; do not add visual authority.
 - High-risk decisions: do not present visualization as the sole conclusion; include evidence, uncertainty, and need for expert review.
 - Invalid format-planning input (non-boolean context signal, unknown or non-boolean capability key, `text: false`, unsupported `requested_format`): `route_explanation_format()` raises `ValueError` with a stable code (e.g. `CAPABILITY_UNKNOWN:<key>`). The public `cognitive_router.route()` does not propagate it; `format_routing` returns a TEXT plan with `selection_status=INVALID_INPUT` and the code in `error`, so cognitive and verification routing are unaffected.
+- Shared request fields (`request` mapping, `task` non-blank string, `context` mapping defaulting to `{}` only when absent or `None`) are validated by `request_validation.validate_routing_request()` in both the Cognitive Router and the format planner, so invalid shared fields raise `REQUEST_MUST_BE_MAPPING` / `TASK_REQUIRED` / `CONTEXT_INVALID` from `route()` before any routing. `INVALID_INPUT` applies only to format-specific fields.
 - Keyword hints: ASCII keywords match whole words (simple plural/past suffixes allowed); Korean keywords match as substrings, with an exclusion list for known collisions (e.g. "big picture", "그림자", "영상의학").
 
 ## 10. Phased Implementation Plan

@@ -7,3 +7,7 @@ Active executable implementation. Keep runtime modules here; add corresponding t
 - `explanation_format_router.py` provides deterministic, capability-aware presentation planning.
 - `cognitive_router.route()` exposes the plan as `format_routing`; invalid format input yields `selection_status=INVALID_INPUT` instead of raising.
 - Planning does not generate media, render output, or verify claims.
+
+## Request validation
+
+- `request_validation.py` validates shared routing fields (`request`, `task`, `context`) with one rule set used by both `cognitive_router` and `explanation_format_router`.

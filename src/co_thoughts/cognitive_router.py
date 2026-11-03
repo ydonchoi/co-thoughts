@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 from workflows import route_workflow_natural_language
 from explanation_format_router import plan_explanation_format_safely
+from request_validation import validate_routing_request
 
 MODES = {"FAST", "MIXED", "DEEP"}
 OPERATIONS = {
@@ -140,16 +141,17 @@ class CognitiveRouter:
         self.config = config or RouterConfig()
 
     def route(self, request: Mapping[str, Any]) -> CognitivePlan:
-        mode = str(request.get("mode", "MIXED")).upper()
-        if mode not in MODES:
+        if not isinstance(request, Mapping):
+            raise TypeError("REQUEST_MUST_BE_MAPPING")
+        raw_mode = request.get("mode")
+        if raw_mode is None:
+            raw_mode = "MIXED"
+        if not isinstance(raw_mode, str) or raw_mode.strip().upper() not in MODES:
             raise ValueError("INVALID_MODE")
+        mode = raw_mode.strip().upper()
 
-        task = str(request.get("task", "")).strip()
-        context = request.get("context") or {}
-        if not task:
-            raise ValueError("TASK_REQUIRED")
-        if not isinstance(context, Mapping):
-            raise ValueError("CONTEXT_INVALID")
+        task, context = validate_routing_request(request)
+        task = task.strip()
 
         text = " ".join([task, repr(context)]).lower()
         ops: list[str] = []
@@ -199,7 +201,7 @@ class CognitiveRouter:
 
 def route(request: Mapping[str, Any]) -> dict[str, Any]:
     plan = CognitiveRouter().route(request)
-    task = str(request.get("task", ""))
+    task = request["task"]
     solution = request.get("proposed_solution")
     return {
         "mode": plan.mode,
