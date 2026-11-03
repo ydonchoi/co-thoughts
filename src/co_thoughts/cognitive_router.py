@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 from workflows import route_workflow_natural_language
+from explanation_format_router import route_explanation_format
 
 MODES = {"FAST", "MIXED", "DEEP"}
 OPERATIONS = {
@@ -208,6 +209,7 @@ def route(request: Mapping[str, Any]) -> dict[str, Any]:
         "verification_status": "UNVERIFIED",
         "is_evidence": False,
         "workflow_routing": plan.workflow_routing,
+        "format_routing": route_explanation_format(request),
         "verification_routing": route_verification_domains(
             task,
             proposed_solution=solution,
