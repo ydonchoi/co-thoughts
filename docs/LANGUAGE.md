@@ -30,6 +30,7 @@ This repository maintains Korean source documents and English companion translat
 | Cognitive Runtime safety | [v0.1](architecture/cognitive_runtime_safety_v01.md) | [v0.1](architecture/cognitive_runtime_safety_v01.en.md) |
 | Execution contract | [v0.1](contracts/execution_contract_v01.md) | [v0.1](contracts/execution_contract_v01.en.md) |
 | Switchable backend contract | [v0.1](contracts/switchable_backend_contract_v01.md) | [v0.1](contracts/switchable_backend_contract_v01.en.md) |
+| Conversation verification contract | [v0.1](contracts/conversation_verification_contract_v0.1.md) | [v0.1](contracts/conversation_verification_contract_v0.1.en.md) |
 | SARA verification output policy | [v1.0](verification/sara_verification_output_policy_v1.0.md) | [v1.0](verification/sara_verification_output_policy_v1.0.en.md) |
 | Historical v1.3 protocol | [v1.3](../archive/protocol/human-ai_co-thoughts_protocol_v1.3.md) | [v1.3](../archive/protocol/human-ai_co-thoughts_protocol_v1.3.en.md) |
 | Latest template test | [T55](testing/t55_multi_note_ai_disclosure_provenance_consistency_test_v0.1.md) | [T55](testing/t55_multi_note_ai_disclosure_provenance_consistency_test_v0.1.en.md) |
