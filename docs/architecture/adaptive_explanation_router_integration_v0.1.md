@@ -1,6 +1,6 @@
 # 적응형 설명 형식 라우터 연동 설계 v0.1
 
-> 상태: PARTIALLY IMPLEMENTED — planner·Cognitive Router 연결은 `main` 반영(PR #2–#18), Host/Adapter·렌더러는 미구현
+> 상태: PARTIALLY IMPLEMENTED — planner·Cognitive Router 연결은 `main` 반영(PR #2–#18, #25–#26), Host/Adapter 인터페이스는 참조 구현(`format_host.py`), 실제 렌더러는 미연결
 > 대상: co-thoughts v2.0 Cognitive Router 및 Adaptive Explanation Format Protocol v0.1
 > 범위: 인지 작업 계획에서 사용자에게 제시할 설명 형식 계획을 분리·연결하는 인터페이스 설계
 
@@ -215,10 +215,18 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 단위·통합 회귀 테스트 추가
 - 공통 요청 검증을 Cognitive Router·format planner·runtime `SafetyGate`·v1.3 execution 요청에 통일(PR #6–#8)
 
-### Phase 3 — Host/Adapter 렌더링 연결
+### Phase 3 — Host/Adapter 렌더링 연결 (인터페이스 구현됨, 렌더러 미연결)
 - 실제 사용 가능한 렌더러만 연결
 - 생성·렌더링·기능 시험·출처 검증을 분리 기록
 - 실패 시 텍스트 대체 경로 검증
+
+`src/co_thoughts/format_host.py` (참조 구현, 가짜 렌더러로 단위 테스트):
+
+- `RendererRegistry`: 형식별 렌더러를 명시적으로 등록한다. 기본 연결은 없고, TEXT는 등록 대상이 아니다. 렌더러는 `render(payload) -> {"artifact": …}`를 구현하며, INTERACTIVE·SIMULATION 렌더러는 `functional_test(artifact) -> {"passed": bool}`도 구현해야 전달된다.
+- `FormatHost.prepare_request(request)`: 요청의 `capabilities`를 등록된 렌더러로만 다시 쓰고(호출자가 기능을 주장할 수 없음), `output_schema`는 호스트에 설정된 값으로 바꾼다(없으면 제거). 잘못된 스키마는 호스트 생성 시 오류다.
+- `FormatHost.deliver(format_routing, content)`: `content["text"]`(TEXT 대체본, 항상 필수)와 선택적 `media`(`{형식: payload}`), `text_alternative`, `captions`를 받아 계획을 실행하고 단계별 기록을 반환한다: `generation_status`(콘텐츠 제공 여부), `render_status`, `functional_test_status`, `accessibility_status`(의무별 MET/NOT_MET), `source_verification_status`(항상 `NOT_RUN`), `verification_status=UNVERIFIED`, `is_evidence=False`.
+- 대체 사유(`fallback_reason`): `MEDIA_CONTENT_MISSING`, `ACCESSIBILITY_REQUIREMENT_NOT_MET:<의무>`(렌더링 전에 확인), `RENDERER_NOT_CONNECTED`, `RENDER_FAILED:<예외>`, `RENDER_OUTPUT_INVALID`, `FUNCTIONAL_TEST_UNAVAILABLE`, `FUNCTIONAL_TEST_FAILED`, `FUNCTIONAL_TEST_ERROR:<예외>`. 어떤 경우든 `planned_format`(선택 결과)은 보존하고 TEXT를 전달한다.
+- 렌더러 출력의 `verification_status`·`is_evidence`·`verified`·`is_verified`는 버린다. 계획 객체는 변경하지 않는다.
 
 ### Phase 4 — 평가 및 승격
 - v0.1 키워드 평가: `docs/testing/format_routing_keyword_eval_v0.1.md` (작성자 라벨링 과제 77개, 전체 0.623, 주제 언급으로 인한 불필요한 매체 비율 0.452, 바꿔 말한 요청 재현율 0). 요청 표현 조건(보고서 7절)으로 홀드아웃 세트(38개)는 0.526에서 0.842로, 불필요한 매체 비율은 0.619에서 0.048로 개선됐다. 바꿔 말한 요청 인식(보고서 8절)으로 두 번째 홀드아웃 세트(40개)의 바꿔 말한 요청 재현율이 0/20에서 18/20으로 올랐고, TEXT 과제 16개 중 1개에서 새 오탐이 생겼다. 자체 신호 구문 문맥 확인(보고서 9절)으로 세 번째 홀드아웃 세트(20개)는 8/20에서 20/20이 되었고, 세트 밖 새 사례로는 11/12였다. PR #13–#18의 리뷰 후속 수정 내역은 보고서 8.5·9.5·9.6절에 있다.
@@ -249,7 +257,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 | 출력 스키마 충돌 보고 | 구현됨 (단위 테스트) | `output_schema.allowed_formats`, `selection_status=CONFLICT`, `conflicts` (§5, §6). 실제 프로젝트 어댑터가 스키마를 선언하는 연결은 Phase 3 범위 |
 | 접근성 입력 | 구현됨 (단위 테스트) | `output_intent.accessibility`, `accessibility_requirements`, 접근성 충돌 (§5, §6). 의무 이행·검증(대체 텍스트·자막 생성)은 Phase 3 범위로 미구현 |
 | 보조 형식(`secondary`), `audience`/`detail_level` | 미구현 | §5–§7 |
-| Host/Adapter 연결 (Phase 3) | 미구현 | `render_status`는 항상 `NOT_RUN` |
+| Host/Adapter 인터페이스 (Phase 3) | 참조 구현 (가짜 렌더러로 단위 테스트) | `format_host.py`: 렌더러 등록, 기능 선언, 단계별 상태 기록, TEXT 대체. planner의 `render_status`는 여전히 `NOT_RUN`이며, 실행 결과는 호스트 기록에 있다 |
 | 실제 렌더러·매체 생성·기능 시험 | 미실행 | 사용 가능한 host renderer 확인 안 됨 |
 | SARA v3 Live 왕복 | 미검증 | Live 테스트 `test_live_cothoughts_to_sara_v3_round_trip`(실제 `SARAv3Connection`)는 `CO_THOUGHTS_SARA_V3_LIVE=1`과 형제 SARA v3 체크아웃(`SARA_v3/cli.py`)이 둘 다 있을 때만 실행되고, 그 밖에는 건너뛴다. `SARA_LLM_*` provider 설정은 건너뛰기 조건이 아니라 통과 전제조건이다(플래그와 체크아웃만 있고 provider 설정이 없으면 실행되어 실패한다). 이번 작업에서는 실행되지 않았다. 나머지 통합 테스트는 가짜 어댑터(`FakeV24Adapter`)를 쓴다. |
 
@@ -279,7 +287,7 @@ PR #12–#18에서 리뷰가 규칙을 바꿀 때마다 새 반례를 찾았다.
 1. 문서·상태 동기화 (본 절 포함)
 2. ~~독립 평가 체계~~ — **보류** (2026-11-04 프로젝트 소유자 결정). 지침(`docs/testing/format_routing_independent_eval_guidelines_v0.1.md`)은 유지하며, 재개 시 새 평가자가 처음부터 작성한다. 그동안 형식 선택 수치는 같은 작성자 세트 기준으로만 보고한다.
 3. 출력 스키마 충돌 보고와 접근성 입력 — 구현됨 (§7 우선순위 1·2, §11)
-4. Host/Adapter 인터페이스: 렌더러 프로토콜, 생성·렌더링·기능 시험·출처 검증 상태 분리 기록, 실패 시 TEXT 대체
+4. Host/Adapter 인터페이스: 렌더러 프로토콜, 생성·렌더링·기능 시험·출처 검증 상태 분리 기록, 실패 시 TEXT 대체 — 참조 구현됨(`format_host.py`)
 5. 실제 렌더러 연결: DIAGRAM부터, 렌더링·접근성·기능 시험을 분리 검증
 6. SARA v3 Live 왕복 검증: 실제 Provider 환경에서 Co-thoughts → SARA → assessment envelope → 후속 backend 전달
 

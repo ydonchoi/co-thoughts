@@ -1,6 +1,6 @@
 # Adaptive Explanation Format Router Integration Design v0.1
 
-> Status: PARTIALLY IMPLEMENTED — planner and Cognitive Router integration are on `main` (PRs #2–#18); Host/Adapter and renderers are not implemented
+> Status: PARTIALLY IMPLEMENTED — planner and Cognitive Router integration are on `main` (PRs #2–#18, #25–#26); Host/Adapter interface has a reference implementation (`format_host.py`); no real renderer is connected
 > Target: co-thoughts v2.0 Cognitive Router and Adaptive Explanation Format Protocol v0.1
 > Scope: An interface design that separates and connects cognitive planning with human-facing explanation-format planning.
 
@@ -215,10 +215,18 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Adds unit and integration regression tests.
 - Shared request validation unified across the Cognitive Router, format planner, runtime `SafetyGate`, and the v1.3 execution request (PRs #6–#8).
 
-### Phase 3 — Host/Adapter Rendering Integration
+### Phase 3 — Host/Adapter Rendering Integration (interface implemented, no renderer connected)
 - Connect only renderers that are actually available.
 - Record generation, rendering, functional testing, and source verification separately.
 - Verify text fallback when rendering fails.
+
+`src/co_thoughts/format_host.py` (reference implementation, unit-tested with fake renderers):
+
+- `RendererRegistry`: renderers are registered explicitly per format; nothing is connected by default and TEXT is not registrable. A renderer implements `render(payload) -> {"artifact": …}`; INTERACTIVE/SIMULATION renderers must also implement `functional_test(artifact) -> {"passed": bool}` to be delivered.
+- `FormatHost.prepare_request(request)`: rewrites `capabilities` from registered renderers only (callers cannot claim a capability) and replaces `output_schema` with the host's configured schema (removed if none). An invalid schema fails at host construction.
+- `FormatHost.deliver(format_routing, content)`: takes `content["text"]` (the TEXT version, always required) plus optional `media` (`{FORMAT: payload}`), `text_alternative`, `captions`, executes the plan, and returns a per-stage record: `generation_status` (content supplied), `render_status`, `functional_test_status`, `accessibility_status` (MET/NOT_MET per obligation), `source_verification_status` (always `NOT_RUN`), `verification_status=UNVERIFIED`, `is_evidence=False`.
+- Fallback reasons (`fallback_reason`): `MEDIA_CONTENT_MISSING`, `ACCESSIBILITY_REQUIREMENT_NOT_MET:<obligation>` (checked before rendering), `RENDERER_NOT_CONNECTED`, `RENDER_FAILED:<exception>`, `RENDER_OUTPUT_INVALID`, `FUNCTIONAL_TEST_UNAVAILABLE`, `FUNCTIONAL_TEST_FAILED`, `FUNCTIONAL_TEST_ERROR:<exception>`. In every case `planned_format` (the selection) is preserved and TEXT is delivered.
+- Renderer output fields `verification_status`, `is_evidence`, `verified`, `is_verified` are dropped. The plan object is not modified.
 
 ### Phase 4 — Evaluation and Promotion
 - v0.1 keyword evaluation: `docs/testing/format_routing_keyword_eval_v0.1.en.md` (77 author-labeled tasks; overall 0.623, unnecessary-media rate 0.452 driven by topic mentions, paraphrase recall 0). Request-cue gating (section 7 of that report) brings the held-out set (38 cases) from 0.526 to 0.842 and its unnecessary-media rate from 0.619 to 0.048. Paraphrase recognition (section 8) raises paraphrase recall on a second held-out set (40 cases) from 0/20 to 18/20, with one new false positive in 16 TEXT tasks. Context checks for self-cued phrases (section 9) bring a third held-out set (20 cases) from 8/20 to 20/20, and 11/12 on fresh probes outside every set. Review follow-ups for PRs #13–#18 are in report sections 8.5, 9.5, and 9.6.
@@ -249,7 +257,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 | Output-schema conflict reporting | Implemented (unit-tested) | `output_schema.allowed_formats`, `selection_status=CONFLICT`, `conflicts` (§5, §6). Wiring a real project adapter to declare the schema is Phase 3 scope |
 | Accessibility input | Implemented (unit-tested) | `output_intent.accessibility`, `accessibility_requirements`, accessibility conflicts (§5, §6). Fulfilling/verifying the obligations (generating alt text, captions) is Phase 3 and not implemented |
 | Secondary formats, `audience`/`detail_level` | Not implemented | §5–§7 |
-| Host/Adapter integration (Phase 3) | Not implemented | `render_status` is always `NOT_RUN` |
+| Host/Adapter interface (Phase 3) | Reference implementation (unit-tested with fake renderers) | `format_host.py`: renderer registration, capability declaration, per-stage status record, TEXT fallback. The planner's `render_status` is still `NOT_RUN`; execution results live in the host record |
 | Real renderers, media generation, functional tests | Not run | No usable host renderer identified |
 | SARA v3 live round trip | Not verified | The live test `test_live_cothoughts_to_sara_v3_round_trip` (real `SARAv3Connection`) is skipped unless `CO_THOUGHTS_SARA_V3_LIVE=1` and a sibling SARA v3 checkout (`SARA_v3/cli.py`) are both present; `SARA_LLM_*` provider settings are a prerequisite for it to pass, not a skip condition (with the flag and checkout but no provider settings it runs and fails). It has not been run in this work. Other integration tests use a fake adapter (`FakeV24Adapter`). |
 
@@ -279,7 +287,7 @@ In PRs #12–#18, review found new counterexamples after every rule change. The 
 1. Documentation and status sync (including this section)
 2. ~~Independent evaluation~~ — **deferred** (project owner's decision, 2026-11-04). The guidelines (`docs/testing/format_routing_independent_eval_guidelines_v0.1.en.md`) are kept; if resumed, a new annotator starts from scratch. Until then, format-selection numbers are reported only on same-author sets.
 3. Output-schema conflict reporting and accessibility input — implemented (§7 priorities 1–2, §11)
-4. Host/Adapter interface: renderer protocol, separate records for generation/rendering/functional test/source verification, TEXT fallback on failure
+4. Host/Adapter interface: renderer protocol, separate records for generation/rendering/functional test/source verification, TEXT fallback on failure — reference implementation (`format_host.py`)
 5. Real renderer integration, starting with DIAGRAM, with rendering, accessibility, and functional tests verified separately
 6. SARA v3 live round trip in a real provider environment: Co-thoughts → SARA → assessment envelope → downstream backend
 
