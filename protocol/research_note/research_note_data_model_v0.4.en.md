@@ -134,7 +134,7 @@ These are provenance labels, not epistemic states. No new Research Object, Claim
 
 ## Validation Closure Extension
 
-T51–T56 establish, for the tested scope, that AI disclosure is compatible with D1–D9, lifecycle decisions, human post-editing, D9 integration, BLOCKED persistence, and full-pipeline output semantics.
+T51–T55 establish, for the tested scope, that AI disclosure is compatible with D1–D9, lifecycle decisions, human post-editing, D9 integration, and BLOCKED persistence. T56 (full-pipeline output regression) is a proposed candidate from T55 §14; no T56 specification or result exists in this repository, so full-pipeline semantic integration is NOT RUN / OPEN.
 
 Live durable persistence and broad empirical generation validation remain open and capability-bound.
 

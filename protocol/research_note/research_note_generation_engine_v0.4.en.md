@@ -127,7 +127,7 @@ Every generated or structured Research Note must disclose AI participation at ar
 
 ## 11. Status and Closure
 
-T51–T56 validate the AI-disclosure semantics and pipeline integration for the tested scope. Live durable Notion persistence, post-write verification, and broad empirical generation validation remain capability-bound or open. Do not report failed writes as saved.
+T51–T55 validate the AI-disclosure semantics for the tested scope. T56 (full-pipeline output regression) is a proposed candidate from T55 §14; no T56 specification or result exists in this repository, so full-pipeline semantic integration is NOT RUN / OPEN. Live durable Notion persistence, post-write verification, and broad empirical generation validation remain capability-bound or open. Do not report failed writes as saved.
 
 ---
 
