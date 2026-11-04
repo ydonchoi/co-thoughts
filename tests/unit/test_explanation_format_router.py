@@ -445,3 +445,28 @@ def test_review_15_non_requests_stay_text(task):
 def test_review_15_requests_select_format(task, expected):
     result = route_explanation_format({"task": task})
     assert result["capability_status"]["requested"] == [expected]
+
+
+# --- Codex review on #16 ----------------------------------------------------
+
+@pytest.mark.parametrize("task", [
+    "온도를 조절하면서 결과를 확인할 수 있게 해주는 원리를 설명해줘",
+    "심장이 뛰는 과정을 움직이는 모습으로 간단히 보여주는 방법을 알려줘",
+    # same root cause in the general Korean cue: attributive verb forms
+    "흐름도를 그려주는 프로그램을 추천해줘",
+    "구조도를 만들어주는 도구가 뭐가 있어?",
+    "흐름도로 그려주는 프로그램을 추천해줘",
+    "구조도가 필요한 이유를 설명해줘",
+])
+def test_korean_attributive_verb_forms_are_not_requests(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]
+
+
+@pytest.mark.parametrize("task", [
+    "I want to model what happens if interest rates double",
+    "I need to model what happens if the server fails",
+])
+def test_first_person_model_requests_select_simulation(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["SIMULATION"]
