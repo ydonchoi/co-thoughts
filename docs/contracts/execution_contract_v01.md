@@ -6,7 +6,7 @@ Repository: ydonchoi/co-thoughts
 
 ## Purpose
 
-This document records the executable semantics that can be supported by the v1.3 protocol source and the minimal reference harness in `execution.py`.
+This document records the executable semantics that can be supported by the v1.3 protocol source and the minimal reference harness in `src/co_thoughts/execution.py`.
 
 The harness implements the **execution boundary and invariant checks**. It does not implement an LLM reasoning model, external research search, or epistemic truth verification.
 
@@ -128,7 +128,7 @@ The protocol does not require exposing all internal state to the human-facing re
 
 ## Current Reference Implementation
 
-`execution.py` provides:
+`src/co_thoughts/execution.py` provides:
 
 - `CoThoughtsExecutionRequest`: validated input boundary.
 - `CoThoughtsReferenceExecutor.run()`: deterministic reference execution harness.
@@ -183,6 +183,6 @@ The contract is derived from the repository's README.md at the v1.3 baseline, in
 - v1.3 execution flow;
 - core separation rules such as STATE ≠ EVIDENCE and AGREEMENT ≠ EVIDENCE.
 
-The current implementation details are additionally evidenced by `execution.py` and `tests/unit/test_execution.py`.
+The current implementation details are additionally evidenced by `src/co_thoughts/execution.py` and `tests/unit/test_execution.py`.
 
 This document is a provenance-preserving interpretation of those source rules, not a replacement for them.
