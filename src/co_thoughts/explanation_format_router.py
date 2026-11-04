@@ -127,7 +127,7 @@ _EN_CLAUSE_BREAKERS = frozenset({
     "that", "if",
 })
 # "as a diagram", "in a video", "with an animation", ...
-_EN_PREPOSITION_CUE = re.compile(r"(?:as|in|with|into|using|via)\s+(?:a|an)\s+(?:\S+\s+){0,2}$")
+_EN_PREPOSITION_CUE = re.compile(r"(?<![a-z0-9])(?:as|in|with|into|using|via)\s+(?:a|an)\s+(?:\S+\s+){0,2}$")
 # The preposition form only marks an output form when the format word heads
 # its phrase ("in a video", "as a diagram, please", "with an animation of ...")
 # rather than modifying another noun ("in a video game", "in a video codec").
@@ -183,8 +183,14 @@ _EN_SENTENCE_END = re.compile(r"[.!?;:\u2014]")
 _KO_MANIPULATE = frozenset({"바꿔가며", "바꿔 가며", "바꿔볼 수 있게", "조절하면서", "조절하며", "조절할 수 있게"})
 _KO_OBSERVATION_CUE = re.compile(r"결과|확인|볼 수|보여|변화|변하|바뀌|달라지")
 _KO_EXPLANATION_NOUN = re.compile(r"방법|이유|원리")
-_KO_MOTION_FORM_REQUEST = re.compile(r"^\s?(?:보여|그려|만들|설명해|나타내)")
-_EN_FORM_PREPOSITION_BEFORE = re.compile(r"(?:as|in|with|using|into)\s+$")
+_KO_INTERACTIVE_REQUEST_FORM = re.compile(r"있게\s?해|보여|만들어")
+_KO_MOTION_FORM_REQUEST = re.compile(r"^\s?(?:\S+\s){0,2}?(?:보여|그려|만들|설명해|나타내)")
+# Indirect request openers accepted before "model what happens"
+# ("Would you be able to model ...", "Could you possibly model ...").
+_EN_INDIRECT_REQUEST_PREFIX = re.compile(
+    r"^(?:(?:please|kindly|can|could|would|will|you|possibly|be able to)\s+)*$"
+)
+_EN_FORM_PREPOSITION_BEFORE = re.compile(r"(?<![a-z0-9])(?:as|in|with|using|into)\s+$")
 
 # Explicit precedence: the first true signal wins. Richer formats that subsume
 # simpler ones come first (a simulation is also interactive; an animation of a
@@ -245,13 +251,28 @@ def _self_cue_holds(keyword: str, text: str, start: int, end: int) -> bool:
         return bool(_EN_OBSERVATION_CUE.search(sentence_rest))
     if keyword in _KO_MANIPULATE:
         rest = re.split(r"[.!?]", after, maxsplit=1)[0]
-        return bool(_KO_OBSERVATION_CUE.search(rest)) and not _KO_EXPLANATION_NOUN.search(rest)
+        explanation = _KO_EXPLANATION_NOUN.search(rest)
+        if explanation is None:
+            return bool(_KO_OBSERVATION_CUE.search(rest))
+        # An explanation noun means "how/why to <manipulate>" unless the
+        # interactive output was already requested before it
+        # ("... 확인할 수 있게 해주고, 그 원리도 설명해줘").
+        head = rest[:explanation.start()]
+        return bool(_KO_OBSERVATION_CUE.search(head) and _KO_INTERACTIVE_REQUEST_FORM.search(head))
     if keyword == "model what happens":
         sentence_start = re.split(r"[.!?;]\s*", before)[-1]
-        if _EN_POLITE_PREFIX.match(sentence_start):
+        if _EN_INDIRECT_REQUEST_PREFIX.match(sentence_start):
             return True
         window = re.findall(r"[a-z0-9]+", before)[-_CUE_WINDOW:]
-        return any(token in _EN_REQUEST_VERBS for token in window)
+        for index, token in enumerate(window):
+            if token not in _EN_REQUEST_VERBS:
+                continue
+            between = window[index + 1:]
+            # "I want you to model ..." asks us; "researchers need to model ..."
+            # describes someone else.
+            if between == ["you", "to"] or not _EN_CLAUSE_BREAKERS & set(between):
+                return True
+        return False
     if keyword == "boxes and arrows":
         return bool(_EN_FORM_PREPOSITION_BEFORE.search(before))
     if keyword == "움직이는 모습으로":

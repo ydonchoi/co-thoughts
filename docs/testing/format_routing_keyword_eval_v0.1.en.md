@@ -210,6 +210,20 @@ Fresh probes outside every set: 11/12. The miss is "Let me adjust the tone **and
 - v0.3 and the conditions were designed in the same session by the same author, so 20/20 is optimistic; the probe result (11/12) is a better guide.
 - The conditions are lexical. An observation verb in an unrelated clause (probe above) still triggers INTERACTIVE, and a manipulation request without an observation cue ("Let me change the gravity", with no "see/watch") is now missed.
 
+### 9.5 Review follow-up (Codex on #15)
+
+The Codex review of #15 completed after merge and reported five issues, all reproduced on `main` @ `1de56be` and fixed:
+
+| Finding | Fix |
+|---|---|
+| "He h**as** boxes and arrows …" matched the `as` cue inside "has" (same bug in the `as/in a …` cue: "He h**as a** video …" → VIDEO) | Word boundary before the preposition in both cues |
+| "researchers **need to** model what happens …" → SIMULATION | `model what happens` request verbs use the clause-boundary rule; "I want **you to** model …" is still accepted |
+| "Would you **be able to** model what happens …" → TEXT | Indirect openers (`be able to`, `possibly`) accepted before `model what happens` |
+| "움직이는 모습으로 **간단히** 보여줘" → TEXT | Up to two modifier words allowed before the Korean request verb |
+| "조절하면서 결과를 확인할 수 있게 해주고, 그 **원리**도 설명해줘" → TEXT | An explanation noun only blocks the cue when the interactive request form (있게 해, 보여, 만들어) does not appear before it |
+
+All four evaluation sets are unchanged (dev 77/77, v0.1 37/38, v0.2 37/40, v0.3 20/20); the examples are pinned by unit tests.
+
 ---
 
 [Korean source](format_routing_keyword_eval_v0.1.md)
