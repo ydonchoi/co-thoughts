@@ -71,7 +71,7 @@ _FORMAT_KEYWORDS: dict[str, tuple[str, ...]] = {
         "image", "illustration", "draw", "drawing", "picture", "이미지", "그림",
         "일러스트", "삽화", "외관을 그려",
         # paraphrases
-        "photo", "photograph", "사진",
+        "photo", "photograph", "clip art", "사진",
     ),
 }
 
@@ -92,6 +92,12 @@ def _keyword_pattern(keyword: str) -> re.Pattern[str]:
     # Korean keywords are matched as substrings so particles (e.g. "도식을") still match.
     return re.compile(escaped)
 
+
+# Keyword matches to skip when followed by these words, because the compound
+# names a different format ("clip art" is an image, not a video clip).
+_KEYWORD_NOT_FOLLOWED_BY: dict[str, tuple[str, ...]] = {
+    "clip": ("art",),
+}
 
 _FORMAT_PATTERNS: tuple[tuple[str, tuple[tuple[str, re.Pattern[str]], ...]], ...] = tuple(
     (format_name, tuple((k, _keyword_pattern(k)) for k in keywords))
@@ -135,6 +141,12 @@ _EN_VERB_KEYWORDS = frozenset({
     "draw", "simulate", "simulating", "animate", "animating",
     "visualize", "visualise", "chart", "graph",
 })
+# A sentence-initial verb keyword is a noun subject, not a command, when it is
+# followed by "of" or a copula/auxiliary soon after ("Graph theory is ...",
+# "Chart of accounts ...").
+_EN_SUBJECT_FOLLOWER = re.compile(
+    r"^\s+(?:of(?![a-z0-9])|(?:\S+\s+){0,2}(?:is|are|was|were|has|have|can|will)(?![a-z0-9]))"
+)
 _EN_POLITE_PREFIX = re.compile(r"^(?:(?:please|kindly|can|could|would|will|you)\s+)*$")
 # A format noun that opens the task is a terse request ("Diagram of the TCP
 # handshake", "A video about photosynthesis", "Image: a red apple").
@@ -155,7 +167,7 @@ _SELF_CUED = frozenset({
     "boxes and arrows", "model what happens",
     "let me tweak", "let me adjust", "let me play with", "let me change", "let me vary",
     "바꿔가며", "바꿔 가며", "바꿔볼 수 있게", "조절하면서", "조절하며", "조절할 수 있게",
-    "움직이게", "움직이는 모습으로",
+    "움직이는 모습으로",
 })
 
 # Explicit precedence: the first true signal wins. Richer formats that subsume
@@ -220,7 +232,7 @@ def _is_requested(keyword: str, text: str, start: int, end: int) -> bool:
     before = text[:start]
     sentence_start = re.split(r"[.!?;]\s*", before)[-1]
     if keyword in _EN_VERB_KEYWORDS:
-        if _EN_POLITE_PREFIX.match(sentence_start):
+        if _EN_POLITE_PREFIX.match(sentence_start) and not _EN_SUBJECT_FOLLOWER.match(text[end:]):
             return True
     elif _EN_LEADING_NOUN_PREFIX.match(before):
         return True
@@ -242,7 +254,11 @@ def _infer_format(task: str, context: Mapping[str, Any]) -> tuple[str, str]:
     normalized = _normalize_task_text(task)
     for format_name, patterns in _FORMAT_PATTERNS:
         for keyword, pattern in patterns:
+            blocked = _KEYWORD_NOT_FOLLOWED_BY.get(keyword.casefold(), ())
             for match in pattern.finditer(normalized):
+                following = normalized[match.end():].split(None, 1)
+                if blocked and following and following[0].strip(".,;:!?") in blocked:
+                    continue
                 if _is_requested(keyword.casefold(), normalized, match.start(), match.end()):
                     return format_name, f"task wording requests {format_name.lower()}"
 

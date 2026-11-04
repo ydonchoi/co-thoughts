@@ -360,3 +360,27 @@ def test_paraphrased_requests_select_format(task, expected):
 def test_paraphrase_vocabulary_as_topic_stays_text(task):
     result = route_explanation_format({"task": task})
     assert result["capability_status"]["requested"] == ["TEXT"]
+
+
+# --- Codex review on #13 ----------------------------------------------------
+
+@pytest.mark.parametrize("task", [
+    "Graph theory is an important branch of mathematics",
+    "Chart of accounts is a ledger structure",
+    "힘이 물체를 움직이게 하는 이유를 설명해줘",
+])
+def test_noun_or_causal_uses_of_paraphrase_words_stay_text(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]
+
+
+@pytest.mark.parametrize("task, expected", [
+    ("Show me clip art of a lighthouse", "IMAGE"),
+    ("Create clip art for an invitation", "IMAGE"),
+    ("Make a short clip about the proof", "VIDEO"),
+    ("Chart the monthly revenue", "DIAGRAM"),
+    ("톱니바퀴가 돌아가는 모습을 움직이게 보여줘", "ANIMATION"),
+])
+def test_review_fixes_keep_intended_selections(task, expected):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == [expected]

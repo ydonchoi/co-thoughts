@@ -123,11 +123,11 @@
 | 형식 | 요청 표현 조건을 거치는 단어 | 자체 신호 구 |
 |---|---|---|
 | DIAGRAM | visualize/visualise/visualization, chart, graph, mind map, timeline, 시각화, 차트, 그래프, 도표, 도해, 마인드맵, 타임라인 | boxes and arrows |
-| IMAGE | photo, photograph, 사진 | — |
+| IMAGE | photo, photograph, clip art, 사진 | — |
 | VIDEO | clip, screencast, 녹화, 클립 | — |
 | INTERACTIVE | — | let me tweak/adjust/play with/change/vary, 바꿔가며, 바꿔볼 수 있게, 조절하면서, 조절하며, 조절할 수 있게 |
 | SIMULATION | what-if, scenario analysis, 시나리오별 | model what happens |
-| ANIMATION | in motion | 움직이게, 움직이는 모습으로 |
+| ANIMATION | in motion, 움직이게 | 움직이는 모습으로 |
 
 `visualize`, `visualise`, `chart`, `graph`는 명령문 동사 키워드로도 인정한다("Chart the revenue …", "Graph y = x²").
 
@@ -164,6 +164,16 @@
 - 홀드아웃 v0.2도 같은 작성자가 썼고, 어휘의 큰 방향(chart/graph/photo/clip)을 정한 뒤에 작성했다. topic 그룹은 오탐을 재려고 일부러 그 어휘를 썼지만, 작성자의 표현 습관은 여전히 공유한다.
 - 자체 신호 구("let me change", "조절하면서")는 추가 확인 없이 형식을 고른다. "Let me change the subject" 같은 문장도 INTERACTIVE로 선택된다.
 - 어휘는 닫힌 목록이다. 새로운 바꿔 말하기("render a 3D view", "controls to …")는 명시적으로 추가하고 새 홀드아웃 세트로 측정해야 한다.
+
+### 8.5 리뷰 후속 조치 (#13에 대한 Codex 리뷰)
+
+#13의 Codex 리뷰가 머지 후에 끝났고, 모든 평가 세트 밖에서 오탐 3종을 보고했다. 세 가지 모두 `main` @ `db02b3c`에서 재현됐고 수정했다.
+
+- 문장 첫머리의 `graph`/`chart`가 주어 명사로 쓰인 경우("Graph theory **is** …", "Chart **of** accounts …")를 명령문으로 보고 DIAGRAM을 골랐다. 이제 동사형 키워드 뒤에 `of`가 오거나 세 토큰 안에 계사·조동사(is, are, was, were, has, have, can, will)가 오면 명령문으로 인정하지 않는다.
+- 사동 표현 `움직이게`("힘이 물체를 움직이게 **하는 이유**")가 자체 신호로 처리돼 ANIMATION을 골랐다. 이제 자체 신호에서 빼고 한국어 요청 동사 조건("움직이게 **보여줘**")을 거치게 했다.
+- "clip art"가 `clip` 때문에 VIDEO로 선택됐다. 이제 "clip art"는 IMAGE 키워드이고, `clip` 뒤에 "art"가 오면 건너뛴다.
+
+세 평가 세트 결과는 바뀌지 않았다(개발 77/77, 홀드아웃 v0.1 37/38, 홀드아웃 v0.2 37/40). 예시는 단위 테스트로 고정했다.
 
 ---
 
