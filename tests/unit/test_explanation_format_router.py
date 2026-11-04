@@ -394,3 +394,30 @@ def test_review_fixes_keep_intended_selections(task, expected):
 def test_verb_keyword_with_wh_object_clause_is_a_command(task):
     result = route_explanation_format({"task": task})
     assert result["capability_status"]["requested"] == ["DIAGRAM"]
+
+
+# --- self-cued phrases need context ------------------------------------------
+
+@pytest.mark.parametrize("task", [
+    "Let me change my password, how do I do it?",
+    "Let me play with the idea for a second. Is free will an illusion?",
+    "Researchers model what happens inside black holes",
+    "I drew boxes and arrows on the whiteboard; summarize the meeting",
+    "숫자를 바꿔가며 외우는 방법을 알려줘",
+    "조명을 조절하면서 사진 찍는 요령을 알려줘",
+])
+def test_self_cued_phrases_in_non_request_sense_stay_text(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]
+
+
+@pytest.mark.parametrize("task, expected", [
+    ("Let me adjust the learning rate and compare the loss curves", "INTERACTIVE"),
+    ("Please model what happens if the bridge loses one support", "SIMULATION"),
+    ("Show the data pipeline using boxes and arrows", "DIAGRAM"),
+    ("반지름을 바꿔가며 넓이가 어떻게 변하는지 보여줘", "INTERACTIVE"),
+    ("심장이 뛰는 과정을 움직이는 모습으로 그려줘", "ANIMATION"),
+])
+def test_self_cued_phrases_in_request_context_select_format(task, expected):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == [expected]

@@ -163,8 +163,9 @@ _KO_OBJECT_REQUEST = re.compile(
     r"^(?:\s?\S{0,4})?(?:을|를|이|가)?\s?"
     r"(?:보여|그려|그리|만들|돌려|해\s?줘|해줘|생성|띄워|부탁|필요|원해)"
 )
-# Keywords that already describe a requested output form, so no separate cue
-# is needed.
+# Keywords that already describe a requested output form. Most still need a
+# small context check, because the same phrases have everyday non-request
+# uses ("Let me change the subject", "식단을 조절하면서 운동하는 방법").
 _SELF_CUED = frozenset({
     "외관을 그려", "움직이는 설명", "동작을 움직임으로",
     "boxes and arrows", "model what happens",
@@ -172,6 +173,18 @@ _SELF_CUED = frozenset({
     "바꿔가며", "바꿔 가며", "바꿔볼 수 있게", "조절하면서", "조절하며", "조절할 수 있게",
     "움직이는 모습으로",
 })
+# "let me <manipulate>" is interactive only when the user also wants to watch
+# the effect in the same sentence ("... and see how the curve changes").
+_EN_LET_ME = frozenset({"let me tweak", "let me adjust", "let me play with", "let me change", "let me vary"})
+_EN_OBSERVATION_CUE = re.compile(r"(?<![a-z0-9])(?:see|watch|observe|compare|what happens)(?![a-z0-9])")
+_EN_SENTENCE_END = re.compile(r"[.!?;:\u2014]")
+# Korean "<change/adjust> while ..." is interactive only with an observation or
+# result cue, and not when the task asks for a method/reason/principle.
+_KO_MANIPULATE = frozenset({"바꿔가며", "바꿔 가며", "바꿔볼 수 있게", "조절하면서", "조절하며", "조절할 수 있게"})
+_KO_OBSERVATION_CUE = re.compile(r"결과|확인|볼 수|보여|변화|변하|바뀌|달라지")
+_KO_EXPLANATION_NOUN = re.compile(r"방법|이유|원리")
+_KO_MOTION_FORM_REQUEST = re.compile(r"^\s?(?:보여|그려|만들|설명해|나타내)")
+_EN_FORM_PREPOSITION_BEFORE = re.compile(r"(?:as|in|with|using|into)\s+$")
 
 # Explicit precedence: the first true signal wins. Richer formats that subsume
 # simpler ones come first (a simulation is also interactive; an animation of a
@@ -224,10 +237,32 @@ def _normalize_task_text(task: str) -> str:
     return normalized
 
 
+def _self_cue_holds(keyword: str, text: str, start: int, end: int) -> bool:
+    """Context check for self-cued phrases (see _SELF_CUED)."""
+    before, after = text[:start], text[end:]
+    if keyword in _EN_LET_ME:
+        sentence_rest = _EN_SENTENCE_END.split(after, maxsplit=1)[0]
+        return bool(_EN_OBSERVATION_CUE.search(sentence_rest))
+    if keyword in _KO_MANIPULATE:
+        rest = re.split(r"[.!?]", after, maxsplit=1)[0]
+        return bool(_KO_OBSERVATION_CUE.search(rest)) and not _KO_EXPLANATION_NOUN.search(rest)
+    if keyword == "model what happens":
+        sentence_start = re.split(r"[.!?;]\s*", before)[-1]
+        if _EN_POLITE_PREFIX.match(sentence_start):
+            return True
+        window = re.findall(r"[a-z0-9]+", before)[-_CUE_WINDOW:]
+        return any(token in _EN_REQUEST_VERBS for token in window)
+    if keyword == "boxes and arrows":
+        return bool(_EN_FORM_PREPOSITION_BEFORE.search(before))
+    if keyword == "움직이는 모습으로":
+        return bool(_KO_MOTION_FORM_REQUEST.match(after))
+    return True
+
+
 def _is_requested(keyword: str, text: str, start: int, end: int) -> bool:
     """Return True when the keyword at text[start:end] is asked for as output."""
     if keyword in _SELF_CUED:
-        return True
+        return _self_cue_holds(keyword, text, start, end)
     if not keyword.isascii():
         after = text[end:]
         return bool(_KO_FORM_PARTICLE.match(after) or _KO_OBJECT_REQUEST.match(after))
