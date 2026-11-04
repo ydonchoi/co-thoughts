@@ -6,7 +6,7 @@ Repository: `ydonchoi/co-thoughts`
 
 ## Purpose
 
-This document records executable semantics supported by the v1.3 protocol source and the minimal reference harness in `execution.py`.
+This document records executable semantics supported by the v1.3 protocol source and the minimal reference harness in `src/co_thoughts/execution.py`.
 
 The harness implements the **execution boundary and invariant checks**. It does not implement an LLM reasoning model, external research search, or epistemic truth verification.
 
@@ -123,7 +123,7 @@ The protocol does not require exposing all internal state in the user-facing res
 
 ## Current Reference Implementation
 
-`execution.py` provides:
+`src/co_thoughts/execution.py` provides:
 - `CoThoughtsExecutionRequest`: validated input boundary;
 - `CoThoughtsReferenceExecutor.run()`: deterministic reference execution harness;
 - mode validation for FAST/MIXED/DEEP: a selected mode is required (missing or `None` is `INVALID_MODE`); case and surrounding whitespace are normalized;
@@ -162,7 +162,7 @@ A future production CognitiveAdapter still requires an explicit LLM/runtime exec
 
 The contract is derived from the repository's README at the v1.3 baseline, including project purpose, human/LLM role separation, FAST/MIXED/DEEP modes, exploration and verification, Verification Gate, Information Gain and Stop Condition, Transition Gate, Claim/Epistemic Status, Agreement Control, Checkpoint and Sparse Checkpoint, protocol violations, execution flow, and separation rules such as STATE ≠ EVIDENCE and AGREEMENT ≠ EVIDENCE.
 
-Implementation details are additionally supported by `execution.py` and `tests/unit/test_execution.py`.
+Implementation details are additionally supported by `src/co_thoughts/execution.py` and `tests/unit/test_execution.py`.
 
 This document is a provenance-preserving interpretation of those source rules, not a replacement for them.
 
