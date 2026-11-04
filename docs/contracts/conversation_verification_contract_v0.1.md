@@ -44,6 +44,7 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
   - 우선 요청의 `user_claims`(호스트가 지정)를 쓴다. 없으면 백엔드 출력의 `user_claims`(백엔드가 추출)를 쓴다.
   - Co-thoughts는 사용자 발화에서 claim을 직접 추출하지 않는다.
   - claim을 지정하지 않으면 `UC-n`이 ID로 붙는다.
+  - `run_workflow`, `run_natural_language` 경로로 요청해도 `user_claims`는 그대로 기록까지 전달된다(회귀 테스트로 고정).
 - **사용자 발화 본문:** 요청의 `task`
 - **AI 응답 본문:** 출력의 `response`. 비어 있으면 claim 문장들을 이어 붙인다.
 - **잘못된 입력 처리:**

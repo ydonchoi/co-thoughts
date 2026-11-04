@@ -356,6 +356,22 @@ def test_malformed_host_user_claims_are_rejected_before_backend_call(bad):
     assert backend.requests == []
 
 
+def test_user_claims_reach_the_record_through_workflow_paths():
+    sara = RecordingSARA()
+    rt = runtime(Backend(), sara)
+    via_workflow = rt.run_workflow("problem_diagnosis", request("TURN-1", user_claims=USER_CLAIM))
+    via_language = rt.run_natural_language(request("TURN-2", task="잠정 해결안을 제안해줘", user_claims=USER_CLAIM))
+    assert via_workflow["workflow"]["name"] == "problem_diagnosis"
+    assert via_language["workflow"]["name"] == "solution_design"
+    for result, turn in ((via_workflow, "TURN-1"), (via_language, "TURN-2")):
+        assert result["conversation_verification"]["recorded_claim_refs"] == [
+            f"{turn}:USER:U1", f"{turn}:ASSISTANT:C1"]
+    plan, report = verify(rt)
+    assert [turn["content"] for turn in sara.turns if turn["turn_id"].endswith("-u")] == [
+        USER_TEXT, "잠정 해결안을 제안해줘"]
+    assert report["coverage"]["claims_not_assessed"] == 0
+
+
 # --- Ledger -------------------------------------------------------------------------------------
 
 def test_retried_turn_replaces_its_record():

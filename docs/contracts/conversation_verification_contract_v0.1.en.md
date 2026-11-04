@@ -44,6 +44,7 @@ User asks for verification
   - The request's `user_claims` (set by the host) are used first. Without them, the backend output's `user_claims` (extracted by the backend) are used.
   - Co-thoughts does not extract claims from user text itself.
   - Claims without an id get `UC-n`.
+  - Requests through `run_workflow` and `run_natural_language` carry `user_claims` through to the record as well (pinned by a regression test).
 - **User utterance body:** the request's `task`
 - **Assistant body:** the output's `response`. If it is empty, the claim texts are joined.
 - **Malformed input:**
