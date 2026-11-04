@@ -230,10 +230,10 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 
 DIAGRAM 렌더러 `src/co_thoughts/diagram_renderer.py`(`MermaidFlowchartRenderer`, 외부 의존성 없음):
 
-- 지원 부분집합: 머리글 `graph`/`flowchart` + `TD`·`TB`·`LR`; 노드 `id`, `id[라벨]`, `id(라벨)`(둥근 상자), `id{라벨}`(판단); 연결 `-->`(화살표)·`---`(선), 라벨 `-->|라벨|`·`-- 라벨 -->`, 체인 `A --> B --> C`; `%%` 주석, `;` 구분. 그 밖의 문법(`subgraph`, `==>`, `&`, 다른 다이어그램 종류 등)은 `DiagramSyntaxError`(고정 코드: `DIAGRAM_HEADER_UNSUPPORTED`, `DIAGRAM_SYNTAX_UNSUPPORTED:line N`, `DIAGRAM_NODE_REDEFINED:<id>` 등)로 거부하므로 호스트에서 `RENDER_FAILED:DiagramSyntaxError`와 TEXT 대체가 된다. 추측해서 그리지 않는다.
+- 지원 부분집합: 머리글 `graph`/`flowchart` + `TD`·`TB`·`LR`; 노드 `id`, `id[라벨]`, `id(라벨)`(둥근 상자), `id{라벨}`(판단); 연결 `-->`(화살표)·`---`(선), 라벨 `-->|라벨|`·`-- 라벨 -->`, 체인 `A --> B --> C`; `%%` 주석, `;` 구분(따옴표·괄호·`|라벨|` 안의 `;`는 라벨 문자). 그 밖의 문법(`subgraph`, `==>`, `&`, 원·엑스 연결 `---o`/`---x`/`-->o`/`-->x`, 다른 다이어그램 종류 등)과 XML에서 쓸 수 없는 제어 문자(`DIAGRAM_INVALID_CHARACTER`)는 `DiagramSyntaxError`(고정 코드: `DIAGRAM_HEADER_UNSUPPORTED`, `DIAGRAM_SYNTAX_UNSUPPORTED:line N`, `DIAGRAM_NODE_REDEFINED:<id>` 등)로 거부하므로 호스트에서 `RENDER_FAILED:DiagramSyntaxError`와 TEXT 대체가 된다. 추측해서 그리지 않는다.
 - 한도: 노드 200, 연결 400, 라벨 200자, 원본 20,000자.
-- 배치: 진입 연결이 없는 노드에서 시작하는 너비 우선 계층 배치(결정적, 순환 허용). 라벨은 XML 이스케이프한다.
-- 접근성: SVG에 `role="img"`, `<title>`(기본 "Flowchart", payload `title`로 지정 가능), `<desc>`(payload `description` 또는 노드·연결 자동 요약)를 넣는다. 호스트의 `TEXT_ALTERNATIVE` 의무는 별도로 `content["text_alternative"]`로 확인한다.
+- 배치: 진입 연결이 없는 노드에서 시작하는 너비 우선 계층 배치(결정적, 순환 허용). 인접 계층 사이 연결만 직선으로 그리고, 역방향·같은 계층·자기 순환·계층을 건너뛰는 연결은 도식 옆(TD는 오른쪽, LR은 아래쪽) 전용 통로로 돌려 다른 노드를 지나지 않게 한다. 라벨은 렌더링 폭(전각 문자는 넓게 계산) 기준으로 줄바꿈하고 상자 크기를 맞추며, XML 이스케이프한다.
+- 접근성: SVG에 `role="img"`, 문서마다 고유한 id(내용 해시 + 렌더러별 순번)로 연결한 `aria-labelledby`, `<title>`(기본 "Flowchart", payload `title`로 지정 가능), `<desc>`(payload `description` 또는 노드·연결 자동 요약)를 넣는다. 호스트의 `TEXT_ALTERNATIVE` 의무는 별도로 `content["text_alternative"]`로 확인한다.
 - 출력: `{"artifact": SVG 문자열, "mime_type": "image/svg+xml", "node_count", "edge_count", "summary"}`. 렌더링은 도식 내용을 검증하지 않는다.
 - 등록 예: `registry.register("DIAGRAM", MermaidFlowchartRenderer())`. 테스트는 SVG 구문 유효성(XML 파싱), 노드·연결 수, 배치 방향, 이스케이프, `<title>`/`<desc>`, 호스트 경유 전달·실패 대체·접근성 차단을 각각 확인한다.
 

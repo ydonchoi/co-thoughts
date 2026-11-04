@@ -21,7 +21,9 @@ verifies the diagram's content; the host keeps ``verification_status``
 """
 from __future__ import annotations
 
+import hashlib
 import re
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -40,6 +42,33 @@ _NODE = re.compile(
 # ``-- label -->`` must be tried before the bare ``-->``/``---`` operators.
 _EDGE_TEXT = re.compile(r"\s*--\s+([^-|][^|]*?)\s+(-->|---)")
 _EDGE = re.compile(r"\s*(-->|---)(?:\s*\|([^|]*)\|)?")
+# Characters XML 1.0 forbids; escaping cannot make them valid SVG.
+_XML_INVALID = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]")
+
+
+def _split_statements(line: str) -> list[str]:
+    """Split on ``;`` only outside quotes, brackets and ``|edge labels|``."""
+    parts: list[str] = []
+    buffer: list[str] = []
+    in_quote = in_pipe = False
+    depth = 0
+    for char in line:
+        if char == '"':
+            in_quote = not in_quote
+        elif not in_quote:
+            if char in "[({":
+                depth += 1
+            elif char in "])}":
+                depth = max(0, depth - 1)
+            elif char == "|" and depth == 0:
+                in_pipe = not in_pipe
+            elif char == ";" and depth == 0 and not in_pipe:
+                parts.append("".join(buffer))
+                buffer = []
+                continue
+        buffer.append(char)
+    parts.append("".join(buffer))
+    return parts
 
 
 class DiagramSyntaxError(ValueError):
@@ -103,6 +132,8 @@ def parse_flowchart(source: str) -> Flowchart:
         raise DiagramSyntaxError("DIAGRAM_SOURCE_REQUIRED")
     if len(source) > MAX_SOURCE_CHARS:
         raise DiagramSyntaxError("DIAGRAM_SOURCE_TOO_LONG")
+    if _XML_INVALID.search(source):
+        raise DiagramSyntaxError("DIAGRAM_INVALID_CHARACTER")
 
     lines = [
         (number, line.strip())
@@ -118,7 +149,7 @@ def parse_flowchart(source: str) -> Flowchart:
     chart = Flowchart(direction=direction)
 
     for line_no, line in lines[1:]:
-        for statement in line.split(";"):
+        for statement in _split_statements(line):
             if statement.strip():
                 _parse_statement(chart, statement, line_no)
 
@@ -137,13 +168,17 @@ def _parse_statement(chart: Flowchart, statement: str, line_no: int) -> None:
         text_edge = _EDGE_TEXT.match(statement, pos)
         if text_edge is not None:
             op, edge_label = text_edge.group(2), text_edge.group(1)
-            pos = text_edge.end()
+            op_end, pos = text_edge.end(2), text_edge.end()
         else:
             edge = _EDGE.match(statement, pos)
             if edge is None:
                 raise DiagramSyntaxError(f"DIAGRAM_SYNTAX_UNSUPPORTED:line {line_no}")
             op, edge_label = edge.group(1), edge.group(2)
-            pos = edge.end()
+            op_end, pos = edge.end(1), edge.end()
+        # Mermaid reserves ``---o``/``---x`` (and ``-->o``/``-->x``) for
+        # circle and cross edges; never read the marker as a node id.
+        if statement[op_end:op_end + 1] in ("o", "x"):
+            raise DiagramSyntaxError(f"DIAGRAM_EDGE_UNSUPPORTED:line {line_no}")
         target = _NODE.match(statement, pos)
         if target is None:
             raise DiagramSyntaxError(f"DIAGRAM_SYNTAX_UNSUPPORTED:line {line_no}")
@@ -210,14 +245,64 @@ def describe(chart: Flowchart) -> str:
     )
 
 
-def render_svg(chart: Flowchart, *, title: str, description: str) -> str:
+_LINE_PX = 170          # wrap labels at this rendered width
+_LINE_HEIGHT = 15
+_LANE_GAP = 14
+
+
+def _char_px(char: str) -> int:
+    """Approximate glyph width at 12px: wide (CJK) glyphs take ~12px."""
+    return 12 if unicodedata.east_asian_width(char) in ("W", "F") else 7
+
+
+def _text_px(text: str) -> int:
+    return sum(_char_px(char) for char in text)
+
+
+def wrap_label(label: str, max_px: int = _LINE_PX) -> list[str]:
+    """Wrap at spaces when possible, hard-breaking words wider than a line."""
+    lines: list[str] = []
+    current = ""
+    for word in label.split():
+        candidate = f"{current} {word}" if current else word
+        if _text_px(candidate) <= max_px:
+            current = candidate
+            continue
+        if current:
+            lines.append(current)
+        current = ""
+        for char in word:
+            if _text_px(current + char) > max_px and current:
+                lines.append(current)
+                current = ""
+            current += char
+    if current:
+        lines.append(current)
+    return lines or [label]
+
+
+def _text_lines(x: float, y_center: float, lines: list[str], css_class: str, size: int) -> str:
+    first_y = y_center - (len(lines) - 1) * _LINE_HEIGHT / 2 + 4
+    spans = "".join(
+        f'<tspan x="{x:g}" y="{first_y + i * _LINE_HEIGHT:g}">{escape(line)}</tspan>'
+        for i, line in enumerate(lines)
+    )
+    return f'<text class="{css_class}" font-size="{size}" text-anchor="middle">{spans}</text>'
+
+
+def render_svg(
+    chart: Flowchart, *, title: str, description: str, id_prefix: str = "diagram"
+) -> str:
     rank = _ranks(chart)
     layers: dict[int, list[str]] = {}
     for node in chart.nodes:
         layers.setdefault(rank[node], []).append(node)
 
-    widest = max(len(node["label"]) for node in chart.nodes.values())
-    box_w, box_h = max(80, min(widest, 40) * 7 + 24), 40
+    wrapped = {node_id: wrap_label(node["label"]) for node_id, node in chart.nodes.items()}
+    widest = max(_text_px(line) for lines in wrapped.values() for line in lines)
+    tallest = max(len(lines) for lines in wrapped.values())
+    box_w = max(80, widest + 24)
+    box_h = max(40, tallest * _LINE_HEIGHT + 20)
     gap_main, gap_cross, margin = 60, 30, 20
     horizontal = chart.direction == "LR"
 
@@ -227,38 +312,76 @@ def render_svg(chart: Flowchart, *, title: str, description: str) -> str:
             main = margin + layer * ((box_w if horizontal else box_h) + gap_main)
             cross = margin + index * ((box_h if horizontal else box_w) + gap_cross)
             pos[node] = (main, cross) if horizontal else (cross, main)
-    width = max(x for x, _ in pos.values()) + box_w + margin
-    height = max(y for _, y in pos.values()) + box_h + margin
+    content_right = max(x for x, _ in pos.values()) + box_w
+    content_bottom = max(y for _, y in pos.values()) + box_h
 
+    # Only edges between adjacent layers are drawn straight. Back edges,
+    # same-layer edges, self-loops and layer-skipping edges would cross
+    # other nodes or overlap forward edges, so they get their own lane
+    # beside the diagram (right side for TD, below for LR).
+    routed = [
+        edge for edge in chart.edges
+        if rank[edge["target"]] != rank[edge["source"]] + 1
+    ]
+    lanes = {id(edge): index for index, edge in enumerate(routed)}
+    lane_space = (len(routed) * _LANE_GAP + 10) if routed else 0
+    width = content_right + margin + (0 if horizontal else lane_space)
+    height = content_bottom + margin + (lane_space if horizontal else 0)
+
+    title_id, desc_id, arrow_id = (
+        f"{id_prefix}-title", f"{id_prefix}-desc", f"{id_prefix}-arrow"
+    )
     out = [
         f'<svg xmlns="http://www.w3.org/2000/svg" role="img" '
-        f'aria-labelledby="diagram-title diagram-desc" width="{width:g}" '
+        f'aria-labelledby="{title_id} {desc_id}" width="{width:g}" '
         f'height="{height:g}" viewBox="0 0 {width:g} {height:g}">',
-        f'<title id="diagram-title">{escape(title)}</title>',
-        f'<desc id="diagram-desc">{escape(description)}</desc>',
-        '<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" '
+        f'<title id="{title_id}">{escape(title)}</title>',
+        f'<desc id="{desc_id}">{escape(description)}</desc>',
+        f'<defs><marker id="{arrow_id}" viewBox="0 0 10 10" refX="10" refY="5" '
         'markerWidth="8" markerHeight="8" orient="auto-start-reverse">'
         '<path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/></marker></defs>',
     ]
     for edge in chart.edges:
         (sx, sy), (tx, ty) = pos[edge["source"]], pos[edge["target"]]
-        x1, y1 = sx + box_w / 2, sy + box_h / 2
-        x2, y2 = tx + box_w / 2, ty + box_h / 2
-        if horizontal:
-            x1 += box_w / 2 if x2 >= x1 else -box_w / 2
-            x2 += -box_w / 2 if x2 >= x1 else box_w / 2
+        marker = f' marker-end="url(#{arrow_id})"' if edge["arrow"] else ""
+        if id(edge) in lanes:
+            offset = 10 + lanes[id(edge)] * _LANE_GAP
+            if horizontal:
+                lane = content_bottom + offset
+                x1, y1 = sx + box_w * 0.35, sy + box_h
+                x2, y2 = tx + box_w * 0.65, ty + box_h
+                points = [(x1, y1), (x1, lane), (x2, lane), (x2, y2)]
+                label_at = ((x1 + x2) / 2, lane - 4)
+            else:
+                lane = content_right + offset
+                x1, y1 = sx + box_w, sy + box_h * 0.35
+                x2, y2 = tx + box_w, ty + box_h * 0.65
+                points = [(x1, y1), (lane, y1), (lane, y2), (x2, y2)]
+                label_at = (lane + 4, (y1 + y2) / 2)
+            d = " ".join(
+                f"{'M' if i == 0 else 'L'} {px:g} {py:g}" for i, (px, py) in enumerate(points)
+            )
+            out.append(
+                f'<path class="edge" data-route="lane" d="{d}" fill="none" '
+                f'stroke="#333"{marker}/>'
+            )
+            anchor = "middle" if horizontal else "start"
         else:
-            y1 += box_h / 2 if y2 >= y1 else -box_h / 2
-            y2 += -box_h / 2 if y2 >= y1 else box_h / 2
-        marker = ' marker-end="url(#arrow)"' if edge["arrow"] else ""
-        out.append(
-            f'<line class="edge" x1="{x1:g}" y1="{y1:g}" x2="{x2:g}" y2="{y2:g}" '
-            f'stroke="#333"{marker}/>'
-        )
+            x1, y1 = sx + box_w / 2, sy + box_h / 2
+            x2, y2 = tx + box_w / 2, ty + box_h / 2
+            if horizontal:
+                x1, x2 = x1 + box_w / 2, x2 - box_w / 2
+            else:
+                y1, y2 = y1 + box_h / 2, y2 - box_h / 2
+            out.append(
+                f'<line class="edge" x1="{x1:g}" y1="{y1:g}" x2="{x2:g}" '
+                f'y2="{y2:g}" stroke="#333"{marker}/>'
+            )
+            label_at, anchor = ((x1 + x2) / 2, (y1 + y2) / 2 - 4), "middle"
         if edge["label"]:
             out.append(
-                f'<text class="edge-label" x="{(x1 + x2) / 2:g}" y="{(y1 + y2) / 2 - 4:g}" '
-                f'font-size="11" text-anchor="middle">{escape(edge["label"])}</text>'
+                f'<text class="edge-label" x="{label_at[0]:g}" y="{label_at[1]:g}" '
+                f'font-size="11" text-anchor="{anchor}">{escape(edge["label"])}</text>'
             )
     for node_id, node in chart.nodes.items():
         x, y = pos[node_id]
@@ -275,10 +398,7 @@ def render_svg(chart: Flowchart, *, title: str, description: str) -> str:
                 f'height="{box_h}"{radius} fill="#fff" stroke="#333"/>'
             )
         out.append(shape)
-        out.append(
-            f'<text class="node-label" x="{x + box_w / 2:g}" y="{y + box_h / 2 + 4:g}" '
-            f'font-size="12" text-anchor="middle">{escape(node["label"])}</text>'
-        )
+        out.append(_text_lines(x + box_w / 2, y + box_h / 2, wrapped[node_id], "node-label", 12))
     out.append("</svg>")
     return "\n".join(out)
 
@@ -287,8 +407,14 @@ class MermaidFlowchartRenderer:
     """``format_host`` renderer for DIAGRAM.
 
     The payload is the Mermaid source string, or a mapping with ``source`` and
-    optional ``title`` / ``description`` strings.
+    optional ``title`` / ``description`` strings. Element ids are derived from
+    the content plus a per-renderer counter, so several SVGs returned by one
+    renderer can be inlined in the same document without duplicate ids, while
+    the same input to a fresh renderer gives identical output.
     """
+
+    def __init__(self) -> None:
+        self._count = 0
 
     def render(self, payload: Any) -> dict[str, Any]:
         if isinstance(payload, Mapping):
@@ -298,14 +424,23 @@ class MermaidFlowchartRenderer:
         else:
             source, title, description = payload, None, None
         for name, value in (("title", title), ("description", description)):
-            if value is not None and (not isinstance(value, str) or not value.strip()):
+            if value is not None and (
+                not isinstance(value, str) or not value.strip() or _XML_INVALID.search(value)
+            ):
                 raise DiagramSyntaxError(f"DIAGRAM_{name.upper()}_INVALID")
         chart = parse_flowchart(source)
         summary = describe(chart)
+        title_text = (title or "Flowchart").strip()
+        desc_text = (description or summary).strip()
+        self._count += 1
+        digest = hashlib.sha256(
+            "\x1f".join((source, title_text, desc_text)).encode("utf-8")
+        ).hexdigest()[:10]
         svg = render_svg(
             chart,
-            title=(title or "Flowchart").strip(),
-            description=(description or summary).strip(),
+            title=title_text,
+            description=desc_text,
+            id_prefix=f"diagram-{digest}-{self._count}",
         )
         return {
             "artifact": svg,

@@ -22,6 +22,12 @@ APPROVAL = """flowchart TD
 """
 
 
+def _texts(root, css_class):
+    """Text of each element; wrapped lines (``<tspan>``) are joined by spaces."""
+    return [" ".join(span.text for span in el) if el.find(f"{SVG}tspan") is not None
+            else el.text for el in root if el.get("class") == css_class]
+
+
 def _svg(source, **extra):
     payload = {"source": source, **extra} if extra else source
     output = MermaidFlowchartRenderer().render(payload)
@@ -100,8 +106,7 @@ def test_render_output_is_well_formed_svg_with_one_shape_per_node():
     shapes = [el for el in root if el.get("class") == "node"]
     assert len(shapes) == 3
     assert len([el for el in root if el.get("class") == "edge"]) == 3
-    labels = [el.text for el in root if el.get("class") == "node-label"]
-    assert labels == ["Request received", "Review", "Done"]
+    assert _texts(root, "node-label") == ["Request received", "Review", "Done"]
     assert [el.text for el in root if el.get("class") == "edge-label"] == ["approve", "reject"]
 
 
@@ -130,19 +135,19 @@ def test_line_edges_have_no_arrowhead():
     _, root = _svg("graph TD\nA --- B\nB --> C")
     edges = [el for el in root if el.get("class") == "edge"]
     assert edges[0].get("marker-end") is None
-    assert edges[1].get("marker-end") == "url(#arrow)"
+    marker_id = root.find(f"{SVG}defs/{SVG}marker").get("id")
+    assert edges[1].get("marker-end") == f"url(#{marker_id})"
 
 
 def test_labels_are_escaped_not_injected():
-    output, root = _svg('graph TD\nA["<script>alert(1)</script> & co"]')
+    output, root = _svg('graph TD\nA["<script>x</script> & co"]')
     assert "<script>" not in output["artifact"]
-    labels = [el.text for el in root if el.get("class") == "node-label"]
-    assert labels == ["<script>alert(1)</script> & co"]
+    assert _texts(root, "node-label") == ["<script>x</script> & co"]
 
 
 def test_korean_labels_render():
     _, root = _svg("flowchart TD\nA[요청 접수] -->|승인| B(완료)")
-    assert [el.text for el in root if el.get("class") == "node-label"] == ["요청 접수", "완료"]
+    assert _texts(root, "node-label") == ["요청 접수", "완료"]
 
 
 # --- Accessibility: <title>/<desc> ---
@@ -150,8 +155,9 @@ def test_korean_labels_render():
 def test_svg_has_title_desc_and_img_role_with_generated_summary():
     output, root = _svg(APPROVAL)
     assert root.get("role") == "img"
-    assert root.get("aria-labelledby") == "diagram-title diagram-desc"
-    assert root.find(f"{SVG}title").text == "Flowchart"
+    title, desc_el = root.find(f"{SVG}title"), root.find(f"{SVG}desc")
+    assert root.get("aria-labelledby") == f"{title.get('id')} {desc_el.get('id')}"
+    assert title.text == "Flowchart"
     desc = root.find(f"{SVG}desc").text
     assert desc == output["summary"]
     assert desc.startswith("Flowchart (top-down) with 3 nodes and 3 connections:")
@@ -227,3 +233,93 @@ def test_missing_text_alternative_blocks_svg_before_rendering():
     assert record["accessibility_status"] == {"TEXT_ALTERNATIVE": "NOT_MET"}
     assert record["render_status"] == "NOT_RUN"
     assert record["delivered_format"] == "TEXT"
+
+
+# --- Review follow-ups (PR #28) ---
+
+def test_long_labels_wrap_inside_their_box():
+    from diagram_renderer import _text_px
+    label = " ".join(["word"] * 40)                     # 199 characters
+    _, root = _svg(f"graph TD\nA[{label}] --> B[{'x' * 120}]")
+    box = next(el for el in root if el.get("class") == "node")
+    box_w, box_h = float(box.get("width")), float(box.get("height"))
+    for text in (el for el in root if el.get("class") == "node-label"):
+        spans = list(text)
+        assert len(spans) > 1                           # wrapped, not one long line
+        assert all(_text_px(span.text) <= box_w - 20 for span in spans)
+        assert len(spans) * 15 <= box_h
+    assert " ".join(_texts(root, "node-label")[0].split()) == label
+
+
+def test_wide_cjk_labels_are_measured_wider():
+    from diagram_renderer import wrap_label
+    assert len(wrap_label("가" * 30)) > len(wrap_label("a" * 30))
+
+
+@pytest.mark.parametrize("source", [
+    "graph TD\nA --> B --> C --> A",      # back edge
+    "graph TD\nA --> B --> C\nA --> C",   # layer-skipping edge
+    "graph TD\nA --> A",                  # self-loop
+    "graph LR\nA --> B --> C --> A",
+])
+def test_non_adjacent_edges_are_routed_in_a_side_lane(source):
+    _, root = _svg(source)
+    nodes = [el for el in root if el.get("class") == "node"]
+    right = max(float(n.get("x")) + float(n.get("width")) for n in nodes)
+    bottom = max(float(n.get("y")) + float(n.get("height")) for n in nodes)
+    lanes = [el for el in root if el.get("data-route") == "lane"]
+    assert len(lanes) == 1
+    coords = [float(v) for v in lanes[0].get("d").replace("M", "").replace("L", "").split()]
+    if source.startswith("graph LR"):
+        assert max(coords[1::2]) > bottom              # goes below every node
+    else:
+        assert max(coords[0::2]) > right               # goes right of every node
+    straight = [el for el in root if el.get("class") == "edge" and el.tag == f"{SVG}line"]
+    assert all(el.get("data-route") is None for el in straight)
+
+
+def test_ids_are_unique_across_svgs_from_one_renderer():
+    renderer = MermaidFlowchartRenderer()
+    ids = []
+    for _ in range(2):
+        root = ET.fromstring(renderer.render(APPROVAL)["artifact"])
+        ids += [el.get("id") for el in root.iter() if el.get("id")]
+    assert len(ids) == len(set(ids)) == 6
+
+
+def test_different_diagrams_get_different_ids_even_from_fresh_renderers():
+    a = ET.fromstring(MermaidFlowchartRenderer().render("graph TD\nA --> B")["artifact"])
+    b = ET.fromstring(MermaidFlowchartRenderer().render("graph TD\nC --> D")["artifact"])
+    assert a.find(f"{SVG}title").get("id") != b.find(f"{SVG}title").get("id")
+
+
+@pytest.mark.parametrize("source", [
+    "graph TD\nA---oB", "graph TD\nA---xB", "graph TD\nA-->oB", "graph TD\nA-->xB",
+    "graph TD\nA -- yes ---oB",
+])
+def test_circle_and_cross_edges_are_rejected(source):
+    with pytest.raises(DiagramSyntaxError, match="DIAGRAM_EDGE_UNSUPPORTED"):
+        parse_flowchart(source)
+
+
+def test_ids_starting_with_o_or_x_still_work_after_a_space():
+    chart = parse_flowchart("graph TD\nA --- open --> xray")
+    assert list(chart.nodes) == ["A", "open", "xray"]
+
+
+@pytest.mark.parametrize("payload", [
+    'graph TD\nA["bad\x01char"]',
+    {"source": "graph TD\nA", "title": "bad\x0btitle"},
+    {"source": "graph TD\nA", "description": "bad\ufffe"},
+])
+def test_xml_invalid_characters_are_rejected(payload):
+    with pytest.raises(DiagramSyntaxError, match="INVALID"):
+        MermaidFlowchartRenderer().render(payload)
+
+
+def test_semicolons_inside_labels_are_kept():
+    chart = parse_flowchart('graph TD\nA["Check; retry"] -->|yes; once| B[x;y]; C')
+    assert chart.nodes["A"]["label"] == "Check; retry"
+    assert chart.nodes["B"]["label"] == "x;y"
+    assert chart.edges[0]["label"] == "yes; once"
+    assert list(chart.nodes) == ["A", "B", "C"]
