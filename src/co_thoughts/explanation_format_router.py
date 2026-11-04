@@ -9,6 +9,10 @@ Plan fields:
 - ``excluded_formats``: the candidate format that was considered but not
   selected (FALLBACK), otherwise empty.
 - ``secondary``: reserved; v0.1 plans a single primary format and returns ``[]``.
+- ``conflicts``: conflicts between the user's explicit ``requested_format`` and
+  the project adapter's ``output_schema``; empty when there is none. The
+  planner reports a conflict and does not override the schema
+  (``selection_status`` ``CONFLICT``, TEXT plan).
 """
 from __future__ import annotations
 
@@ -259,6 +263,36 @@ def _normalize_requested_format(value: Any) -> str | None:
     return normalized
 
 
+def _normalize_output_schema(value: Any) -> frozenset[str] | None:
+    """Return the formats the project adapter's output schema allows.
+
+    ``None`` means the adapter declared no schema (no constraint). A declared
+    schema must list ``allowed_formats`` and must allow TEXT, because TEXT is
+    the planner's only fallback.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise ValueError("OUTPUT_SCHEMA_INVALID")
+    unknown = sorted(str(key) for key in value if key != "allowed_formats")
+    if unknown:
+        raise ValueError(f"OUTPUT_SCHEMA_UNKNOWN_FIELD:{unknown[0]}")
+    allowed = value.get("allowed_formats")
+    if not isinstance(allowed, (list, tuple)) or not allowed:
+        raise ValueError("OUTPUT_SCHEMA_ALLOWED_FORMATS_INVALID")
+    normalized = set()
+    for item in allowed:
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError("OUTPUT_SCHEMA_ALLOWED_FORMATS_INVALID")
+        name = item.strip().upper()
+        if name not in FORMATS:
+            raise ValueError(f"OUTPUT_SCHEMA_FORMAT_UNSUPPORTED:{name}")
+        normalized.add(name)
+    if "TEXT" not in normalized:
+        raise ValueError("OUTPUT_SCHEMA_TEXT_REQUIRED")
+    return frozenset(normalized)
+
+
 def _validate_context_signals(context: Mapping[str, Any]) -> None:
     for signal, _ in _CONTEXT_SIGNAL_PRECEDENCE:
         value = context.get(signal, False)
@@ -400,6 +434,8 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
         output_intent.get("requested_format")
     )
 
+    allowed_by_schema = _normalize_output_schema(request.get("output_schema"))
+
     capabilities = request.get("capabilities")
     if capabilities is None:
         normalized_capabilities = {"TEXT": True}
@@ -438,7 +474,33 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
         capabilities is not None and _CAPABILITY_KEYS[candidate] in capabilities
     )
 
-    if candidate in available:
+    conflicts: list[dict[str, Any]] = []
+    schema_blocks = allowed_by_schema is not None and candidate not in allowed_by_schema
+
+    if schema_blocks:
+        # The project output schema wins over task inference, and an explicit
+        # user request that contradicts it is reported, not silently applied
+        # or silently dropped.
+        primary = "TEXT"
+        fallback = None
+        allowed_list = sorted(allowed_by_schema)
+        if requested_format is not None:
+            selection_status = "CONFLICT"
+            conflicts.append({
+                "type": "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA",
+                "requested_format": candidate,
+                "allowed_formats": allowed_list,
+            })
+            rationale.append(
+                f"{candidate} is not allowed by the project output schema; "
+                "the schema is not overridden; using TEXT"
+            )
+        else:
+            selection_status = "FALLBACK"
+            rationale.append(
+                f"{candidate} is not allowed by the project output schema; using TEXT"
+            )
+    elif candidate in available:
         primary = candidate
         selection_status = "SELECTED"
         fallback = "TEXT" if candidate != "TEXT" else None
@@ -463,7 +525,16 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
         uncertainties.append(
             "Only TEXT is assumed available because the host supplied no capability map"
         )
-    if selection_status == "FALLBACK":
+    if selection_status == "CONFLICT":
+        uncertainties.append(
+            f"The user requested {candidate}, which the project output schema "
+            "does not allow; the user or project owner must resolve the conflict"
+        )
+    elif schema_blocks:
+        uncertainties.append(
+            f"The project output schema does not allow {candidate}"
+        )
+    elif selection_status == "FALLBACK":
         if candidate_declared:
             uncertainties.append(
                 f"The host explicitly declared {candidate} unavailable"
@@ -484,6 +555,7 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
             "uncertainties": uncertainties,
             "fallback": fallback,
             "selection_status": selection_status,
+            "conflicts": conflicts,
         },
         "capability_status": {
             "requested": [candidate],
@@ -502,7 +574,7 @@ def plan_explanation_format_safely(request: Mapping[str, Any]) -> dict[str, Any]
     """Like ``route_explanation_format`` but never raises on invalid format input.
 
     Used by ``cognitive_router.route()`` so that malformed format-planning input
-    (capabilities, output_intent, context signals) cannot break cognitive or
+    (capabilities, output_intent, output_schema, context signals) cannot break cognitive or
     verification routing. The failure is reported as ``INVALID_INPUT`` with a
     TEXT plan instead.
     """
@@ -521,6 +593,7 @@ def plan_explanation_format_safely(request: Mapping[str, Any]) -> dict[str, Any]
                 ],
                 "fallback": None,
                 "selection_status": "INVALID_INPUT",
+                "conflicts": [],
             },
             "capability_status": {
                 "requested": [],
