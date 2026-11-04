@@ -161,8 +161,30 @@ _EN_LEADING_NOUN_PREFIX = re.compile(r"^\W*(?:(?:please|a|an|the|one|some)\s+)*$
 _KO_FORM_PARTICLE = re.compile(r"^(?:으로|로)")
 _KO_OBJECT_REQUEST = re.compile(
     r"^(?:\s?\S{0,4})?(?:을|를|이|가)?\s?"
-    r"(?:보여|그려|그리|만들|돌려|해\s?줘|해줘|생성|띄워|부탁|필요|원해)"
+    r"(?:보여|그려|그리|만들|돌려|해\s?줘|해줘|생성|띄워|부탁|필요|원해)\S*"
 )
+
+
+def _ko_is_attributive(word: str) -> bool:
+    """True for an attributive (noun-modifying) Korean verb form.
+
+    "그려주는 프로그램", "만들어주는 도구", "필요한 이유", "만든 이어폰" describe
+    something rather than ask for it; "그려줘", "만들어주고", "보여주세요" ask.
+    """
+    word = word.rstrip(".,;:!?)\"'")
+    if not word:
+        return False
+    last = word[-1]
+    if last == "는":
+        return True
+    code = ord(last) - 0xAC00
+    return 0 <= code < 11172 and code % 28 == 4  # final consonant ㄴ
+
+
+def _ko_request_word_at(text: str) -> bool:
+    """True when ``text`` starts (after optional spaces) with a non-attributive word."""
+    words = text.split(None, 1)
+    return bool(words) and not _ko_is_attributive(words[0])
 # Keywords that already describe a requested output form. Most still need a
 # small context check, because the same phrases have everyday non-request
 # uses ("Let me change the subject", "식단을 조절하면서 운동하는 방법").
@@ -183,8 +205,8 @@ _EN_SENTENCE_END = re.compile(r"[.!?;:\u2014]")
 _KO_MANIPULATE = frozenset({"바꿔가며", "바꿔 가며", "바꿔볼 수 있게", "조절하면서", "조절하며", "조절할 수 있게"})
 _KO_OBSERVATION_CUE = re.compile(r"결과|확인|볼 수|보여|변화|변하|바뀌|달라지")
 _KO_EXPLANATION_NOUN = re.compile(r"방법|이유|원리")
-_KO_INTERACTIVE_REQUEST_FORM = re.compile(r"있게\s?해|보여|만들어")
-_KO_MOTION_FORM_REQUEST = re.compile(r"^\s?(?:\S+\s){0,2}?(?:보여|그려|만들|설명해|나타내)")
+_KO_INTERACTIVE_REQUEST_FORM = re.compile(r"(?:있게\s?해|보여|만들어)\S*")
+_KO_MOTION_FORM_REQUEST = re.compile(r"^\s?(?:\S+\s){0,2}?(?:보여|그려|만들|설명해|나타내)\S*")
 # Indirect request openers accepted before "model what happens"
 # ("Would you be able to model ...", "Could you possibly model ...").
 _EN_INDIRECT_REQUEST_PREFIX = re.compile(
@@ -258,25 +280,31 @@ def _self_cue_holds(keyword: str, text: str, start: int, end: int) -> bool:
         # interactive output was already requested before it
         # ("... 확인할 수 있게 해주고, 그 원리도 설명해줘").
         head = rest[:explanation.start()]
-        return bool(_KO_OBSERVATION_CUE.search(head) and _KO_INTERACTIVE_REQUEST_FORM.search(head))
+        return bool(_KO_OBSERVATION_CUE.search(head)) and any(
+            not _ko_is_attributive(m.group(0)) for m in _KO_INTERACTIVE_REQUEST_FORM.finditer(head)
+        )
     if keyword == "model what happens":
         sentence_start = re.split(r"[.!?;]\s*", before)[-1]
         if _EN_INDIRECT_REQUEST_PREFIX.match(sentence_start):
             return True
-        window = re.findall(r"[a-z0-9]+", before)[-_CUE_WINDOW:]
-        for index, token in enumerate(window):
-            if token not in _EN_REQUEST_VERBS:
+        tokens = re.findall(r"[a-z0-9]+", before)
+        start_index = max(len(tokens) - _CUE_WINDOW, 0)
+        for index in range(start_index, len(tokens)):
+            if tokens[index] not in _EN_REQUEST_VERBS:
                 continue
-            between = window[index + 1:]
-            # "I want you to model ..." asks us; "researchers need to model ..."
-            # describes someone else.
-            if between == ["you", "to"] or not _EN_CLAUSE_BREAKERS & set(between):
+            between = tokens[index + 1:]
+            # "I want you to model ..." / "I need to model ..." ask us;
+            # "researchers need to model ..." describes someone else.
+            previous = tokens[index - 1] if index > 0 else ""
+            first_person = previous in {"i", "we"} and between == ["to"]
+            if between == ["you", "to"] or first_person or not _EN_CLAUSE_BREAKERS & set(between):
                 return True
         return False
     if keyword == "boxes and arrows":
         return bool(_EN_FORM_PREPOSITION_BEFORE.search(before))
     if keyword == "움직이는 모습으로":
-        return bool(_KO_MOTION_FORM_REQUEST.match(after))
+        match = _KO_MOTION_FORM_REQUEST.match(after)
+        return bool(match) and not _ko_is_attributive(match.group(0).split()[-1])
     return True
 
 
@@ -286,7 +314,14 @@ def _is_requested(keyword: str, text: str, start: int, end: int) -> bool:
         return _self_cue_holds(keyword, text, start, end)
     if not keyword.isascii():
         after = text[end:]
-        return bool(_KO_FORM_PARTICLE.match(after) or _KO_OBJECT_REQUEST.match(after))
+        particle = _KO_FORM_PARTICLE.match(after)
+        if particle:
+            # "흐름도로 그려주는 프로그램" describes a tool, not a request.
+            rest = after[particle.end():]
+            verb = _KO_OBJECT_REQUEST.match(rest)
+            return not (verb and _ko_is_attributive(verb.group(0).split()[-1]))
+        verb = _KO_OBJECT_REQUEST.match(after)
+        return bool(verb) and not _ko_is_attributive(verb.group(0).split()[-1])
 
     before = text[:start]
     sentence_start = re.split(r"[.!?;]\s*", before)[-1]

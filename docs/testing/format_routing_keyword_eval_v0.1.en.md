@@ -224,6 +224,17 @@ The Codex review of #15 completed after merge and reported five issues, all repr
 
 All four evaluation sets are unchanged (dev 77/77, v0.1 37/38, v0.2 37/40, v0.3 20/20); the examples are pinned by unit tests.
 
+### 9.6 Review follow-up (Codex on #16)
+
+The Codex review of #16 completed after merge with three findings, all reproduced on `main` @ `0265b6d`:
+
+- "…확인할 수 있게 해**주는** 원리를 설명해줘" → INTERACTIVE and "…움직이는 모습으로 간단히 보여**주는** 방법을 알려줘" → ANIMATION. Root cause: Korean request verbs were accepted in **attributive** (noun-modifying) form. The same root cause affected the general Korean cue since #12 ("흐름도를 그려주는 프로그램을 추천해줘", "구조도를 만들어주는 도구", "구조도가 필요한 이유" → DIAGRAM). Fix: a Korean request verb only counts when its word does not end in `는` or a final consonant ㄴ (주는, 만든, 필요한); applied to the general cue, the `로/으로` form particle, `움직이는 모습으로`, and the interactive request form.
+- "**I want to** / **I need to** model what happens …" → TEXT. First-person `I/we want|need to model what happens` now counts as a request; "researchers need to model …" still does not.
+
+All four evaluation sets unchanged; examples pinned by unit tests.
+
+**Pattern note:** Codex has found new cases after every rule change (#12: 2, #13: 3, #14: 1, #15: 5, #16: 3). The rules are lexical approximations of syntax; further gains should come from host-declared `output_intent.requested_format` / context signals or a learned classifier, measured against an adversarial set built from these reviewer examples.
+
 ---
 
 [Korean source](format_routing_keyword_eval_v0.1.md)
