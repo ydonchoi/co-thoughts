@@ -169,7 +169,7 @@
 
 #13의 Codex 리뷰가 머지 후에 끝났고, 모든 평가 세트 밖에서 오탐 3종을 보고했다. 세 가지 모두 `main` @ `db02b3c`에서 재현됐고 수정했다.
 
-- 문장 첫머리의 `graph`/`chart`가 주어 명사로 쓰인 경우("Graph theory **is** …", "Chart **of** accounts …")를 명령문으로 보고 DIAGRAM을 골랐다. 이제 동사형 키워드 뒤에 `of`가 오거나 세 토큰 안에 계사·조동사(is, are, was, were, has, have, can, will)가 오면 명령문으로 인정하지 않는다.
+- 문장 첫머리의 `graph`/`chart`가 주어 명사로 쓰인 경우("Graph theory **is** …", "Chart **of** accounts …")를 명령문으로 보고 DIAGRAM을 골랐다. 이제 동사형 키워드 뒤에 `of`가 오거나 세 토큰 안에 계사·조동사(is, are, was, were, has, have, can, will)가 오면 명령문으로 인정하지 않는다. 단, 키워드 바로 뒤에 의문사가 오면 목적절이므로 명령문으로 인정한다("Chart **what** is happening …", "Chart **who** is buying". #14에 대한 Codex 추가 지적).
 - 사동 표현 `움직이게`("힘이 물체를 움직이게 **하는 이유**")가 자체 신호로 처리돼 ANIMATION을 골랐다. 이제 자체 신호에서 빼고 한국어 요청 동사 조건("움직이게 **보여줘**")을 거치게 했다.
 - "clip art"가 `clip` 때문에 VIDEO로 선택됐다. 이제 "clip art"는 IMAGE 키워드이고, `clip` 뒤에 "art"가 오면 건너뛴다.
 

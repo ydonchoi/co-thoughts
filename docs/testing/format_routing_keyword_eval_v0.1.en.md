@@ -169,7 +169,7 @@ Remaining v0.2 errors (reported, not tuned):
 
 The Codex review of #13 completed after merge and reported three false positives outside all evaluation sets; all three reproduced on `main` @ `db02b3c` and were fixed:
 
-- Sentence-initial `graph`/`chart` used as a subject noun ("Graph theory **is** …", "Chart **of** accounts …") was treated as an imperative → DIAGRAM. A verb keyword no longer counts as an imperative when followed by `of` or by a copula/auxiliary (is, are, was, were, has, have, can, will) within three tokens.
+- Sentence-initial `graph`/`chart` used as a subject noun ("Graph theory **is** …", "Chart **of** accounts …") was treated as an imperative → DIAGRAM. A verb keyword no longer counts as an imperative when followed by `of` or by a copula/auxiliary (is, are, was, were, has, have, can, will) within three tokens — unless a wh-word follows the keyword directly, which opens an object clause ("Chart **what** is happening …", "Chart **who** is buying"; a further Codex finding on #14).
 - `움직이게` as a causative ("힘이 물체를 움직이게 **하는 이유**") was self-cued → ANIMATION. It is no longer self-cued and now needs the Korean request-verb cue ("움직이게 **보여줘**").
 - "clip art" matched VIDEO via `clip`. "clip art" is now an IMAGE keyword, and `clip` is skipped when followed by "art".
 

@@ -384,3 +384,13 @@ def test_noun_or_causal_uses_of_paraphrase_words_stay_text(task):
 def test_review_fixes_keep_intended_selections(task, expected):
     result = route_explanation_format({"task": task})
     assert result["capability_status"]["requested"] == [expected]
+
+
+@pytest.mark.parametrize("task", [
+    # Codex review on #14: wh-word object clauses are still commands.
+    "Chart what is happening to revenue over time",
+    "Chart who is buying",
+])
+def test_verb_keyword_with_wh_object_clause_is_a_command(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["DIAGRAM"]

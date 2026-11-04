@@ -144,8 +144,11 @@ _EN_VERB_KEYWORDS = frozenset({
 # A sentence-initial verb keyword is a noun subject, not a command, when it is
 # followed by "of" or a copula/auxiliary soon after ("Graph theory is ...",
 # "Chart of accounts ...").
+# A wh-word right after the keyword opens an object clause ("Chart what is
+# happening ...", "Chart who is buying"), so it is still a command.
 _EN_SUBJECT_FOLLOWER = re.compile(
-    r"^\s+(?:of(?![a-z0-9])|(?:\S+\s+){0,2}(?:is|are|was|were|has|have|can|will)(?![a-z0-9]))"
+    r"^\s+(?!(?:what|who|whom|whose|which|how|where|when|why|whether)(?![a-z0-9]))"
+    r"(?:of(?![a-z0-9])|(?:\S+\s+){0,2}(?:is|are|was|were|has|have|can|will)(?![a-z0-9]))"
 )
 _EN_POLITE_PREFIX = re.compile(r"^(?:(?:please|kindly|can|could|would|will|you)\s+)*$")
 # A format noun that opens the task is a terse request ("Diagram of the TCP
