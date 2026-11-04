@@ -231,7 +231,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 | Cognitive Router integration | Implemented, on `main` | PR #2 |
 | Shared request validation | Implemented | PRs #6–#8 |
 | Format-selection evaluation | In-project measurement | dev 77/77, held-out v0.1 37/38, v0.2 37/40, v0.3 20/20, fresh probes outside all sets 11/12 (`docs/testing/format_routing_keyword_eval_v0.1.en.md`) |
-| Independent evaluation | Not performed | All sets and labels share one author |
+| Independent evaluation | Not performed (deferred by the project owner, 2026-11-04) | Only the guidelines are on `main` (PR #20); the annotator-A data PR #23 was closed without merging. All sets and labels share one author |
 | Output-schema conflict reporting, accessibility input, secondary formats, `audience`/`detail_level` | Not implemented | §5–§7, §11 |
 | Host/Adapter integration (Phase 3) | Not implemented | `render_status` is always `NOT_RUN` |
 | Real renderers, media generation, functional tests | Not run | No usable host renderer identified |
@@ -255,13 +255,13 @@ PRs #12–#17 were merged before the automated review (Codex) finished; the revi
 In PRs #12–#18, review found new counterexamples after every rule change. The rules approximate syntax lexically, so **feature growth of keyword/exception rules stops here**; only defect fixes are accepted.
 
 - No new format vocabulary or new exception categories; only fixes for regressions (defects that break existing behavior).
-- Further gains should (a) prefer host-declared `output_intent.requested_format` and context signals, and (b) be decided by comparing the rule-based planner with a learned classifier on an independent evaluation set.
+- Further gains should (a) prefer host-declared `output_intent.requested_format` and context signals, and (b) be decided by comparing the rule-based planner with a learned classifier on an independent evaluation set. While independent evaluation is deferred, (b) cannot be done, so only (a) proceeds.
 - Reviewer counterexamples are collected into an adversarial regression set (deferred).
 
 ### 13.3 Next steps (priority order)
 
 1. Documentation and status sync (including this section)
-2. Independent evaluation: a set built by someone other than the author, closer to real Korean/English requests
+2. ~~Independent evaluation~~ — **deferred** (project owner's decision, 2026-11-04). The guidelines (`docs/testing/format_routing_independent_eval_guidelines_v0.1.en.md`) are kept; if resumed, a new annotator starts from scratch. Until then, format-selection numbers are reported only on same-author sets.
 3. Output-schema conflict reporting and accessibility input (§7 priorities 1–2, §11)
 4. Host/Adapter interface: renderer protocol, separate records for generation/rendering/functional test/source verification, TEXT fallback on failure
 5. Real renderer integration, starting with DIAGRAM, with rendering, accessibility, and functional tests verified separately

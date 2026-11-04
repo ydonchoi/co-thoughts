@@ -1,6 +1,7 @@
 # Explanation Format Routing — Independent Evaluation Guidelines v0.1
 
-> Status: PROTOCOL (dataset not yet created)
+> Status: PROTOCOL — **deferred** (project owner's decision, 2026-11-04; dataset not created)
+> History: Codex produced annotator-A data twice. The first version recorded in its own provenance that it had earlier opened section-2 restricted files (part of `tests/evaluation/`) and was discarded; the second (PR #23) was closed without merging. If resumed, a new annotator starts from scratch without reusing either version.
 > Purpose: build an evaluation set for explanation-format selection that is **independent of the author of the routing rules**.
 > Annotator: an annotator other than the rule author (planned: Codex), with a human-adjudicated sample.
 
