@@ -88,7 +88,13 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
     "output_intent": {
         "requested_format": str | None,
         "audience": str | None,      # reserved; not used by planner v0.1
-        "detail_level": str | None   # reserved; not used by planner v0.1
+        "detail_level": str | None,  # reserved; not used by planner v0.1
+        "accessibility": {           # optional; all default False
+            "screen_reader": bool,
+            "reduced_motion": bool,
+            "captions": bool,
+            "text_only": bool
+        }
     },
     "output_schema": {                 # optional; project adapter constraint
         "allowed_formats": list[str]   # non-empty, must include TEXT
@@ -120,7 +126,8 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
         "uncertainties": [],
         "fallback": None,
         "selection_status": "SELECTED",   # SELECTED | FALLBACK | CONFLICT | INVALID_INPUT
-        "conflicts": []
+        "conflicts": [],
+        "accessibility_requirements": []  # e.g. ["TEXT_ALTERNATIVE", "CAPTIONS"]
     },
     "capability_status": {
         "requested": [],
@@ -135,7 +142,9 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 }
 ```
 
-계획 필드 의미: `fallback`은 `primary` 렌더링 실패 시 사용할 형식이며, `primary`가 이미 TEXT인 경우(FALLBACK·INVALID_INPUT 포함) `None`이다. `excluded_formats`는 검토했으나 선택되지 않은 후보 형식(FALLBACK)이며 그 외에는 `[]`이다. `secondary`는 예약 필드로, v0.1은 단일 primary 형식만 계획하므로 `[]`을 반환한다. 출력 스키마(`output_schema.allowed_formats`)는 프로젝트 어댑터가 선언하는 제약이며, 선언되지 않으면 제약이 없다. 사용자가 명시한 `requested_format`이 스키마에 없으면 스키마를 덮어쓰지 않고 `selection_status=CONFLICT`, TEXT 계획, `excluded_formats=[요청 형식]`을 반환하며, `conflicts`에 `{"type": "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA", "requested_format", "allowed_formats"}`를 기록한다. 충돌 해결은 사용자나 프로젝트 소유자가 한다. 과제에서 추론한 형식이 스키마에 없으면 충돌이 아니라 `FALLBACK`(TEXT)이다. 스키마가 허용한 형식도 호스트 기능이 없으면 기존처럼 `FALLBACK`이다. 충돌이 없으면 `conflicts`는 `[]`이다. context 신호는 고정 우선순위 `simulation_required` > `requires_interaction` > `time_dependent_behavior` > `visual_subject` > `process_or_structure` = `has_competing_hypotheses`로 평가하며, 참인 신호는 과제 키워드보다 우선한다.
+계획 필드 의미: `fallback`은 `primary` 렌더링 실패 시 사용할 형식이며, `primary`가 이미 TEXT인 경우(FALLBACK·INVALID_INPUT 포함) `None`이다. `excluded_formats`는 검토했으나 선택되지 않은 후보 형식(FALLBACK)이며 그 외에는 `[]`이다. `secondary`는 예약 필드로, v0.1은 단일 primary 형식만 계획하므로 `[]`을 반환한다. 출력 스키마(`output_schema.allowed_formats`)는 프로젝트 어댑터가 선언하는 제약이며, 선언되지 않으면 제약이 없다. 사용자가 명시한 `requested_format`이 스키마에 없으면 스키마를 덮어쓰지 않고 `selection_status=CONFLICT`, TEXT 계획, `excluded_formats=[요청 형식]`을 반환하며, `conflicts`에 `{"type": "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA", "requested_format", "allowed_formats"}`를 기록한다. 충돌 해결은 사용자나 프로젝트 소유자가 한다. 과제에서 추론한 형식이 스키마에 없으면 충돌이 아니라 `FALLBACK`(TEXT)이다. 스키마가 허용한 형식도 호스트 기능이 없으면 기존처럼 `FALLBACK`이다. 충돌이 없으면 `conflicts`는 `[]`이다.
+
+접근성 입력(`output_intent.accessibility`, §7 우선순위 1)은 스키마보다 먼저 평가한다. `text_only`는 TEXT 외 형식을, `reduced_motion`은 ANIMATION·VIDEO를 제외한다. 사용자가 명시한 형식이 제외되면 요구를 덮어쓰지 않고 `CONFLICT`(TEXT 계획)와 `{"type": "REQUESTED_FORMAT_CONFLICTS_WITH_ACCESSIBILITY", "requested_format", "requirement"}`를 기록하며, 추론한 형식이 제외되면 `FALLBACK`이다. 접근성 충돌과 스키마 충돌이 함께 있으면 `conflicts`에 우선순위 순서(접근성 → 스키마)로 모두 기록한다. `screen_reader`와 `captions`는 형식을 제외하지 않고, 선택된 `primary`에 대해 호스트가 지켜야 할 의무를 `accessibility_requirements`로 반환한다: TEXT가 아닌 `primary`에 `screen_reader`면 `TEXT_ALTERNATIVE`, VIDEO에 `captions`면 `CAPTIONS`. planner는 이 의무를 이행하거나 검증하지 않는다(렌더링·기능 시험은 Phase 3). 고대비·글꼴 크기 등 형식 선택과 무관한 표시 설정은 이 입력에 포함하지 않는다(알 수 없는 키는 오류). context 신호는 고정 우선순위 `simulation_required` > `requires_interaction` > `time_dependent_behavior` > `visual_subject` > `process_or_structure` = `has_competing_hypotheses`로 평가하며, 참인 신호는 과제 키워드보다 우선한다.
 
 형식 식별자: TEXT, DIAGRAM, IMAGE, INTERACTIVE, ANIMATION, VIDEO, SIMULATION. 구현은 비텍스트 기능을 호스트가 명시적으로 선언한 경우에만 사용 가능하다고 취급한다. 기능 맵이 없으면 TEXT만 사용 가능하다고 가정한다.
 
@@ -183,7 +192,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 기능 시험 미실시: functional_test_status=NOT_RUN
 - 출처 불명 데이터: 출처 미확인 표시, 시각적 권위 부여 금지
 - 고위험 판단: 시각화 단독 결론 금지, 근거·불확실성·전문가 검토 필요성 표시
-- 형식 계획 입력 오류(불리언이 아닌 context 신호, 알 수 없거나 불리언이 아닌 capability 키, `text: false`, 미지원 `requested_format`, 잘못된 `output_schema` — 예: `OUTPUT_SCHEMA_INVALID`, `OUTPUT_SCHEMA_UNKNOWN_FIELD:<key>`, `OUTPUT_SCHEMA_ALLOWED_FORMATS_INVALID`, `OUTPUT_SCHEMA_FORMAT_UNSUPPORTED:<format>`, `OUTPUT_SCHEMA_TEXT_REQUIRED`): `route_explanation_format()`은 고정 코드(예: `CAPABILITY_UNKNOWN:<key>`)로 `ValueError`를 발생시킨다. 공개 `cognitive_router.route()`는 이를 전파하지 않고, `format_routing`에 `selection_status=INVALID_INPUT`인 TEXT 계획과 `error` 코드를 담아 반환하므로 인지·검증 라우팅은 영향을 받지 않는다.
+- 형식 계획 입력 오류(불리언이 아닌 context 신호, 알 수 없거나 불리언이 아닌 capability 키, `text: false`, 미지원 `requested_format`, 잘못된 `output_schema` — 예: `OUTPUT_SCHEMA_INVALID`, `OUTPUT_SCHEMA_UNKNOWN_FIELD:<key>`, `OUTPUT_SCHEMA_ALLOWED_FORMATS_INVALID`, `OUTPUT_SCHEMA_FORMAT_UNSUPPORTED:<format>`, `OUTPUT_SCHEMA_TEXT_REQUIRED`, 잘못된 접근성 입력 — `ACCESSIBILITY_INVALID`, `ACCESSIBILITY_INVALID:<key>`, `ACCESSIBILITY_UNKNOWN:<key>`): `route_explanation_format()`은 고정 코드(예: `CAPABILITY_UNKNOWN:<key>`)로 `ValueError`를 발생시킨다. 공개 `cognitive_router.route()`는 이를 전파하지 않고, `format_routing`에 `selection_status=INVALID_INPUT`인 TEXT 계획과 `error` 코드를 담아 반환하므로 인지·검증 라우팅은 영향을 받지 않는다.
 - 공통 요청 필드(`request`는 mapping, `task`는 공백이 아닌 문자열, `context`는 mapping이며 없거나 `None`일 때만 `{}`로 대체)는 Cognitive Router, format planner, runtime `SafetyGate` 모두 `request_validation.validate_routing_request()`로 검증한다. `mode`도 없거나 `None`일 때만 `MIXED`로 대체하고 대소문자를 정규화하며(`normalize_mode()`), runtime은 정규화된 요청을 backend에 전달한다. 따라서 공통 필드 오류는 라우팅 전에 `route()`에서 `REQUEST_MUST_BE_MAPPING` / `TASK_REQUIRED` / `CONTEXT_INVALID`로 발생하며, `INVALID_INPUT`은 형식 전용 필드에만 적용된다.
 - 키워드 힌트: 영문 키워드는 단어 단위로 일치(단순 복수·과거형 접미사 허용), 한국어 키워드는 부분 문자열로 일치하되 알려진 충돌(예: "big picture", "draws upon", "그림자", "영상의학")은 활용형까지 처리하는 제외 목록으로 거른다. 키워드는 요청 표현(가까운 요청 동사, "as/in/with a …", 과제 첫머리의 형식 명사, 명령형 동사 키워드, 한국어 `로/으로` 또는 조사+요청 동사)이 있을 때만 비텍스트 형식을 고르며, 형식 단어가 주제로만 쓰이면 TEXT를 유지한다.
 
@@ -223,6 +232,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 시간적 동작 설명은 사용 가능 기능에 따라 ANIMATION/VIDEO 또는 TEXT fallback을 선택한다.
 - 변수 조작이 불가능한 환경에서는 INTERACTIVE를 선택 완료로 표시하지 않는다.
 - 사용자 지정 형식과 프로젝트 출력 스키마가 충돌하면 충돌을 보고하고 임의로 스키마를 덮어쓰지 않는다. (구현·단위 테스트됨: `selection_status=CONFLICT`, `conflicts`)
+- 사용자의 접근성 요구(`text_only`, `reduced_motion`)는 형식 선택보다 우선하고, 명시 요청과 충돌하면 보고한다. `screen_reader`·`captions`는 `accessibility_requirements`로 호스트 의무를 전달한다. (구현·단위 테스트됨)
 - format routing이 verification_status를 승격하지 않는다.
 - format routing 결과가 기존 인지 연산·검증 라우팅 결과를 변경하지 않는다.
 - 선택, 생성, 렌더링, 기능 시험 상태를 독립적으로 검증한다.
@@ -237,7 +247,8 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 | 형식 선택 평가 | 프로젝트 내부 측정 | 개발 77/77, 홀드아웃 v0.1 37/38, v0.2 37/40, v0.3 20/20, 세트 외 새 사례 11/12 (`docs/testing/format_routing_keyword_eval_v0.1.md`) |
 | 독립 평가 | 미실시 (2026-11-04 프로젝트 소유자 결정으로 보류) | 지침만 `main`에 있음(PR #20). 평가자 A 데이터 PR #23은 병합 없이 닫힘. 모든 평가 세트·라벨을 같은 작성자가 작성 |
 | 출력 스키마 충돌 보고 | 구현됨 (단위 테스트) | `output_schema.allowed_formats`, `selection_status=CONFLICT`, `conflicts` (§5, §6). 실제 프로젝트 어댑터가 스키마를 선언하는 연결은 Phase 3 범위 |
-| 접근성 입력, 보조 형식(`secondary`), `audience`/`detail_level` | 미구현 | §5–§7, §11 |
+| 접근성 입력 | 구현됨 (단위 테스트) | `output_intent.accessibility`, `accessibility_requirements`, 접근성 충돌 (§5, §6). 의무 이행·검증(대체 텍스트·자막 생성)은 Phase 3 범위로 미구현 |
+| 보조 형식(`secondary`), `audience`/`detail_level` | 미구현 | §5–§7 |
 | Host/Adapter 연결 (Phase 3) | 미구현 | `render_status`는 항상 `NOT_RUN` |
 | 실제 렌더러·매체 생성·기능 시험 | 미실행 | 사용 가능한 host renderer 확인 안 됨 |
 | SARA v3 Live 왕복 | 미검증 | Live 테스트 `test_live_cothoughts_to_sara_v3_round_trip`(실제 `SARAv3Connection`)는 `CO_THOUGHTS_SARA_V3_LIVE=1`과 형제 SARA v3 체크아웃(`SARA_v3/cli.py`)이 둘 다 있을 때만 실행되고, 그 밖에는 건너뛴다. `SARA_LLM_*` provider 설정은 건너뛰기 조건이 아니라 통과 전제조건이다(플래그와 체크아웃만 있고 provider 설정이 없으면 실행되어 실패한다). 이번 작업에서는 실행되지 않았다. 나머지 통합 테스트는 가짜 어댑터(`FakeV24Adapter`)를 쓴다. |
@@ -267,7 +278,7 @@ PR #12–#18에서 리뷰가 규칙을 바꿀 때마다 새 반례를 찾았다.
 
 1. 문서·상태 동기화 (본 절 포함)
 2. ~~독립 평가 체계~~ — **보류** (2026-11-04 프로젝트 소유자 결정). 지침(`docs/testing/format_routing_independent_eval_guidelines_v0.1.md`)은 유지하며, 재개 시 새 평가자가 처음부터 작성한다. 그동안 형식 선택 수치는 같은 작성자 세트 기준으로만 보고한다.
-3. 출력 스키마 충돌 보고(구현됨)와 접근성 입력(미구현) (§7 우선순위 1·2, §11)
+3. 출력 스키마 충돌 보고와 접근성 입력 — 구현됨 (§7 우선순위 1·2, §11)
 4. Host/Adapter 인터페이스: 렌더러 프로토콜, 생성·렌더링·기능 시험·출처 검증 상태 분리 기록, 실패 시 TEXT 대체
 5. 실제 렌더러 연결: DIAGRAM부터, 렌더링·접근성·기능 시험을 분리 검증
 6. SARA v3 Live 왕복 검증: 실제 Provider 환경에서 Co-thoughts → SARA → assessment envelope → 후속 backend 전달

@@ -612,3 +612,171 @@ def test_invalid_output_schema_is_safe_invalid_input():
     assert result["format_plan"]["selection_status"] == "INVALID_INPUT"
     assert result["format_plan"]["conflicts"] == []
     assert result["error"] == "OUTPUT_SCHEMA_TEXT_REQUIRED"
+
+
+# --- Accessibility input (§7 priority 1, §11) ---
+
+ALL_CAPS = {
+    "diagram": True, "image": True, "interactive": True,
+    "animation": True, "video": True, "simulation": True,
+}
+
+
+def test_no_accessibility_input_has_no_requirements():
+    result = route_explanation_format({
+        "task": "Show a diagram", "capabilities": {"diagram": True},
+    })
+    assert result["format_plan"]["accessibility_requirements"] == []
+
+
+def test_screen_reader_keeps_visual_but_requires_text_alternative():
+    result = route_explanation_format({
+        "task": "Draw a flowchart of the approval process",
+        "output_intent": {"accessibility": {"screen_reader": True}},
+        "capabilities": {"diagram": True},
+    })
+    plan = result["format_plan"]
+    assert plan["primary"] == "DIAGRAM"
+    assert plan["selection_status"] == "SELECTED"
+    assert plan["accessibility_requirements"] == ["TEXT_ALTERNATIVE"]
+    assert plan["fallback"] == "TEXT"
+
+
+def test_screen_reader_with_text_primary_needs_no_alternative():
+    result = route_explanation_format({
+        "task": "Define entropy",
+        "output_intent": {"accessibility": {"screen_reader": True}},
+    })
+    assert result["format_plan"]["primary"] == "TEXT"
+    assert result["format_plan"]["accessibility_requirements"] == []
+
+
+def test_captions_apply_only_to_video():
+    video = route_explanation_format({
+        "task": "Explain",
+        "output_intent": {
+            "requested_format": "VIDEO",
+            "accessibility": {"captions": True, "screen_reader": True},
+        },
+        "capabilities": {"video": True},
+    })
+    diagram = route_explanation_format({
+        "task": "Explain",
+        "output_intent": {"requested_format": "DIAGRAM", "accessibility": {"captions": True}},
+        "capabilities": {"diagram": True},
+    })
+    assert video["format_plan"]["accessibility_requirements"] == ["TEXT_ALTERNATIVE", "CAPTIONS"]
+    assert diagram["format_plan"]["accessibility_requirements"] == []
+
+
+def test_reduced_motion_blocks_inferred_animation_as_fallback():
+    result = route_explanation_format({
+        "task": "Explain",
+        "context": {"time_dependent_behavior": True},
+        "output_intent": {"accessibility": {"reduced_motion": True}},
+        "capabilities": ALL_CAPS,
+    })
+    plan = result["format_plan"]
+    assert plan["primary"] == "TEXT"
+    assert plan["selection_status"] == "FALLBACK"
+    assert plan["conflicts"] == []
+    assert plan["excluded_formats"] == ["ANIMATION"]
+    assert plan["rationale"][-1] == (
+        "ANIMATION is excluded by the reduced_motion accessibility requirement; using TEXT"
+    )
+    assert "The reduced_motion accessibility requirement excludes ANIMATION" in plan["uncertainties"]
+
+
+def test_reduced_motion_does_not_block_static_formats():
+    result = route_explanation_format({
+        "task": "Draw a flowchart of the approval process",
+        "output_intent": {"accessibility": {"reduced_motion": True}},
+        "capabilities": ALL_CAPS,
+    })
+    assert result["format_plan"]["primary"] == "DIAGRAM"
+    assert result["format_plan"]["selection_status"] == "SELECTED"
+
+
+def test_explicit_video_with_reduced_motion_is_a_conflict():
+    result = route_explanation_format({
+        "task": "Explain",
+        "output_intent": {"requested_format": "VIDEO", "accessibility": {"reduced_motion": True}},
+        "capabilities": ALL_CAPS,
+    })
+    plan = result["format_plan"]
+    assert plan["primary"] == "TEXT"
+    assert plan["selection_status"] == "CONFLICT"
+    assert plan["conflicts"] == [{
+        "type": "REQUESTED_FORMAT_CONFLICTS_WITH_ACCESSIBILITY",
+        "requested_format": "VIDEO",
+        "requirement": "reduced_motion",
+    }]
+    assert plan["rationale"][-1] == (
+        "VIDEO is excluded by the reduced_motion accessibility requirement; "
+        "the requirement is not overridden; using TEXT"
+    )
+    assert plan["accessibility_requirements"] == []
+
+
+def test_text_only_blocks_every_non_text_format():
+    for fmt in ("DIAGRAM", "IMAGE", "INTERACTIVE", "SIMULATION"):
+        result = route_explanation_format({
+            "task": "Explain",
+            "output_intent": {"requested_format": fmt, "accessibility": {"text_only": True}},
+            "capabilities": ALL_CAPS,
+        })
+        plan = result["format_plan"]
+        assert plan["primary"] == "TEXT"
+        assert plan["selection_status"] == "CONFLICT"
+        assert plan["conflicts"][0]["requirement"] == "text_only"
+
+
+def test_text_only_with_requested_text_is_selected():
+    result = route_explanation_format({
+        "task": "Draw a flowchart",
+        "output_intent": {"requested_format": "TEXT", "accessibility": {"text_only": True}},
+        "capabilities": ALL_CAPS,
+    })
+    assert result["format_plan"]["selection_status"] == "SELECTED"
+    assert result["format_plan"]["conflicts"] == []
+
+
+def test_accessibility_and_schema_conflicts_are_both_reported_in_priority_order():
+    result = route_explanation_format({
+        "task": "Explain",
+        "output_intent": {
+            "requested_format": "ANIMATION",
+            "accessibility": {"reduced_motion": True, "text_only": True},
+        },
+        "output_schema": {"allowed_formats": ["TEXT", "DIAGRAM"]},
+        "capabilities": ALL_CAPS,
+    })
+    plan = result["format_plan"]
+    assert plan["selection_status"] == "CONFLICT"
+    assert [c.get("requirement", c["type"]) for c in plan["conflicts"]] == [
+        "text_only", "reduced_motion", "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA",
+    ]
+    assert plan["conflicts"][2]["allowed_formats"] == ["DIAGRAM", "TEXT"]
+
+
+@pytest.mark.parametrize("accessibility, error", [
+    ([], "ACCESSIBILITY_INVALID"),
+    ("screen_reader", "ACCESSIBILITY_INVALID"),
+    ({"screen_reader": "yes"}, "ACCESSIBILITY_INVALID:screen_reader"),
+    ({"reduced_motion": 1}, "ACCESSIBILITY_INVALID:reduced_motion"),
+    ({"high_contrast": True}, "ACCESSIBILITY_UNKNOWN:high_contrast"),
+])
+def test_invalid_accessibility_input_is_rejected(accessibility, error):
+    with pytest.raises(ValueError, match=error):
+        route_explanation_format({
+            "task": "Explain", "output_intent": {"accessibility": accessibility},
+        })
+
+
+def test_invalid_accessibility_is_safe_invalid_input():
+    result = plan_explanation_format_safely({
+        "task": "Explain", "output_intent": {"accessibility": {"text_only": "true"}},
+    })
+    assert result["format_plan"]["selection_status"] == "INVALID_INPUT"
+    assert result["format_plan"]["accessibility_requirements"] == []
+    assert result["error"] == "ACCESSIBILITY_INVALID:text_only"

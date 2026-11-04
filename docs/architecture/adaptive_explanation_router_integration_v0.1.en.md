@@ -88,7 +88,13 @@ The explanation-format router is not a cognitive operation. Both plans are deriv
     "output_intent": {
         "requested_format": str | None,
         "audience": str | None,      # reserved; not used by planner v0.1
-        "detail_level": str | None   # reserved; not used by planner v0.1
+        "detail_level": str | None,  # reserved; not used by planner v0.1
+        "accessibility": {           # optional; all default False
+            "screen_reader": bool,
+            "reduced_motion": bool,
+            "captions": bool,
+            "text_only": bool
+        }
     },
     "output_schema": {                 # optional; project adapter constraint
         "allowed_formats": list[str]   # non-empty, must include TEXT
@@ -120,7 +126,8 @@ The task is the only required input. Missing optional inputs must not be fabrica
         "uncertainties": [],
         "fallback": None,
         "selection_status": "SELECTED",   # SELECTED | FALLBACK | CONFLICT | INVALID_INPUT
-        "conflicts": []
+        "conflicts": [],
+        "accessibility_requirements": []  # e.g. ["TEXT_ALTERNATIVE", "CAPTIONS"]
     },
     "capability_status": {
         "requested": [],
@@ -135,7 +142,9 @@ The task is the only required input. Missing optional inputs must not be fabrica
 }
 ```
 
-Plan field semantics: `fallback` is the format to use if rendering `primary` fails and is `None` when `primary` is already TEXT (including FALLBACK and INVALID_INPUT plans). `excluded_formats` lists the candidate that was considered but not selected (FALLBACK), otherwise `[]`. `secondary` is reserved; v0.1 plans a single primary format and returns `[]`. The output schema (`output_schema.allowed_formats`) is a constraint declared by the project adapter; when absent there is no constraint. If the user's explicit `requested_format` is not in the schema, the planner does not override the schema: it returns `selection_status=CONFLICT`, a TEXT plan, `excluded_formats=[requested]`, and records `{"type": "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA", "requested_format", "allowed_formats"}` in `conflicts`; the user or project owner resolves the conflict. A task-inferred format outside the schema is not a conflict but a `FALLBACK` to TEXT. A schema-allowed format without host capability is a `FALLBACK` as before. With no conflict, `conflicts` is `[]`. Context signals are evaluated in a fixed precedence: `simulation_required` > `requires_interaction` > `time_dependent_behavior` > `visual_subject` > `process_or_structure` = `has_competing_hypotheses`; any true signal takes precedence over task keywords.
+Plan field semantics: `fallback` is the format to use if rendering `primary` fails and is `None` when `primary` is already TEXT (including FALLBACK and INVALID_INPUT plans). `excluded_formats` lists the candidate that was considered but not selected (FALLBACK), otherwise `[]`. `secondary` is reserved; v0.1 plans a single primary format and returns `[]`. The output schema (`output_schema.allowed_formats`) is a constraint declared by the project adapter; when absent there is no constraint. If the user's explicit `requested_format` is not in the schema, the planner does not override the schema: it returns `selection_status=CONFLICT`, a TEXT plan, `excluded_formats=[requested]`, and records `{"type": "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA", "requested_format", "allowed_formats"}` in `conflicts`; the user or project owner resolves the conflict. A task-inferred format outside the schema is not a conflict but a `FALLBACK` to TEXT. A schema-allowed format without host capability is a `FALLBACK` as before. With no conflict, `conflicts` is `[]`.
+
+Accessibility input (`output_intent.accessibility`, §7 priority 1) is evaluated before the schema. `text_only` excludes every non-TEXT format and `reduced_motion` excludes ANIMATION and VIDEO. If the user's explicit format is excluded, the requirement is not overridden: the planner returns `CONFLICT` (TEXT plan) with `{"type": "REQUESTED_FORMAT_CONFLICTS_WITH_ACCESSIBILITY", "requested_format", "requirement"}`; an excluded inferred format is a `FALLBACK`. When accessibility and schema conflicts coexist, all are recorded in `conflicts` in priority order (accessibility → schema). `screen_reader` and `captions` exclude nothing; they return obligations the host must meet for the selected `primary` in `accessibility_requirements`: `TEXT_ALTERNATIVE` for a non-TEXT `primary` with `screen_reader`, `CAPTIONS` for VIDEO with `captions`. The planner neither fulfils nor verifies these obligations (rendering and functional tests are Phase 3). Display settings unrelated to format choice (high contrast, font size) are not part of this input (unknown keys are errors). Context signals are evaluated in a fixed precedence: `simulation_required` > `requires_interaction` > `time_dependent_behavior` > `visual_subject` > `process_or_structure` = `has_competing_hypotheses`; any true signal takes precedence over task keywords.
 
 Format identifiers: TEXT, DIAGRAM, IMAGE, INTERACTIVE, ANIMATION, VIDEO, SIMULATION. Non-text capabilities are considered available only when explicitly declared by the host. If no capability map is supplied, only TEXT is assumed available.
 
@@ -183,7 +192,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Functional test not run: set functional_test_status=NOT_RUN.
 - Unknown data source: disclose the unknown source; do not add visual authority.
 - High-risk decisions: do not present visualization as the sole conclusion; include evidence, uncertainty, and need for expert review.
-- Invalid format-planning input (non-boolean context signal, unknown or non-boolean capability key, `text: false`, unsupported `requested_format`, invalid `output_schema` — e.g. `OUTPUT_SCHEMA_INVALID`, `OUTPUT_SCHEMA_UNKNOWN_FIELD:<key>`, `OUTPUT_SCHEMA_ALLOWED_FORMATS_INVALID`, `OUTPUT_SCHEMA_FORMAT_UNSUPPORTED:<format>`, `OUTPUT_SCHEMA_TEXT_REQUIRED`): `route_explanation_format()` raises `ValueError` with a stable code (e.g. `CAPABILITY_UNKNOWN:<key>`). The public `cognitive_router.route()` does not propagate it; `format_routing` returns a TEXT plan with `selection_status=INVALID_INPUT` and the code in `error`, so cognitive and verification routing are unaffected.
+- Invalid format-planning input (non-boolean context signal, unknown or non-boolean capability key, `text: false`, unsupported `requested_format`, invalid `output_schema` — e.g. `OUTPUT_SCHEMA_INVALID`, `OUTPUT_SCHEMA_UNKNOWN_FIELD:<key>`, `OUTPUT_SCHEMA_ALLOWED_FORMATS_INVALID`, `OUTPUT_SCHEMA_FORMAT_UNSUPPORTED:<format>`, `OUTPUT_SCHEMA_TEXT_REQUIRED`, invalid accessibility input — `ACCESSIBILITY_INVALID`, `ACCESSIBILITY_INVALID:<key>`, `ACCESSIBILITY_UNKNOWN:<key>`): `route_explanation_format()` raises `ValueError` with a stable code (e.g. `CAPABILITY_UNKNOWN:<key>`). The public `cognitive_router.route()` does not propagate it; `format_routing` returns a TEXT plan with `selection_status=INVALID_INPUT` and the code in `error`, so cognitive and verification routing are unaffected.
 - Shared request fields (`request` mapping, `task` non-blank string, `context` mapping defaulting to `{}` only when absent or `None`) are validated by `request_validation.validate_routing_request()` in the Cognitive Router, the format planner, and the runtime `SafetyGate`; `mode` likewise defaults to `MIXED` only when absent or `None` and is case-normalized (`normalize_mode()`), and the runtime passes the normalized request to the backend, so invalid shared fields raise `REQUEST_MUST_BE_MAPPING` / `TASK_REQUIRED` / `CONTEXT_INVALID` from `route()` before any routing. `INVALID_INPUT` applies only to format-specific fields.
 - Keyword hints: ASCII keywords match whole words (simple plural/past suffixes allowed); Korean keywords match as substrings, with an inflection-aware exclusion list for known collisions (e.g. "big picture", "draws upon", "그림자", "영상의학"). A keyword selects a non-TEXT format only with a request cue (request verb nearby, "as/in/with a …", a leading format noun, an imperative verb keyword, or Korean `로/으로` or particle + request verb); a format word used only as the topic stays TEXT.
 
@@ -223,6 +232,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Time-dependent explanations select ANIMATION/VIDEO only when available; otherwise use TEXT fallback.
 - INTERACTIVE is not marked as completed when variable manipulation is unavailable.
 - If a requested format conflicts with a project output schema, report the conflict rather than silently overriding the schema. (Implemented and unit-tested: `selection_status=CONFLICT`, `conflicts`.)
+- The user's accessibility requirements (`text_only`, `reduced_motion`) take precedence over format selection and are reported when they conflict with an explicit request; `screen_reader`/`captions` pass host obligations in `accessibility_requirements`. (Implemented and unit-tested.)
 - Format routing never promotes verification_status.
 - Format routing does not change existing cognitive-operation or verification-routing results.
 - Selection, generation, rendering, and functional-test states are validated independently.
@@ -237,7 +247,8 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 | Format-selection evaluation | In-project measurement | dev 77/77, held-out v0.1 37/38, v0.2 37/40, v0.3 20/20, fresh probes outside all sets 11/12 (`docs/testing/format_routing_keyword_eval_v0.1.en.md`) |
 | Independent evaluation | Not performed (deferred by the project owner, 2026-11-04) | Only the guidelines are on `main` (PR #20); the annotator-A data PR #23 was closed without merging. All sets and labels share one author |
 | Output-schema conflict reporting | Implemented (unit-tested) | `output_schema.allowed_formats`, `selection_status=CONFLICT`, `conflicts` (§5, §6). Wiring a real project adapter to declare the schema is Phase 3 scope |
-| Accessibility input, secondary formats, `audience`/`detail_level` | Not implemented | §5–§7, §11 |
+| Accessibility input | Implemented (unit-tested) | `output_intent.accessibility`, `accessibility_requirements`, accessibility conflicts (§5, §6). Fulfilling/verifying the obligations (generating alt text, captions) is Phase 3 and not implemented |
+| Secondary formats, `audience`/`detail_level` | Not implemented | §5–§7 |
 | Host/Adapter integration (Phase 3) | Not implemented | `render_status` is always `NOT_RUN` |
 | Real renderers, media generation, functional tests | Not run | No usable host renderer identified |
 | SARA v3 live round trip | Not verified | The live test `test_live_cothoughts_to_sara_v3_round_trip` (real `SARAv3Connection`) is skipped unless `CO_THOUGHTS_SARA_V3_LIVE=1` and a sibling SARA v3 checkout (`SARA_v3/cli.py`) are both present; `SARA_LLM_*` provider settings are a prerequisite for it to pass, not a skip condition (with the flag and checkout but no provider settings it runs and fails). It has not been run in this work. Other integration tests use a fake adapter (`FakeV24Adapter`). |
@@ -267,7 +278,7 @@ In PRs #12–#18, review found new counterexamples after every rule change. The 
 
 1. Documentation and status sync (including this section)
 2. ~~Independent evaluation~~ — **deferred** (project owner's decision, 2026-11-04). The guidelines (`docs/testing/format_routing_independent_eval_guidelines_v0.1.en.md`) are kept; if resumed, a new annotator starts from scratch. Until then, format-selection numbers are reported only on same-author sets.
-3. Output-schema conflict reporting (implemented) and accessibility input (not implemented) (§7 priorities 1–2, §11)
+3. Output-schema conflict reporting and accessibility input — implemented (§7 priorities 1–2, §11)
 4. Host/Adapter interface: renderer protocol, separate records for generation/rendering/functional test/source verification, TEXT fallback on failure
 5. Real renderer integration, starting with DIAGRAM, with rendering, accessibility, and functional tests verified separately
 6. SARA v3 live round trip in a real provider environment: Co-thoughts → SARA → assessment envelope → downstream backend
