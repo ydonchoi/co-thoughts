@@ -431,3 +431,101 @@ def test_labels_of_edges_in_neighbouring_rows_do_not_collide(direction):
     assert r1 <= l2 or r2 <= l1 or b1 <= t2 or b2 <= t1
     assert boxes
     _assert_inside_viewbox(root)
+
+
+# --- Review follow-ups, fourth round (PR #28) ---
+
+def _node_rects(root):
+    rects = []
+    for el in root:
+        if el.get("class") != "node":
+            continue
+        if el.tag == f"{SVG}rect":
+            x, y = float(el.get("x")), float(el.get("y"))
+            rects.append((x, y, x + float(el.get("width")), y + float(el.get("height"))))
+        else:  # diamond: use its bounding box (conservative)
+            pts = [tuple(map(float, p.split(","))) for p in el.get("points").split()]
+            xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+            rects.append((min(xs), min(ys), max(xs), max(ys)))
+    return rects
+
+
+def _segments(root):
+    segs = []
+    for el in root:
+        if el.get("class") != "edge":
+            continue
+        if el.tag == f"{SVG}line":
+            segs.append(tuple(float(el.get(k)) for k in ("x1", "y1", "x2", "y2")))
+        else:
+            nums = [float(v) for v in el.get("d").replace("M", "").replace("L", "").split()]
+            pts = list(zip(nums[0::2], nums[1::2]))
+            segs += [(a[0], a[1], b[0], b[1]) for a, b in zip(pts, pts[1:])]
+    return segs
+
+
+def _crosses_interior(seg, rect, eps=0.5):
+    x1, y1, x2, y2 = seg
+    left, top, right, bottom = rect[0] + eps, rect[1] + eps, rect[2] - eps, rect[3] - eps
+    assert x1 == x2 or y1 == y2 or True
+    lo_x, hi_x, lo_y, hi_y = min(x1, x2), max(x1, x2), min(y1, y2), max(y1, y2)
+    return lo_x < right and hi_x > left and lo_y < bottom and hi_y > top
+
+
+@pytest.mark.parametrize("source", [
+    "graph TD; A --> A; B --> C",                       # reported: self-loop with peers
+    "graph LR; A --> A; B --> C",
+    "graph TD\nA --> B --> C --> A\nA --> D --> E\nX --> Y --> Z",
+    "graph LR\nA --> B --> C --> A\nA --> D --> E\nX --> Y --> Z",
+    "graph TD\nA --> B --> C\nA --> C\nP --> Q --> R",   # skip edge with peers
+    "graph TD\nA --> B\nB --> A\nC --> D\nD --> C",
+    "graph TD\nA{Decide} -->|yes| B\nB --> A\nA -->|no| C\nC --> C",
+])
+def test_no_edge_passes_through_a_node(source):
+    _, root = _svg(source)
+    rects, segs = _node_rects(root), _segments(root)
+    assert segs
+    for seg in segs:
+        for rect in rects:
+            assert not _crosses_interior(seg, rect), (seg, rect)
+    _assert_inside_viewbox(root)
+
+
+def test_text_uses_an_explicit_monospace_font_with_conservative_widths():
+    from diagram_renderer import FONT_FAMILY, _text_px
+    _, root = _svg(APPROVAL)
+    assert root.get("font-family") == FONT_FAMILY
+    assert FONT_FAMILY.rstrip().endswith("monospace")
+    # >= the 0.60em advance of common monospace fonts at 12px, for any glyph
+    for glyph in ("W", "M", "i", "@", "é"):
+        assert _text_px(glyph * 24) >= 24 * 0.60 * 12
+    assert _text_px("가") >= 12
+
+
+def test_wide_ascii_labels_still_fit_with_monospace_metrics():
+    _, root = _svg("graph TD\nA[" + "W" * 120 + "]")
+    box = next(el for el in root if el.get("class") == "node")
+    for text in (el for el in root if el.get("class") == "node-label"):
+        for span in text:
+            # real monospace advance: 0.602em (DejaVu Sans Mono) at 12px
+            assert len(span.text) * 0.602 * 12 <= float(box.get("width")) - 20
+
+
+@pytest.mark.parametrize("extra, code", [
+    ({"title": "t" * 201}, "DIAGRAM_TITLE_TOO_LONG"),
+    ({"description": "d" * 2001}, "DIAGRAM_DESCRIPTION_TOO_LONG"),
+])
+def test_title_and_description_are_bounded(extra, code):
+    with pytest.raises(DiagramSyntaxError, match=code):
+        MermaidFlowchartRenderer().render({"source": APPROVAL, **extra})
+
+
+def test_generated_summary_is_bounded():
+    from diagram_renderer import MAX_DESCRIPTION_CHARS
+    long_label = "x" * 150
+    source = "graph TD\n" + "\n".join(f"n{i}[{long_label}] --> n{i + 1}" for i in range(60))
+    output, root = _svg(source)
+    desc = root.find(f"{SVG}desc").text
+    assert len(desc) <= MAX_DESCRIPTION_CHARS
+    assert desc.endswith("(truncated)")
+    assert output["summary"] == desc

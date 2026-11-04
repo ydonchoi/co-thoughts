@@ -33,6 +33,8 @@ MAX_NODES = 200
 MAX_EDGES = 400
 MAX_LABEL_CHARS = 200
 MAX_SOURCE_CHARS = 20_000
+MAX_TITLE_CHARS = 200
+MAX_DESCRIPTION_CHARS = 2_000
 
 # The header may be followed by statements on the same line after ``;``
 # (compact form ``graph TD; A --> B``).
@@ -244,24 +246,39 @@ def describe(chart: Flowchart) -> str:
     parts.extend(
         chart.nodes[node]["label"] for node in chart.nodes if node not in linked
     )
-    return (
+    text = (
         f"Flowchart ({direction}) with {len(chart.nodes)} nodes and "
         f"{len(chart.edges)} connections: " + "; ".join(parts) + "."
     )
+    # Bound the generated summary like a caller-supplied description, so the
+    # <desc> (and the artifact) cannot grow far beyond the source limit.
+    if len(text) > MAX_DESCRIPTION_CHARS:
+        text = text[: MAX_DESCRIPTION_CHARS - 13].rstrip() + " (truncated)"
+    return text
 
 
 _LINE_PX = 170          # wrap labels at this rendered width
 _LINE_HEIGHT = 15
 _LANE_GAP = 14
 _PARALLEL_GAP = 14
+_MAX_TRACKS = 8          # distinct track offsets inside one gap band
 
 
-def _char_px(char: str) -> int:
-    """Approximate glyph width at 12px: wide (CJK) glyphs take ~12px."""
-    return 12 if unicodedata.east_asian_width(char) in ("W", "F") else 7
+# All text uses an explicit monospace stack, so widths are fixed per glyph
+# class instead of guessed: ~0.60em for normal glyphs in common monospace
+# fonts (DejaVu Sans Mono, Menlo, Courier New; Consolas is 0.55em) and 1em
+# for East Asian wide glyphs. The bounds below round up for 12px text and
+# are also used for the smaller 11px edge labels, so they are conservative.
+FONT_FAMILY = "ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, 'Courier New', monospace"
+_NARROW_PX = 7.5    # 0.625em at 12px
+_WIDE_PX = 12.0     # 1em at 12px
 
 
-def _text_px(text: str) -> int:
+def _char_px(char: str) -> float:
+    return _WIDE_PX if unicodedata.east_asian_width(char) in ("W", "F") else _NARROW_PX
+
+
+def _text_px(text: str) -> float:
     return sum(_char_px(char) for char in text)
 
 
@@ -305,7 +322,7 @@ def _text_lines(
     )
 
 
-def _block(lines: list[str]) -> tuple[int, int]:
+def _block(lines: list[str]) -> tuple[float, int]:
     """Rendered (width, height) of a wrapped text block."""
     return max(_text_px(line) for line in lines), len(lines) * _LINE_HEIGHT
 
@@ -367,13 +384,19 @@ def render_svg(
     if routed_labelled:
         lane_gap = max(_LANE_GAP, (label_h + 6) if horizontal else (label_w + 10))
 
+    # Routed edges leave and enter nodes through short tracks in the gaps
+    # between layers (never alongside a layer, where peers sit), so reserve
+    # a track band on both sides of every gap and before the first layer.
+    track_band = (6 + min(len(routed), _MAX_TRACKS) * 4) if routed else 0
+    gap_main += 2 * track_band
+    main_start = margin + track_band
     # In LR, straight-edge labels sit above their line; reserve room above
     # the first row so they never leave the viewBox.
     cross_start = margin + (label_h + 8 if horizontal and edge_lines else 0)
     pos: dict[str, tuple[float, float]] = {}
     for layer, members in layers.items():
         for index, node in enumerate(members):
-            main = margin + layer * ((box_w if horizontal else box_h) + gap_main)
+            main = main_start + layer * ((box_w if horizontal else box_h) + gap_main)
             cross = cross_start + index * ((box_h if horizontal else box_w) + gap_cross)
             pos[node] = (main, cross) if horizontal else (cross, main)
     content_right = max(x for x, _ in pos.values()) + box_w
@@ -401,19 +424,25 @@ def render_svg(
         (sx, sy), (tx, ty) = pos[edge["source"]], pos[edge["target"]]
         marker = f' marker-end="url(#{arrow_id})"' if edge["arrow"] else ""
         if id(edge) in lanes:
-            offset = 10 + lanes[id(edge)] * lane_gap
+            index = lanes[id(edge)]
+            offset = 10 + index * lane_gap
+            track = 6 + (index % _MAX_TRACKS) * 4
             if horizontal:
+                # right side -> gap column -> lane below -> gap column -> left side
                 lane = content_bottom + offset
-                x1, y1 = sx + box_w * 0.35, sy + box_h
-                x2, y2 = tx + box_w * 0.65, ty + box_h
-                points = [(x1, y1), (x1, lane), (x2, lane), (x2, y2)]
-                label_at, anchor = ((x1 + x2) / 2, lane + 3 + label_h / 2), "middle"
+                exit_y, entry_y = sy + box_h * 0.85, ty + box_h * 0.85
+                out_x, in_x = sx + box_w + track, tx - track
+                points = [(sx + box_w, exit_y), (out_x, exit_y), (out_x, lane),
+                          (in_x, lane), (in_x, entry_y), (tx, entry_y)]
+                label_at, anchor = ((out_x + in_x) / 2, lane + 3 + label_h / 2), "middle"
             else:
+                # bottom -> gap row -> lane on the right -> gap row -> top
                 lane = content_right + offset
-                x1, y1 = sx + box_w, sy + box_h * 0.35
-                x2, y2 = tx + box_w, ty + box_h * 0.65
-                points = [(x1, y1), (lane, y1), (lane, y2), (x2, y2)]
-                label_at, anchor = (lane + 4, (y1 + y2) / 2), "start"
+                exit_x, entry_x = sx + box_w * 0.85, tx + box_w * 0.85
+                out_y, in_y = sy + box_h + track, ty - track
+                points = [(exit_x, sy + box_h), (exit_x, out_y), (lane, out_y),
+                          (lane, in_y), (entry_x, in_y), (entry_x, ty)]
+                label_at, anchor = (lane + 4, (out_y + in_y) / 2), "start"
             for px, py in points:
                 grow(px, py)
             d = " ".join(
@@ -468,6 +497,7 @@ def render_svg(
     width, height = extent[0] + margin, extent[1] + margin
     head = [
         f'<svg xmlns="http://www.w3.org/2000/svg" role="img" '
+        f'font-family="{FONT_FAMILY}" '
         f'aria-labelledby="{title_id} {desc_id}" width="{width:g}" '
         f'height="{height:g}" viewBox="0 0 {width:g} {height:g}">',
         f'<title id="{title_id}">{escape(title)}</title>',
@@ -499,11 +529,16 @@ class MermaidFlowchartRenderer:
             description = payload.get("description")
         else:
             source, title, description = payload, None, None
-        for name, value in (("title", title), ("description", description)):
+        for name, value, limit in (
+            ("title", title, MAX_TITLE_CHARS),
+            ("description", description, MAX_DESCRIPTION_CHARS),
+        ):
             if value is not None and (
                 not isinstance(value, str) or not value.strip() or _XML_INVALID.search(value)
             ):
                 raise DiagramSyntaxError(f"DIAGRAM_{name.upper()}_INVALID")
+            if value is not None and len(value) > limit:
+                raise DiagramSyntaxError(f"DIAGRAM_{name.upper()}_TOO_LONG")
         chart = parse_flowchart(source)
         summary = describe(chart)
         title_text = (title or "Flowchart").strip()
