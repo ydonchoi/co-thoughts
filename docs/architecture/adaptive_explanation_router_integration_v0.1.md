@@ -1,6 +1,6 @@
 # 적응형 설명 형식 라우터 연동 설계 v0.1
 
-> 상태: PARTIALLY IMPLEMENTED / PR #2 OPEN (CI: PR #2 체크 참조)
+> 상태: PARTIALLY IMPLEMENTED — planner·Cognitive Router 연결은 `main` 반영(PR #2–#18), Host/Adapter·렌더러는 미구현
 > 대상: co-thoughts v2.0 Cognitive Router 및 Adaptive Explanation Format Protocol v0.1
 > 범위: 인지 작업 계획에서 사용자에게 제시할 설명 형식 계획을 분리·연결하는 인터페이스 설계
 
@@ -20,7 +20,7 @@ Cognitive Router가 선택한 인지 연산과 작업 맥락을 입력으로 받
 - `CognitiveRuntime`은 백엔드 응답을 검증하고 인식론적 상태 승격을 차단한다.
 - Adaptive Explanation Format Protocol v0.1은 설계 지침이며 런타임 매체 선택기는 아니다.
 
-현재 구현에서는 별도 규칙 기반 planner와 Cognitive Router 연결이 추가되었다. 실제 렌더링, 매체 생성, 사용자 인터페이스 통합은 완료되지 않았다. 구현은 PR #2에서 검토 중이다. CI 상태는 PR #2의 GitHub Actions 체크에서 확인하며, 커밋 추가 시 문서가 낡지 않도록 본 문서에는 기록하지 않는다.
+규칙 기반 planner와 Cognitive Router 연결은 `main`에 반영되었다(PR #2, 이후 개선 #3–#18). 실제 렌더링, 매체 생성, 사용자 인터페이스 통합은 완료되지 않았다. CI 결과는 커밋별 GitHub Actions 기록으로 확인하며, 문서가 낡지 않도록 본 문서에는 특정 커밋의 CI 결과를 기록하지 않는다.
 
 ## 3. 권장 아키텍처
 
@@ -196,11 +196,11 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 선택 이유, 가정, 불확실성 및 상태 반환
 - 비텍스트 생성·렌더링은 수행하지 않음
 
-### Phase 2 — Cognitive Router 연결 (구현됨, PR 검토 중)
+### Phase 2 — Cognitive Router 연결 (구현됨, `main` 반영)
 - `route()` 출력에 `format_routing` 추가
 - 기존 `operations`, `verification_routing`, `workflow_routing`의 의미를 보존하도록 통합
 - 단위·통합 회귀 테스트 추가
-- CI: PR #2 체크 참조
+- 공통 요청 검증을 Cognitive Router·format planner·runtime `SafetyGate`·v1.3 execution 요청에 통일(PR #6–#8)
 
 ### Phase 3 — Host/Adapter 렌더링 연결
 - 실제 사용 가능한 렌더러만 연결
@@ -208,7 +208,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 실패 시 텍스트 대체 경로 검증
 
 ### Phase 4 — 평가 및 승격
-- v0.1 키워드 평가: `docs/testing/format_routing_keyword_eval_v0.1.md` (작성자 라벨링 과제 77개, 전체 0.623, 주제 언급으로 인한 불필요한 매체 비율 0.452, 바꿔 말한 요청 재현율 0). 요청 표현 조건(보고서 7절)으로 홀드아웃 세트(38개)는 0.526에서 0.842로, 불필요한 매체 비율은 0.619에서 0.048로 개선됐다. 바꿔 말한 요청 인식(보고서 8절)으로 두 번째 홀드아웃 세트(40개)의 바꿔 말한 요청 재현율이 0/20에서 18/20으로 올랐고, TEXT 과제 16개 중 1개에서 새 오탐이 생겼다.
+- v0.1 키워드 평가: `docs/testing/format_routing_keyword_eval_v0.1.md` (작성자 라벨링 과제 77개, 전체 0.623, 주제 언급으로 인한 불필요한 매체 비율 0.452, 바꿔 말한 요청 재현율 0). 요청 표현 조건(보고서 7절)으로 홀드아웃 세트(38개)는 0.526에서 0.842로, 불필요한 매체 비율은 0.619에서 0.048로 개선됐다. 바꿔 말한 요청 인식(보고서 8절)으로 두 번째 홀드아웃 세트(40개)의 바꿔 말한 요청 재현율이 0/20에서 18/20으로 올랐고, TEXT 과제 16개 중 1개에서 새 오탐이 생겼다. 자체 신호 구문 문맥 확인(보고서 9절)으로 세 번째 홀드아웃 세트(20개)는 8/20에서 20/20이 되었고, 세트 밖 새 사례로는 11/12였다. PR #13–#18의 리뷰 후속 수정 내역은 보고서 8.5·9.5·9.6절에 있다.
 - 대표 작업군별 선택 정확성·불필요한 매체 생성·fallback·접근성 평가
 - 독립 테스트와 회귀 테스트 통과 후에만 구현 상태 승격
 
@@ -225,12 +225,46 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 
 ## 12. 현재 상태 선언
 
-- 설계 문서: 작성 및 구현 상태 갱신
-- 신규 format planner: 구현됨 (feature branch)
-- Cognitive Router 연결: 구현됨 (feature branch)
-- 단위·통합 테스트: 추가됨. CI 상태는 PR #2의 GitHub Actions 체크에서 확인하며, 커밋 추가 시 문서가 낡지 않도록 본 문서에는 기록하지 않는다.
-- 렌더러 연결: 미구현; 현재 조사 범위에서 사용 가능한 host renderer 확인 안 됨
-- 매체 생성·렌더링·기능 시험: 미실행
-- 독립 검증: 미실시
+| 영역 | 상태 | 근거 |
+|---|---|---|
+| format planner (규칙 기반) | 구현됨, `main` 반영 | PR #2, 개선 #3–#18 |
+| Cognitive Router 연결 | 구현됨, `main` 반영 | PR #2 |
+| 공통 요청 검증 | 구현됨 | PR #6–#8 |
+| 형식 선택 평가 | 프로젝트 내부 측정 | 개발 77/77, 홀드아웃 v0.1 37/38, v0.2 37/40, v0.3 20/20, 세트 외 새 사례 11/12 (`docs/testing/format_routing_keyword_eval_v0.1.md`) |
+| 독립 평가 | 미실시 | 모든 평가 세트·라벨을 같은 작성자가 작성 |
+| 출력 스키마 충돌 보고, 접근성 입력, 보조 형식(`secondary`), `audience`/`detail_level` | 미구현 | §5–§7, §11 |
+| Host/Adapter 연결 (Phase 3) | 미구현 | `render_status`는 항상 `NOT_RUN` |
+| 실제 렌더러·매체 생성·기능 시험 | 미실행 | 사용 가능한 host renderer 확인 안 됨 |
+| SARA v3 Live 왕복 | 미검증 | Live 테스트 `test_live_cothoughts_to_sara_v3_round_trip`(실제 `SARAv3Connection`)는 `CO_THOUGHTS_SARA_V3_LIVE=1`과 형제 SARA v3 체크아웃(`SARA_v3/cli.py`)이 둘 다 있을 때만 실행되고, 그 밖에는 건너뛴다. `SARA_LLM_*` provider 설정은 건너뛰기 조건이 아니라 통과 전제조건이다(플래그와 체크아웃만 있고 provider 설정이 없으면 실행되어 실패한다). 이번 작업에서는 실행되지 않았다. 나머지 통합 테스트는 가짜 어댑터(`FakeV24Adapter`)를 쓴다. |
 
-PR #2가 병합되기 전까지 main 브랜치에 반영된 것으로 간주하지 않는다. CI 및 독립 검토가 끝나기 전까지 구현은 부분 검증 상태다.
+평가 수치는 같은 작성자가 만든 세트에서 측정한 값이므로 일반화 성능으로 해석하지 않는다. 특정 커밋의 CI 결과는 GitHub Actions 기록으로 확인한다.
+
+## 13. 개발 절차와 규칙 기반 접근의 안정화 결정
+
+### 13.1 병합 전 독립 리뷰
+
+PR #12–#17은 자동 리뷰(Codex)가 끝나기 전에 병합되었고, 리뷰가 병합 후 새 오탐·누락을 찾아 후속 PR이 필요했다(#12: 2건, #13: 3건, #14: 1건, #15: 5건, #16: 3건, #17: 1건). #18은 병합 전에 리뷰가 끝났고 지적 1건을 같은 PR에서 고쳤다. 앞으로는 다음을 기본 절차로 한다.
+
+1. PR의 CI가 통과하고 자동 리뷰가 **완료된 뒤** 병합한다.
+2. 리뷰 후 수정 커밋을 올렸다면 `@codex review`로 최신 커밋을 다시 리뷰받는다.
+3. 리뷰 지적은 수정 전 코드에서 재현한 뒤 고치고, 예시는 단위 테스트로 고정한다.
+4. 홀드아웃 세트는 규칙 조정에 쓰지 않는다. 홀드아웃 오류를 보고 규칙을 고치면 그 사실을 보고서에 기록한다.
+
+### 13.2 규칙 확장 중단 기준
+
+PR #12–#18에서 리뷰가 규칙을 바꿀 때마다 새 반례를 찾았다. 규칙은 구문을 어휘로 근사한 것이므로, 다음 기준에 따라 키워드·예외 규칙의 **기능 확장을 중단**하고 결함 수정만 받는다.
+
+- 새 형식 어휘나 새 예외 범주 추가는 하지 않는다. 회귀(기존 동작이 깨지는 결함) 수정만 허용한다.
+- 추가 개선은 (a) 호스트가 선언하는 `output_intent.requested_format`·context 신호를 우선 사용하고, (b) 독립 평가 세트로 규칙 기반 planner와 학습형 분류기를 비교한 뒤 결정한다.
+- 리뷰에서 나온 반례는 적대적 회귀 세트로 모은다(보류 중인 작업).
+
+### 13.3 다음 단계 (우선순위 순)
+
+1. 문서·상태 동기화 (본 절 포함)
+2. 독립 평가 체계: 작성자와 다른 평가자가 한국어·영어 실제 요청에 가까운 세트를 구성
+3. 출력 스키마 충돌 보고와 접근성 입력 (§7 우선순위 1·2, §11)
+4. Host/Adapter 인터페이스: 렌더러 프로토콜, 생성·렌더링·기능 시험·출처 검증 상태 분리 기록, 실패 시 TEXT 대체
+5. 실제 렌더러 연결: DIAGRAM부터, 렌더링·접근성·기능 시험을 분리 검증
+6. SARA v3 Live 왕복 검증: 실제 Provider 환경에서 Co-thoughts → SARA → assessment envelope → 후속 backend 전달
+
+외부 검토(2026-11-04)는 SARA v3 쪽 일부 게이트가 WAIVED 상태라고 언급했다. 이 저장소에서는 확인하지 않았다. 이 저장소에는 Live 왕복 테스트가 있지만 명시적으로 켜야 실행되며 이번에는 건너뛰었으므로, Live 왕복은 미검증 상태다.
