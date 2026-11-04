@@ -233,7 +233,7 @@ The Codex review of #16 completed after merge with three findings, all reproduce
 
 All four evaluation sets unchanged; examples pinned by unit tests.
 
-**Follow-up (Codex on #17):** sequential `-(으)ㄴ 다음/뒤/후` ("흐름도를 그린 다음 설명해줘", "구조도를 만든 뒤에 보여줘") was not recognized: ㄴ-forms (그린, 만든, 보여준, 돌린, 생성한, 띄운) were missing from the verb list, and the attributive check would have rejected them. They are now listed, and a ㄴ-form followed by 다음/뒤/후 is treated as sequential, not attributive; without it ("구조도를 만든 사람", "흐름도를 그린 이유") it stays attributive.
+**Follow-up (Codex on #17):** sequential `-(으)ㄴ 다음/뒤/후` ("흐름도를 그린 다음 설명해줘", "구조도를 만든 뒤에 보여줘") was not recognized: ㄴ-forms (그린, 만든, 보여준, 돌린, 생성한, 띄운) were missing from the verb list, and the attributive check would have rejected them. They are now listed, and a ㄴ-form followed by 다음/뒤/후 is treated as sequential, not attributive; without it ("구조도를 만든 사람", "흐름도를 그린 이유") it stays attributive. The sequential exception further requires a production verb (그린/만든/보여준/돌린/생성한/띄운) and a later request ending (줘/주세요), so "구조도가 필요한 다음 단계는 무엇인가?" and "흐름도를 그린 다음 단계는 뭐야?" stay TEXT (Codex on #18).
 
 **Pattern note:** Codex has found new cases after every rule change (#12: 2, #13: 3, #14: 1, #15: 5, #16: 3). The rules are lexical approximations of syntax; further gains should come from host-declared `output_intent.requested_format` / context signals or a learned classifier, measured against an adversarial set built from these reviewer examples.
 

@@ -169,6 +169,10 @@ _KO_OBJECT_REQUEST = re.compile(
 
 
 _KO_SEQUENCE_NOUN = re.compile(r"^\s*(?:다음|뒤|후)")
+# Only production verbs in ㄴ-form can start a "<make it> 다음 <then ...>"
+# request, and only when the sentence still ends in a request.
+_KO_SEQUENCE_PRODUCTION = ("그린", "만든", "보여준", "돌린", "생성한", "띄운")
+_KO_REQUEST_ENDING = re.compile(r"줘|주세요|주시")
 
 
 def _ko_is_attributive(word: str, following: str = "") -> bool:
@@ -176,13 +180,20 @@ def _ko_is_attributive(word: str, following: str = "") -> bool:
 
     "그려주는 프로그램", "만들어주는 도구", "필요한 이유", "만든 이어폰" describe
     something rather than ask for it; "그려줘", "만들어주고", "보여주세요" ask.
-    A ㄴ-form followed by 다음/뒤/후 is sequential, not attributive:
-    "흐름도를 그린 다음 설명해줘" still asks for the diagram.
+    A production verb in ㄴ-form followed by 다음/뒤/후 and a later request
+    ending is sequential, not attributive: "흐름도를 그린 다음 설명해줘" still
+    asks for the diagram, while "흐름도를 그린 다음 단계는 뭐야?" and
+    "구조도가 필요한 다음 단계는 무엇인가?" do not.
     """
     word = word.rstrip(".,;:!?)\"'")
     if not word:
         return False
-    if _KO_SEQUENCE_NOUN.match(following):
+    sequence = _KO_SEQUENCE_NOUN.match(following)
+    if (
+        sequence
+        and word.startswith(_KO_SEQUENCE_PRODUCTION)
+        and _KO_REQUEST_ENDING.search(following[sequence.end():])
+    ):
         return False
     last = word[-1]
     if last == "는":

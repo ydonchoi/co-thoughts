@@ -491,3 +491,13 @@ def test_korean_sequential_forms_still_request_the_format(task):
 def test_korean_n_forms_without_sequence_noun_stay_attributive(task):
     result = route_explanation_format({"task": task})
     assert result["capability_status"]["requested"] == ["TEXT"]
+
+
+@pytest.mark.parametrize("task", [
+    # Codex review on #18: 다음/뒤/후 alone does not make a ㄴ-form a request.
+    "구조도가 필요한 다음 단계는 무엇인가?",
+    "흐름도를 그린 다음 단계는 뭐야?",
+])
+def test_sequence_exception_needs_production_verb_and_request_ending(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]
