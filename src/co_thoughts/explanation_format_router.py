@@ -36,26 +36,42 @@ _CAPABILITY_KEYS = {
 _FORMAT_KEYWORDS: dict[str, tuple[str, ...]] = {
     "SIMULATION": (
         "simulation", "simulate", "simulating", "시뮬레이션", "모의실험", "가정별 결과",
+        # paraphrases
+        "what-if", "scenario analysis", "model what happens", "시나리오별",
     ),
     "INTERACTIVE": (
         "interactive", "interactivity", "slider", "manipulate variables",
         "대화형", "인터랙티브", "변수 조작", "직접 조작", "상호작용",
+        # paraphrases
+        "let me tweak", "let me adjust", "let me play with", "let me change",
+        "let me vary", "바꿔가며", "바꿔 가며", "바꿔볼 수 있게", "조절하면서",
+        "조절하며", "조절할 수 있게",
     ),
     "ANIMATION": (
         "animation", "animated", "animate", "animating", "애니메이션", "움직이는 설명",
         "동작을 움직임으로",
+        # paraphrases
+        "in motion", "움직이게", "움직이는 모습으로",
     ),
     "VIDEO": (
         "video", "movie", "영상", "동영상", "설명 영상",
+        # paraphrases
+        "clip", "screencast", "녹화", "클립",
     ),
     "DIAGRAM": (
         "diagram", "flowchart", "process flow", "architecture diagram",
         "structure diagram", "도식", "다이어그램", "흐름도", "구조도",
         "관계도", "순서도", "절차도", "개념도",
+        # paraphrases
+        "visualize", "visualise", "visualization", "visualisation", "chart",
+        "graph", "mind map", "timeline", "boxes and arrows",
+        "시각화", "차트", "그래프", "도표", "도해", "마인드맵", "타임라인",
     ),
     "IMAGE": (
         "image", "illustration", "draw", "drawing", "picture", "이미지", "그림",
         "일러스트", "삽화", "외관을 그려",
+        # paraphrases
+        "photo", "photograph", "사진",
     ),
 }
 
@@ -115,7 +131,10 @@ _EN_PHRASE_HEAD_FOLLOWER = re.compile(
 )
 # Keywords that are themselves request verbs; they count when used as an
 # imperative ("Draw ...", "Can you simulate ...").
-_EN_VERB_KEYWORDS = frozenset({"draw", "simulate", "simulating", "animate", "animating"})
+_EN_VERB_KEYWORDS = frozenset({
+    "draw", "simulate", "simulating", "animate", "animating",
+    "visualize", "visualise", "chart", "graph",
+})
 _EN_POLITE_PREFIX = re.compile(r"^(?:(?:please|kindly|can|could|would|will|you)\s+)*$")
 # A format noun that opens the task is a terse request ("Diagram of the TCP
 # handshake", "A video about photosynthesis", "Image: a red apple").
@@ -129,8 +148,15 @@ _KO_OBJECT_REQUEST = re.compile(
     r"^(?:\s?\S{0,4})?(?:을|를|이|가)?\s?"
     r"(?:보여|그려|그리|만들|돌려|해\s?줘|해줘|생성|띄워|부탁|필요|원해)"
 )
-# Korean keywords that already contain a request verb.
-_KO_SELF_CUED = frozenset({"외관을 그려", "움직이는 설명", "동작을 움직임으로"})
+# Keywords that already describe a requested output form, so no separate cue
+# is needed.
+_SELF_CUED = frozenset({
+    "외관을 그려", "움직이는 설명", "동작을 움직임으로",
+    "boxes and arrows", "model what happens",
+    "let me tweak", "let me adjust", "let me play with", "let me change", "let me vary",
+    "바꿔가며", "바꿔 가며", "바꿔볼 수 있게", "조절하면서", "조절하며", "조절할 수 있게",
+    "움직이게", "움직이는 모습으로",
+})
 
 # Explicit precedence: the first true signal wins. Richer formats that subsume
 # simpler ones come first (a simulation is also interactive; an animation of a
@@ -185,9 +211,9 @@ def _normalize_task_text(task: str) -> str:
 
 def _is_requested(keyword: str, text: str, start: int, end: int) -> bool:
     """Return True when the keyword at text[start:end] is asked for as output."""
+    if keyword in _SELF_CUED:
+        return True
     if not keyword.isascii():
-        if keyword in _KO_SELF_CUED:
-            return True
         after = text[end:]
         return bool(_KO_FORM_PARTICLE.match(after) or _KO_OBJECT_REQUEST.match(after))
 

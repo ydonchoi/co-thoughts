@@ -325,3 +325,38 @@ def test_cue_must_govern_the_format_word(task):
 def test_governing_cues_still_select_format(task, expected):
     result = route_explanation_format({"task": task})
     assert result["capability_status"]["requested"] == [expected]
+
+
+# --- paraphrased requests ---------------------------------------------------
+
+@pytest.mark.parametrize("task, expected", [
+    ("Visualize the request lifecycle", "DIAGRAM"),
+    ("Make a chart of quarterly sales", "DIAGRAM"),
+    ("Graph y = x squared", "DIAGRAM"),
+    ("Show me a photo of a lighthouse", "IMAGE"),
+    ("Make a short clip about the proof", "VIDEO"),
+    ("Let me tweak the friction and see what happens", "INTERACTIVE"),
+    ("Model what happens to demand if prices double", "SIMULATION"),
+    ("Show the gears in motion", "ANIMATION"),
+    ("매출 추이를 그래프로 보여줘", "DIAGRAM"),
+    ("등대 사진을 보여줘", "IMAGE"),
+    ("과정을 녹화해서 보여줘", "VIDEO"),
+    ("값을 바꿔가며 확인하게 해줘", "INTERACTIVE"),
+])
+def test_paraphrased_requests_select_format(task, expected):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == [expected]
+
+
+@pytest.mark.parametrize("task", [
+    "What is a bipartite graph?",
+    "Explain how stock charts are read",
+    "Who owns the copyright of a photo?",
+    "Explain the timeline of the Roman Empire's fall",
+    "Explain Newton's laws of motion",
+    "그래프 이론의 응용 분야를 알려줘",
+    "사진 촬영 기법의 역사를 정리해줘",
+])
+def test_paraphrase_vocabulary_as_topic_stays_text(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]

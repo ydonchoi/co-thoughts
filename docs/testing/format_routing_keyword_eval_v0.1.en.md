@@ -114,6 +114,57 @@ After the fix: development unchanged (67/77, unnecessary-media 0.000); held-out 
 
 **Contamination note:** the clause-boundary rule also fixes held-out case HT08 ("Show **that** the image of …"), which was already known to fail when this rule was written. The rule was motivated by the reviewer's examples, not by HT08, but the held-out gain from 31 to 32 is not independent evidence. The remaining held-out false positive is HC01 ("ended in a draw;" — the noun "draw" heads its phrase and is followed by punctuation).
 
+## 8. Follow-up: paraphrase recognition
+
+### 8.1 Change
+
+Paraphrase vocabulary was added to each format. Every new word goes through the same request-cue gating as section 7, except phrases that already describe an output form (self-cued).
+
+| Format | Cue-gated words | Self-cued phrases |
+|---|---|---|
+| DIAGRAM | visualize/visualise/visualization, chart, graph, mind map, timeline, 시각화, 차트, 그래프, 도표, 도해, 마인드맵, 타임라인 | boxes and arrows |
+| IMAGE | photo, photograph, 사진 | — |
+| VIDEO | clip, screencast, 녹화, 클립 | — |
+| INTERACTIVE | — | let me tweak/adjust/play with/change/vary, 바꿔가며, 바꿔볼 수 있게, 조절하면서, 조절하며, 조절할 수 있게 |
+| SIMULATION | what-if, scenario analysis, 시나리오별 | model what happens |
+| ANIMATION | in motion | 움직이게, 움직이는 모습으로 |
+
+`visualize`, `visualise`, `chart`, and `graph` also count as imperative verb keywords ("Chart the revenue …", "Graph y = x²").
+
+### 8.2 Second held-out set
+
+`tests/evaluation/format_routing_eval_holdout_v0.2.json` (40 cases: 20 paraphrased requests, 12 topic mentions of the new vocabulary such as "graph theory", "photo editing", "chart of accounts", 4 plain, 4 explicit) was written and committed **before** this change, with no task overlapping the other sets. Baseline on `main` @ `fa9dd95`.
+
+### 8.3 Results
+
+| Set | Metric | Before | After |
+|---|---|---|---|
+| Development (77) | Correct | 67 | 77 |
+| | Paraphrase group | 0/10 | 10/10 |
+| | Missed-media rate | 0.286 | 0.000 |
+| Held-out v0.1 (38) | Correct | 32 | 37 |
+| | Paraphrase group | 0/5 | 5/5 |
+| **Held-out v0.2 (40)** | Correct | 20 (0.500) | **37 (0.925)** |
+| | Paraphrase group | 0/20 | **18/20** |
+| | Topic group | 12/12 | 11/12 |
+| | Unnecessary-media rate | 0.000 | **0.062 (1/16)** |
+| | Missed-media rate | 0.833 | **0.083** |
+
+Explicit and plain groups stay at 100% and wrong-media stays 0 on all three sets.
+
+**Which numbers to trust:** the vocabulary was built from the development-set paraphrase errors, so the development result is tuned; the v0.1 held-out paraphrases reuse the same words (visualize, photo, 시각화, 사진), so that gain is not independent either. Held-out v0.2 is the estimate to use: paraphrase recall rises from 0 to 0.9 at the cost of one new false positive in 16 TEXT tasks.
+
+Remaining v0.2 errors (reported, not tuned):
+- QT03 "Give me tips for **photo** editing" → IMAGE: "give" governs "tips", but the cue window does not check what the verb's object is.
+- QR07 "Render a 3D **view** of the molecule" → TEXT: "view" is not in the vocabulary.
+- QR10 "Give me **controls** to change gravity" → TEXT: "controls" was deliberately not added (too common as a topic).
+
+### 8.4 Limits
+
+- Held-out v0.2 was written by the same author, after the general direction of the vocabulary (chart/graph/photo/clip) had been chosen. Its topic group deliberately uses that vocabulary to measure false positives, but it still shares the author's phrasing.
+- Self-cued phrases ("let me change", "조절하면서") select a format with no further check; a sentence like "Let me change the subject" would be selected as INTERACTIVE.
+- Vocabulary is closed: new paraphrases ("render a 3D view", "controls to …") need explicit additions measured against a new held-out set.
+
 ---
 
 [Korean source](format_routing_keyword_eval_v0.1.md)

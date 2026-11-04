@@ -208,7 +208,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Verify text fallback when rendering fails.
 
 ### Phase 4 — Evaluation and Promotion
-- v0.1 keyword evaluation: `docs/testing/format_routing_keyword_eval_v0.1.en.md` (77 author-labeled tasks; overall 0.623, unnecessary-media rate 0.452 driven by topic mentions, paraphrase recall 0). Request-cue gating (section 7 of that report) brings the held-out set (38 cases) from 0.526 to 0.816 and its unnecessary-media rate from 0.619 to 0.095.
+- v0.1 keyword evaluation: `docs/testing/format_routing_keyword_eval_v0.1.en.md` (77 author-labeled tasks; overall 0.623, unnecessary-media rate 0.452 driven by topic mentions, paraphrase recall 0). Request-cue gating (section 7 of that report) brings the held-out set (38 cases) from 0.526 to 0.842 and its unnecessary-media rate from 0.619 to 0.048. Paraphrase recognition (section 8) raises paraphrase recall on a second held-out set (40 cases) from 0/20 to 18/20, with one new false positive in 16 TEXT tasks.
 - Evaluate selection accuracy, unnecessary media generation, fallback, and accessibility across representative task groups.
 - Promote implementation status only after independent and regression tests pass.
 
