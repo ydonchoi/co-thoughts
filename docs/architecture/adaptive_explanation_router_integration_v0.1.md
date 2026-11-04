@@ -235,7 +235,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 | 출력 스키마 충돌 보고, 접근성 입력, 보조 형식(`secondary`), `audience`/`detail_level` | 미구현 | §5–§7, §11 |
 | Host/Adapter 연결 (Phase 3) | 미구현 | `render_status`는 항상 `NOT_RUN` |
 | 실제 렌더러·매체 생성·기능 시험 | 미실행 | 사용 가능한 host renderer 확인 안 됨 |
-| SARA v3 Live 왕복 | 미검증 | Live 테스트 `test_live_cothoughts_to_sara_v3_round_trip`(실제 `SARAv3Connection`)는 `CO_THOUGHTS_SARA_V3_LIVE=1`, `SARA_LLM_*` 설정, 형제 SARA v3 체크아웃이 모두 있을 때만 실행되고 그 밖에는 건너뛴다. 이번 작업에서는 실행되지 않았다. 나머지 통합 테스트는 가짜 어댑터(`FakeV24Adapter`)를 쓴다. |
+| SARA v3 Live 왕복 | 미검증 | Live 테스트 `test_live_cothoughts_to_sara_v3_round_trip`(실제 `SARAv3Connection`)는 `CO_THOUGHTS_SARA_V3_LIVE=1`과 형제 SARA v3 체크아웃(`SARA_v3/cli.py`)이 둘 다 있을 때만 실행되고, 그 밖에는 건너뛴다. `SARA_LLM_*` provider 설정은 건너뛰기 조건이 아니라 통과 전제조건이다(플래그와 체크아웃만 있고 provider 설정이 없으면 실행되어 실패한다). 이번 작업에서는 실행되지 않았다. 나머지 통합 테스트는 가짜 어댑터(`FakeV24Adapter`)를 쓴다. |
 
 평가 수치는 같은 작성자가 만든 세트에서 측정한 값이므로 일반화 성능으로 해석하지 않는다. 특정 커밋의 CI 결과는 GitHub Actions 기록으로 확인한다.
 
@@ -267,4 +267,4 @@ PR #12–#18에서 리뷰가 규칙을 바꿀 때마다 새 반례를 찾았다.
 5. 실제 렌더러 연결: DIAGRAM부터, 렌더링·접근성·기능 시험을 분리 검증
 6. SARA v3 Live 왕복 검증: 실제 Provider 환경에서 Co-thoughts → SARA → assessment envelope → 후속 backend 전달
 
-외부 검토(2026-11-04)는 SARA v3 쪽 일부 게이트가 WAIVED 상태라고 언급했다. 이 저장소에서는 확인하지 않았다. 이 저장소에는 Live 왕복 테스트가 있지만 실행 조건이 걸려 있어 건너뛰었으므로, Live 왕복은 미검증 상태다.
+외부 검토(2026-11-04)는 SARA v3 쪽 일부 게이트가 WAIVED 상태라고 언급했다. 이 저장소에서는 확인하지 않았다. 이 저장소에는 Live 왕복 테스트가 있지만 명시적으로 켜야 실행되며 이번에는 건너뛰었으므로, Live 왕복은 미검증 상태다.

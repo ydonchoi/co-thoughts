@@ -235,7 +235,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 | Output-schema conflict reporting, accessibility input, secondary formats, `audience`/`detail_level` | Not implemented | §5–§7, §11 |
 | Host/Adapter integration (Phase 3) | Not implemented | `render_status` is always `NOT_RUN` |
 | Real renderers, media generation, functional tests | Not run | No usable host renderer identified |
-| SARA v3 live round trip | Not verified | The live test `test_live_cothoughts_to_sara_v3_round_trip` (real `SARAv3Connection`) runs only with `CO_THOUGHTS_SARA_V3_LIVE=1`, `SARA_LLM_*` configured, and a sibling SARA v3 checkout; it is skipped otherwise and has not been run in this work. Other integration tests use a fake adapter (`FakeV24Adapter`). |
+| SARA v3 live round trip | Not verified | The live test `test_live_cothoughts_to_sara_v3_round_trip` (real `SARAv3Connection`) is skipped unless `CO_THOUGHTS_SARA_V3_LIVE=1` and a sibling SARA v3 checkout (`SARA_v3/cli.py`) are both present; `SARA_LLM_*` provider settings are a prerequisite for it to pass, not a skip condition (with the flag and checkout but no provider settings it runs and fails). It has not been run in this work. Other integration tests use a fake adapter (`FakeV24Adapter`). |
 
 Evaluation numbers come from sets written by the same author and are not generalization estimates. Per-commit CI results are tracked in GitHub Actions.
 
@@ -267,4 +267,4 @@ In PRs #12–#18, review found new counterexamples after every rule change. The 
 5. Real renderer integration, starting with DIAGRAM, with rendering, accessibility, and functional tests verified separately
 6. SARA v3 live round trip in a real provider environment: Co-thoughts → SARA → assessment envelope → downstream backend
 
-An external review (2026-11-04) noted that some SARA v3 gates are WAIVED. That is not verified in this repository. Here, the live round-trip test exists but is gated and was skipped, so the live round trip remains unverified.
+An external review (2026-11-04) noted that some SARA v3 gates are WAIVED. That is not verified in this repository. Here, the live round-trip test exists but is opt-in and was skipped, so the live round trip remains unverified.
