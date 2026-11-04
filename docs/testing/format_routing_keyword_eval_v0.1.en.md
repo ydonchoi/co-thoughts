@@ -123,11 +123,11 @@ Paraphrase vocabulary was added to each format. Every new word goes through the 
 | Format | Cue-gated words | Self-cued phrases |
 |---|---|---|
 | DIAGRAM | visualize/visualise/visualization, chart, graph, mind map, timeline, 시각화, 차트, 그래프, 도표, 도해, 마인드맵, 타임라인 | boxes and arrows |
-| IMAGE | photo, photograph, 사진 | — |
+| IMAGE | photo, photograph, clip art, 사진 | — |
 | VIDEO | clip, screencast, 녹화, 클립 | — |
 | INTERACTIVE | — | let me tweak/adjust/play with/change/vary, 바꿔가며, 바꿔볼 수 있게, 조절하면서, 조절하며, 조절할 수 있게 |
 | SIMULATION | what-if, scenario analysis, 시나리오별 | model what happens |
-| ANIMATION | in motion | 움직이게, 움직이는 모습으로 |
+| ANIMATION | in motion, 움직이게 | 움직이는 모습으로 |
 
 `visualize`, `visualise`, `chart`, and `graph` also count as imperative verb keywords ("Chart the revenue …", "Graph y = x²").
 
@@ -164,6 +164,16 @@ Remaining v0.2 errors (reported, not tuned):
 - Held-out v0.2 was written by the same author, after the general direction of the vocabulary (chart/graph/photo/clip) had been chosen. Its topic group deliberately uses that vocabulary to measure false positives, but it still shares the author's phrasing.
 - Self-cued phrases ("let me change", "조절하면서") select a format with no further check; a sentence like "Let me change the subject" would be selected as INTERACTIVE.
 - Vocabulary is closed: new paraphrases ("render a 3D view", "controls to …") need explicit additions measured against a new held-out set.
+
+### 8.5 Review follow-up (Codex on #13)
+
+The Codex review of #13 completed after merge and reported three false positives outside all evaluation sets; all three reproduced on `main` @ `db02b3c` and were fixed:
+
+- Sentence-initial `graph`/`chart` used as a subject noun ("Graph theory **is** …", "Chart **of** accounts …") was treated as an imperative → DIAGRAM. A verb keyword no longer counts as an imperative when followed by `of` or by a copula/auxiliary (is, are, was, were, has, have, can, will) within three tokens — unless a wh-word follows the keyword directly, which opens an object clause ("Chart **what** is happening …", "Chart **who** is buying"; a further Codex finding on #14).
+- `움직이게` as a causative ("힘이 물체를 움직이게 **하는 이유**") was self-cued → ANIMATION. It is no longer self-cued and now needs the Korean request-verb cue ("움직이게 **보여줘**").
+- "clip art" matched VIDEO via `clip`. "clip art" is now an IMAGE keyword, and `clip` is skipped when followed by "art".
+
+All three evaluation sets are unchanged (dev 77/77, held-out v0.1 37/38, held-out v0.2 37/40); the examples are pinned by unit tests.
 
 ---
 
