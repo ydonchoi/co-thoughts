@@ -1,5 +1,5 @@
 """Default lazy connection to the sibling SARA v2.4 epistemic adapter, and an
-opt-in SARA v3 dialogue-turn connection."""
+opt-in SARA v3 connection used for user-requested conversation verification."""
 
 from __future__ import annotations
 
@@ -207,11 +207,12 @@ def _cli_error_code(stderr: bytes) -> str:
 
 
 class SARAv3Connection:
-    """Send an approved, minimal dialogue turn to SARA v3 and keep its envelopes.
+    """Connection to the SARA v3 dialogue CLI.
 
-    Only the turn identifiers, the generated response text (or claim texts), and
-    explicit claim ids/texts are sent. Request context, task text, backend
-    evidence, and backend-asserted statuses are not forwarded.
+    SARA v3 calls external LLM/search providers, so Co-thoughts never calls it
+    per turn. ``conversation_verification`` sends planned batches through this
+    connection only when the user asks for whole-conversation verification and
+    confirms the plan.
     """
 
     adapter_revision = "co-thoughts-v2.0/sara-v3"
@@ -241,73 +242,6 @@ class SARAv3Connection:
     @property
     def connected(self) -> bool:
         return self.process_turn is not None
-
-    def build_turn(self, request: Mapping[str, Any], output: Mapping[str, Any]) -> dict[str, Any]:
-        request_id = request.get("request_id") or output.get("request_id")
-        if not isinstance(request_id, str) or not request_id.strip():
-            raise ValueError("REQUEST_ID_REQUIRED")
-        candidates = []
-        for index, item in enumerate(output.get("claims", []) or []):
-            if not isinstance(item, Mapping):
-                continue
-            text = item.get("text")
-            if isinstance(text, str) and text.strip():
-                candidates.append({"id": str(item.get("id") or f"CLAIM-{index + 1}"), "text": text.strip()})
-        if len(candidates) > self.max_claims:
-            raise ValueError("CLAIM_LIMIT_EXCEEDED")
-        response_text = output.get("response")
-        content = response_text.strip() if isinstance(response_text, str) and response_text.strip() else "\n".join(
-            item["text"] for item in candidates)
-        return {
-            "request_id": request_id.strip(),
-            "conversation_id": str(request.get("conversation_id") or request_id).strip(),
-            "turn_id": str(request.get("turn_id") or request_id).strip(),
-            "content": content,
-            "claim_candidates": candidates,
-            "evidence": [],
-            "provenance_ids": [f"co-thoughts:{output.get('execution_id', request_id)}"],
-        }
-
-    def assess_turn(self, request: Mapping[str, Any], output: Mapping[str, Any]) -> dict[str, Any]:
-        base = {
-            "connection_status": "CONNECTED" if self.connected else "NOT_CONNECTED",
-            "adapter_revision": self.adapter_revision if self.connected else None,
-            "execution_status": "NOT_RUN",
-            "verification_status": "UNVERIFIED",
-            "assessment_envelopes": [],
-            "external_llm_response": None,
-            "truthfulness_status": "UNASSESSED",
-            "is_evidence": False,
-        }
-        if not self.connected:
-            return {**base, "execution_status": "NOT_CONNECTED",
-                    "connection_error": self.connection_error or "SARA_V3_UNAVAILABLE"}
-        try:
-            turn = self.build_turn(request, output)
-        except ValueError as exc:
-            return {**base, "error_code": str(exc)}
-        base["sent_scope"] = {
-            "claim_ids": [item["id"] for item in turn["claim_candidates"]],
-            "content_chars": len(turn["content"]),
-            "context_forwarded": False,
-        }
-        if not turn["claim_candidates"]:
-            return {**base, "execution_status": "NOT_APPLICABLE"}
-        try:
-            result = self.process_turn(turn, self.timeout_seconds)
-            envelopes = _validated_v3_result(result, set(base["sent_scope"]["claim_ids"]))
-        except Exception as exc:
-            code = str(exc)
-            return {**base, "execution_status": "FAILED",
-                    "error_code": code if isinstance(exc, (SARAv3Error, ValueError)) and _ERROR_CODE.fullmatch(code)
-                    else type(exc).__name__.upper()}
-        return {
-            **base, "execution_status": "SUCCEEDED",
-            "verification_status": result["verification_status"],
-            "assessment_envelopes": envelopes,
-            "external_llm_response": result.get("external_llm_response"),
-            "sara_runtime_revision": result.get("runtime_revision"),
-        }
 
 
 def _validated_v3_result(result: Any, sent_claim_ids: set[str]) -> list[dict[str, Any]]:

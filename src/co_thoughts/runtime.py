@@ -8,6 +8,7 @@ from typing import Any, Mapping, Protocol
 from execution import MODES, EPISTEMIC_TYPES
 from external_tools import ToolRegistry, assess_external_tool_needs
 from sara_integration import SARAConnection, SARAv3Connection, validate_assessment_envelopes
+from conversation_verification import ConversationLedger, build_plan, claim_ref, normalize_claims, run_plan
 from workflows import build_workflow_request, route_workflow_natural_language
 from request_validation import normalize_mode, validate_routing_request
 
@@ -146,14 +147,16 @@ class CognitiveRuntime:
         tool_registry: ToolRegistry | None = None,
         sara_connection: SARAConnection | None = None,
         sara_v3_connection: SARAv3Connection | None = None,
+        conversation_ledger: ConversationLedger | None = None,
     ) -> None:
         self.backend = backend
         self.safety_gate = safety_gate or SafetyGate()
         self.tool_registry = tool_registry or ToolRegistry()
         self.sara_connection = sara_connection or SARAConnection()
-        # SARA v3 calls external LLM/search providers, so it runs only when the
-        # host configures it explicitly.
+        # SARA v3 calls external LLM/search providers. It never runs per turn:
+        # turns are recorded locally and sent only by verify_conversation().
         self.sara_v3_connection = sara_v3_connection
+        self.conversation_ledger = conversation_ledger or ConversationLedger()
 
     def run(self, request: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(request, Mapping):
@@ -163,6 +166,7 @@ class CognitiveRuntime:
         # Envelopes from an earlier turn reach the backend as context, but the
         # copies kept here stay authoritative over anything the backend echoes.
         prior_envelopes = validate_assessment_envelopes(request.get("sara_assessment_envelopes", []))
+        request_user_claims = normalize_claims(request.get("user_claims"), prefix="UC", error="USER_CLAIMS_INVALID")
         raw = self.backend.generate(request)
         if not isinstance(raw, Mapping):
             raise TypeError("BACKEND_RESPONSE_MUST_BE_MAPPING")
@@ -177,10 +181,73 @@ class CognitiveRuntime:
             output["sara_assessment_envelopes"] = prior_envelopes
         output["sara_assessment"] = self.sara_connection.assess_output(output)
         if self.sara_v3_connection is not None:
-            output["sara_v3_assessment"] = self.sara_v3_connection.assess_turn(request, output)
+            output["conversation_verification"] = self._record_turn(request, output, request_user_claims)
         output.setdefault("runtime_revision", self.runtime_revision)
         output.setdefault("request_id", request.get("request_id"))
         return output
+
+    def _record_turn(self, request: Mapping[str, Any], output: Mapping[str, Any],
+                     request_user_claims: list[dict[str, str]]) -> dict[str, Any]:
+        """Keep this turn for a later, user-requested verification; send nothing now."""
+        request_id = str(request.get("request_id") or output.get("request_id") or "").strip()
+        conversation_id = str(request.get("conversation_id") or request_id).strip()
+        turn_id = str(request.get("turn_id") or request_id).strip()
+        if not conversation_id or not turn_id:
+            return {"status": "NOT_RECORDED", "reason_code": "TURN_IDENTIFIERS_REQUIRED",
+                    "verification_status": "UNVERIFIED"}
+        # The host's explicit user claims win; otherwise the backend may extract them.
+        # A malformed backend list must not fail the conversation turn itself.
+        warnings: list[str] = []
+        user_claims = request_user_claims
+        if not user_claims:
+            try:
+                user_claims = normalize_claims(output.get("user_claims"), prefix="UC",
+                                               error="BACKEND_USER_CLAIMS_INVALID")
+            except ValueError as exc:
+                user_claims, warnings = [], [str(exc)]
+        assistant_claims = normalize_claims(
+            [item for item in output.get("claims", []) if isinstance(item, Mapping)
+             and isinstance(item.get("text"), str) and item["text"].strip()],
+            prefix="CLAIM", error="CLAIMS_INVALID")
+        task = request.get("task")
+        response = output.get("response")
+        utterances: dict[str, dict[str, Any]] = {}
+        if user_claims and isinstance(task, str) and task.strip():
+            utterances["USER"] = {"content": task.strip(), "claims": user_claims}
+        if assistant_claims:
+            body = response.strip() if isinstance(response, str) and response.strip() else "\n".join(
+                item["text"] for item in assistant_claims)
+            utterances["ASSISTANT"] = {"content": body, "claims": assistant_claims}
+        self.conversation_ledger.record(conversation_id, turn_id, utterances)
+        recorded = {
+            "status": "NOT_REQUESTED", "verification_status": "UNVERIFIED",
+            "conversation_id": conversation_id, "turn_id": turn_id,
+            "recorded_claim_refs": [claim_ref(turn_id, role, claim["id"])
+                                    for role, item in utterances.items() for claim in item["claims"]],
+        }
+        if warnings:
+            recorded["warnings"] = warnings
+        return recorded
+
+    def plan_conversation_verification(self, conversation_id: str, *, turn_ids=None, claim_refs=None) -> dict[str, Any]:
+        """Preview what a verification run would send. Nothing leaves the process."""
+        if self.sara_v3_connection is None:
+            raise RuntimeError("SARA_V3_NOT_CONFIGURED")
+        return build_plan(self.conversation_ledger, conversation_id,
+                          max_claims_per_call=self.sara_v3_connection.max_claims,
+                          turn_ids=turn_ids, claim_refs=claim_refs)
+
+    def verify_conversation(self, conversation_id: str, *, confirmation: str, turn_ids=None,
+                            claim_refs=None) -> dict[str, Any]:
+        """Run the user-requested verification after the user confirmed the plan.
+
+        ``confirmation`` must equal the ``plan_id`` of a plan built for the same
+        selection; a changed conversation or selection yields a different id.
+        """
+        plan = self.plan_conversation_verification(conversation_id, turn_ids=turn_ids, claim_refs=claim_refs)
+        if not isinstance(confirmation, str) or confirmation != plan["plan_id"]:
+            raise PermissionError("VERIFICATION_PLAN_NOT_CONFIRMED")
+        return run_plan(plan, self.sara_v3_connection)
 
     def run_workflow(self, workflow: str, request: Mapping[str, Any]) -> dict[str, Any]:
         """Run exactly one selected workflow cluster in one backend call."""
