@@ -208,6 +208,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 실패 시 텍스트 대체 경로 검증
 
 ### Phase 4 — 평가 및 승격
+- v0.1 키워드 평가: `docs/testing/format_routing_keyword_eval_v0.1.md` (작성자 라벨링 과제 77개, 전체 0.623, 주제 언급으로 인한 불필요한 매체 비율 0.452, 바꿔 말한 요청 재현율 0).
 - 대표 작업군별 선택 정확성·불필요한 매체 생성·fallback·접근성 평가
 - 독립 테스트와 회귀 테스트 통과 후에만 구현 상태 승격
 
