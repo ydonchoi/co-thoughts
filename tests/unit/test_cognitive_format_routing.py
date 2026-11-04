@@ -48,3 +48,21 @@ def test_invalid_format_input_does_not_break_public_route(bad_request_fields, er
     assert format_routing["error"] == error
     assert format_routing["is_evidence"] is False
     assert format_routing["format_plan"]["fallback"] is None
+
+
+def test_cognitive_router_reports_output_schema_conflict_without_changing_routing():
+    base = {"task": "Compare the two hypotheses", "mode": "DEEP"}
+    plain = route(base)
+    result = route({
+        **base,
+        "output_intent": {"requested_format": "VIDEO"},
+        "output_schema": {"allowed_formats": ["TEXT"]},
+        "capabilities": {"video": True},
+    })
+    plan = result["format_routing"]["format_plan"]
+    assert plan["selection_status"] == "CONFLICT"
+    assert plan["primary"] == "TEXT"
+    assert plan["conflicts"][0]["requested_format"] == "VIDEO"
+    for key in plain:
+        if key != "format_routing":
+            assert result[key] == plain[key]

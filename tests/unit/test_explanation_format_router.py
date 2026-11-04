@@ -1,6 +1,6 @@
 import pytest
 
-from explanation_format_router import route_explanation_format
+from explanation_format_router import plan_explanation_format_safely, route_explanation_format
 
 
 def test_simple_task_defaults_to_text_without_capability_claims():
@@ -501,3 +501,114 @@ def test_korean_n_forms_without_sequence_noun_stay_attributive(task):
 def test_sequence_exception_needs_production_verb_and_request_ending(task):
     result = route_explanation_format({"task": task})
     assert result["capability_status"]["requested"] == ["TEXT"]
+
+
+# --- Output-schema conflict reporting (§7 priority 2, §11) ---
+
+def test_requested_format_outside_output_schema_is_reported_not_applied():
+    result = route_explanation_format({
+        "task": "Explain the approval process",
+        "output_intent": {"requested_format": "VIDEO"},
+        "output_schema": {"allowed_formats": ["TEXT", "DIAGRAM"]},
+        "capabilities": {"video": True, "diagram": True},
+    })
+    plan = result["format_plan"]
+    assert plan["primary"] == "TEXT"
+    assert plan["selection_status"] == "CONFLICT"
+    assert plan["conflicts"] == [{
+        "type": "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA",
+        "requested_format": "VIDEO",
+        "allowed_formats": ["DIAGRAM", "TEXT"],
+    }]
+    assert plan["excluded_formats"] == ["VIDEO"]
+    assert plan["fallback"] is None
+    assert plan["rationale"][-1] == (
+        "VIDEO is not allowed by the project output schema; "
+        "the schema is not overridden; using TEXT"
+    )
+    assert any("must resolve the conflict" in item for item in plan["uncertainties"])
+    assert result["verification_status"] == "UNVERIFIED"
+    assert result["is_evidence"] is False
+
+
+def test_inferred_format_outside_output_schema_falls_back_without_conflict():
+    result = route_explanation_format({
+        "task": "Draw a flowchart of the approval process",
+        "output_schema": {"allowed_formats": ["TEXT"]},
+        "capabilities": {"diagram": True},
+    })
+    plan = result["format_plan"]
+    assert plan["primary"] == "TEXT"
+    assert plan["selection_status"] == "FALLBACK"
+    assert plan["conflicts"] == []
+    assert plan["excluded_formats"] == ["DIAGRAM"]
+    assert plan["rationale"][-1] == (
+        "DIAGRAM is not allowed by the project output schema; using TEXT"
+    )
+    assert "The project output schema does not allow DIAGRAM" in plan["uncertainties"]
+
+
+def test_requested_format_allowed_by_schema_is_selected():
+    result = route_explanation_format({
+        "task": "Explain the approval process",
+        "output_intent": {"requested_format": "diagram"},
+        "output_schema": {"allowed_formats": ["text", "Diagram"]},
+        "capabilities": {"diagram": True},
+    })
+    plan = result["format_plan"]
+    assert plan["primary"] == "DIAGRAM"
+    assert plan["selection_status"] == "SELECTED"
+    assert plan["conflicts"] == []
+    assert plan["fallback"] == "TEXT"
+
+
+def test_schema_allowed_but_capability_missing_is_capability_fallback():
+    result = route_explanation_format({
+        "task": "Explain the approval process",
+        "output_intent": {"requested_format": "DIAGRAM"},
+        "output_schema": {"allowed_formats": ["TEXT", "DIAGRAM"]},
+    })
+    plan = result["format_plan"]
+    assert plan["primary"] == "TEXT"
+    assert plan["selection_status"] == "FALLBACK"
+    assert plan["conflicts"] == []
+    assert plan["rationale"][-1] == (
+        "DIAGRAM capability was not declared by the host; using TEXT"
+    )
+
+
+def test_no_output_schema_keeps_previous_behavior_and_empty_conflicts():
+    result = route_explanation_format({
+        "task": "Explain",
+        "output_intent": {"requested_format": "DIAGRAM"},
+        "capabilities": {"diagram": True},
+    })
+    assert result["format_plan"]["primary"] == "DIAGRAM"
+    assert result["format_plan"]["conflicts"] == []
+
+
+@pytest.mark.parametrize("schema, error", [
+    ([], "OUTPUT_SCHEMA_INVALID"),
+    ("TEXT", "OUTPUT_SCHEMA_INVALID"),
+    ({}, "OUTPUT_SCHEMA_ALLOWED_FORMATS_INVALID"),
+    ({"allowed_formats": []}, "OUTPUT_SCHEMA_ALLOWED_FORMATS_INVALID"),
+    ({"allowed_formats": "TEXT"}, "OUTPUT_SCHEMA_ALLOWED_FORMATS_INVALID"),
+    ({"allowed_formats": ["TEXT", 1]}, "OUTPUT_SCHEMA_ALLOWED_FORMATS_INVALID"),
+    ({"allowed_formats": ["TEXT", " "]}, "OUTPUT_SCHEMA_ALLOWED_FORMATS_INVALID"),
+    ({"allowed_formats": ["TEXT", "HOLOGRAM"]}, "OUTPUT_SCHEMA_FORMAT_UNSUPPORTED:HOLOGRAM"),
+    ({"allowed_formats": ["DIAGRAM"]}, "OUTPUT_SCHEMA_TEXT_REQUIRED"),
+    ({"allowed_formats": ["TEXT"], "max_length": 3}, "OUTPUT_SCHEMA_UNKNOWN_FIELD:max_length"),
+])
+def test_invalid_output_schema_is_rejected(schema, error):
+    with pytest.raises(ValueError, match=error):
+        route_explanation_format({"task": "Explain", "output_schema": schema})
+
+
+def test_invalid_output_schema_is_safe_invalid_input():
+    result = plan_explanation_format_safely({
+        "task": "Explain",
+        "output_schema": {"allowed_formats": ["DIAGRAM"]},
+    })
+    assert result["format_plan"]["selection_status"] == "INVALID_INPUT"
+    assert result["format_plan"]["conflicts"] == []
+    assert result["error"] == "OUTPUT_SCHEMA_TEXT_REQUIRED"
