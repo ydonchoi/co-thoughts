@@ -138,7 +138,7 @@ The protocol does not require exposing all internal state to the human-facing re
 - checkpoint/evidence separation;
 - explicit `execution_status` and `verification_status` separation.
 
-`tests/test_execution.py` exercises these boundaries.
+`tests/unit/test_execution.py` exercises these boundaries.
 
 ## Non-Claims
 
@@ -183,6 +183,6 @@ The contract is derived from the repository's README.md at the v1.3 baseline, in
 - v1.3 execution flow;
 - core separation rules such as STATE ≠ EVIDENCE and AGREEMENT ≠ EVIDENCE.
 
-The current implementation details are additionally evidenced by `execution.py` and `tests/test_execution.py`.
+The current implementation details are additionally evidenced by `execution.py` and `tests/unit/test_execution.py`.
 
 This document is a provenance-preserving interpretation of those source rules, not a replacement for them.
