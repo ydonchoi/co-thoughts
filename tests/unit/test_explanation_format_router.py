@@ -13,7 +13,7 @@ def test_simple_task_defaults_to_text_without_capability_claims():
 
 def test_static_relationship_selects_diagram_when_host_supports_it():
     result = route_explanation_format({
-        "task": "Explain the system architecture diagram",
+        "task": "Show the system architecture diagram",
         "capabilities": {"diagram": True},
     })
     assert result["format_plan"]["primary"] == "DIAGRAM"
@@ -245,3 +245,59 @@ def test_context_signal_overrides_task_keyword():
         "context": {"process_or_structure": True},
     })
     assert result["capability_status"]["requested"] == ["DIAGRAM"]
+
+
+# --- request-cue gating -----------------------------------------------------
+
+@pytest.mark.parametrize("task", [
+    "Explain how image compression works in JPEG",
+    "What is the simulation hypothesis?",
+    "Summarize the plot of the movie Inception",
+    "Explain the system architecture diagram",
+    "Is the election result a draw?",
+    "기업 이미지 관리 전략을 정리해줘",
+    "약물 상호작용의 위험성을 설명해줘",
+    "영상 압축 코덱의 원리를 설명해줘",
+])
+def test_format_word_as_topic_stays_text(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]
+
+
+@pytest.mark.parametrize("task, expected", [
+    ("Show me a picture of the front panel", "IMAGE"),
+    ("Make a short video explaining compound interest", "VIDEO"),
+    ("Explain recursion as a diagram", "DIAGRAM"),
+    ("Draw the water cycle", "IMAGE"),
+    ("Can you simulate three growth scenarios?", "SIMULATION"),
+    ("I want an animation of a piston", "ANIMATION"),
+    ("회원가입 절차를 흐름도로 그려줘", "DIAGRAM"),
+    ("심장 박동을 애니메이션으로 보여줘", "ANIMATION"),
+    ("변수 조작이 가능한 인터랙티브 설명을 만들어줘", "INTERACTIVE"),
+    ("금리 시뮬레이션을 돌려줘", "SIMULATION"),
+])
+def test_requested_format_wording_selects_format(task, expected):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == [expected]
+
+
+@pytest.mark.parametrize("task", [
+    "This argument draws upon Kant's ethics; explain it",
+    "She is drawing on prior research",
+    "Give me the bigger picture of the reform",
+])
+def test_exclusions_cover_inflected_forms(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]
+
+
+@pytest.mark.parametrize("task, expected", [
+    ("Diagram of the TCP handshake, please", "DIAGRAM"),
+    ("A video about photosynthesis", "VIDEO"),
+    ("Flowchart for the refund process", "DIAGRAM"),
+    ("흐름도 부탁해", "DIAGRAM"),
+    ("구조도 필요해", "DIAGRAM"),
+])
+def test_terse_verbless_requests_still_select_format(task, expected):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == [expected]

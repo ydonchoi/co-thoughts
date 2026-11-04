@@ -181,7 +181,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 고위험 판단: 시각화 단독 결론 금지, 근거·불확실성·전문가 검토 필요성 표시
 - 형식 계획 입력 오류(불리언이 아닌 context 신호, 알 수 없거나 불리언이 아닌 capability 키, `text: false`, 미지원 `requested_format`): `route_explanation_format()`은 고정 코드(예: `CAPABILITY_UNKNOWN:<key>`)로 `ValueError`를 발생시킨다. 공개 `cognitive_router.route()`는 이를 전파하지 않고, `format_routing`에 `selection_status=INVALID_INPUT`인 TEXT 계획과 `error` 코드를 담아 반환하므로 인지·검증 라우팅은 영향을 받지 않는다.
 - 공통 요청 필드(`request`는 mapping, `task`는 공백이 아닌 문자열, `context`는 mapping이며 없거나 `None`일 때만 `{}`로 대체)는 Cognitive Router, format planner, runtime `SafetyGate` 모두 `request_validation.validate_routing_request()`로 검증한다. `mode`도 없거나 `None`일 때만 `MIXED`로 대체하고 대소문자를 정규화하며(`normalize_mode()`), runtime은 정규화된 요청을 backend에 전달한다. 따라서 공통 필드 오류는 라우팅 전에 `route()`에서 `REQUEST_MUST_BE_MAPPING` / `TASK_REQUIRED` / `CONTEXT_INVALID`로 발생하며, `INVALID_INPUT`은 형식 전용 필드에만 적용된다.
-- 키워드 힌트: 영문 키워드는 단어 단위로 일치(단순 복수·과거형 접미사 허용), 한국어 키워드는 부분 문자열로 일치하되 알려진 충돌(예: "big picture", "그림자", "영상의학")은 제외 목록으로 처리한다.
+- 키워드 힌트: 영문 키워드는 단어 단위로 일치(단순 복수·과거형 접미사 허용), 한국어 키워드는 부분 문자열로 일치하되 알려진 충돌(예: "big picture", "draws upon", "그림자", "영상의학")은 활용형까지 처리하는 제외 목록으로 거른다. 키워드는 요청 표현(가까운 요청 동사, "as/in/with a …", 과제 첫머리의 형식 명사, 명령형 동사 키워드, 한국어 `로/으로` 또는 조사+요청 동사)이 있을 때만 비텍스트 형식을 고르며, 형식 단어가 주제로만 쓰이면 TEXT를 유지한다.
 
 ## 10. 단계별 구현 계획
 
@@ -208,7 +208,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 실패 시 텍스트 대체 경로 검증
 
 ### Phase 4 — 평가 및 승격
-- v0.1 키워드 평가: `docs/testing/format_routing_keyword_eval_v0.1.md` (작성자 라벨링 과제 77개, 전체 0.623, 주제 언급으로 인한 불필요한 매체 비율 0.452, 바꿔 말한 요청 재현율 0).
+- v0.1 키워드 평가: `docs/testing/format_routing_keyword_eval_v0.1.md` (작성자 라벨링 과제 77개, 전체 0.623, 주제 언급으로 인한 불필요한 매체 비율 0.452, 바꿔 말한 요청 재현율 0). 요청 표현 조건(보고서 7절)으로 홀드아웃 세트(38개)는 0.526에서 0.816으로, 불필요한 매체 비율은 0.619에서 0.095로 개선됐다.
 - 대표 작업군별 선택 정확성·불필요한 매체 생성·fallback·접근성 평가
 - 독립 테스트와 회귀 테스트 통과 후에만 구현 상태 승격
 

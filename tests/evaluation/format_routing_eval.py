@@ -4,7 +4,7 @@ Measures the planner's *candidate* format (``capability_status.requested``),
 which is what keyword matching decides; host capabilities are deliberately not
 involved. Run directly for a report:
 
-    PYTHONPATH=src/co_thoughts python tests/evaluation/format_routing_eval.py
+    PYTHONPATH=src/co_thoughts python tests/evaluation/format_routing_eval.py [dataset.json]
 """
 from __future__ import annotations
 
@@ -77,7 +77,10 @@ def evaluate(cases: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def main() -> None:
-    print(json.dumps(evaluate(load_cases()), ensure_ascii=False, indent=2))
+    import sys
+
+    path = Path(sys.argv[1]) if len(sys.argv) > 1 else DATASET
+    print(json.dumps(evaluate(load_cases(path)), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

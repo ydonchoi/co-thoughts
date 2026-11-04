@@ -181,7 +181,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - High-risk decisions: do not present visualization as the sole conclusion; include evidence, uncertainty, and need for expert review.
 - Invalid format-planning input (non-boolean context signal, unknown or non-boolean capability key, `text: false`, unsupported `requested_format`): `route_explanation_format()` raises `ValueError` with a stable code (e.g. `CAPABILITY_UNKNOWN:<key>`). The public `cognitive_router.route()` does not propagate it; `format_routing` returns a TEXT plan with `selection_status=INVALID_INPUT` and the code in `error`, so cognitive and verification routing are unaffected.
 - Shared request fields (`request` mapping, `task` non-blank string, `context` mapping defaulting to `{}` only when absent or `None`) are validated by `request_validation.validate_routing_request()` in the Cognitive Router, the format planner, and the runtime `SafetyGate`; `mode` likewise defaults to `MIXED` only when absent or `None` and is case-normalized (`normalize_mode()`), and the runtime passes the normalized request to the backend, so invalid shared fields raise `REQUEST_MUST_BE_MAPPING` / `TASK_REQUIRED` / `CONTEXT_INVALID` from `route()` before any routing. `INVALID_INPUT` applies only to format-specific fields.
-- Keyword hints: ASCII keywords match whole words (simple plural/past suffixes allowed); Korean keywords match as substrings, with an exclusion list for known collisions (e.g. "big picture", "그림자", "영상의학").
+- Keyword hints: ASCII keywords match whole words (simple plural/past suffixes allowed); Korean keywords match as substrings, with an inflection-aware exclusion list for known collisions (e.g. "big picture", "draws upon", "그림자", "영상의학"). A keyword selects a non-TEXT format only with a request cue (request verb nearby, "as/in/with a …", a leading format noun, an imperative verb keyword, or Korean `로/으로` or particle + request verb); a format word used only as the topic stays TEXT.
 
 ## 10. Phased Implementation Plan
 
@@ -208,7 +208,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Verify text fallback when rendering fails.
 
 ### Phase 4 — Evaluation and Promotion
-- v0.1 keyword evaluation: `docs/testing/format_routing_keyword_eval_v0.1.en.md` (77 author-labeled tasks; overall 0.623, unnecessary-media rate 0.452 driven by topic mentions, paraphrase recall 0).
+- v0.1 keyword evaluation: `docs/testing/format_routing_keyword_eval_v0.1.en.md` (77 author-labeled tasks; overall 0.623, unnecessary-media rate 0.452 driven by topic mentions, paraphrase recall 0). Request-cue gating (section 7 of that report) brings the held-out set (38 cases) from 0.526 to 0.816 and its unnecessary-media rate from 0.619 to 0.095.
 - Evaluate selection accuracy, unnecessary media generation, fallback, and accessibility across representative task groups.
 - Promote implementation status only after independent and regression tests pass.
 
