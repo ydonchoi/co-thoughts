@@ -57,8 +57,8 @@ def test_dev_floors_do_not_regress():
 
 
 def test_holdout_floors_do_not_regress():
-    assert HOLDOUT["overall"]["correct"] >= 31
-    assert HOLDOUT["by_group"]["topic"]["correct"] >= 11
+    assert HOLDOUT["overall"]["correct"] >= 32
+    assert HOLDOUT["by_group"]["topic"]["correct"] >= 12
     assert HOLDOUT["by_group"]["collision"]["correct"] >= 3
-    assert HOLDOUT["unnecessary_media_rate"] <= 0.095
+    assert HOLDOUT["unnecessary_media_rate"] <= 0.048
     assert HOLDOUT["missed_media_rate"] <= 0.294

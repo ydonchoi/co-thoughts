@@ -97,8 +97,22 @@ _EN_REQUEST_VERBS = frozenset({
     "present",
 })
 _CUE_WINDOW = 4
+# A request verb only governs the keyword when no clause boundary sits between
+# them: "I need to understand video codecs" / "Show how video codecs work" /
+# "Show that the image of ..." do not request a video or an image.
+_EN_CLAUSE_BREAKERS = frozenset({
+    "to", "how", "why", "what", "when", "where", "which", "who", "whether",
+    "that", "if",
+})
 # "as a diagram", "in a video", "with an animation", ...
 _EN_PREPOSITION_CUE = re.compile(r"(?:as|in|with|into|using|via)\s+(?:a|an)\s+(?:\S+\s+){0,2}$")
+# The preposition form only marks an output form when the format word heads
+# its phrase ("in a video", "as a diagram, please", "with an animation of ...")
+# rather than modifying another noun ("in a video game", "in a video codec").
+_EN_PHRASE_HEAD_FOLLOWER = re.compile(
+    r"^(?:\s*(?:$|[.,;:!?)])|\s+(?:of|about|on|that|which|showing|explaining|"
+    r"illustrating|to|for|with|please|so|and)(?![a-z0-9]))"
+)
 # Keywords that are themselves request verbs; they count when used as an
 # imperative ("Draw ...", "Can you simulate ...").
 _EN_VERB_KEYWORDS = frozenset({"draw", "simulate", "simulating", "animate", "animating"})
@@ -184,10 +198,13 @@ def _is_requested(keyword: str, text: str, start: int, end: int) -> bool:
             return True
     elif _EN_LEADING_NOUN_PREFIX.match(before):
         return True
-    if _EN_PREPOSITION_CUE.search(before):
+    if _EN_PREPOSITION_CUE.search(before) and _EN_PHRASE_HEAD_FOLLOWER.match(text[end:]):
         return True
-    tokens = re.findall(r"[a-z0-9]+", before)
-    return any(token in _EN_REQUEST_VERBS for token in tokens[-_CUE_WINDOW:])
+    window = re.findall(r"[a-z0-9]+", before)[-_CUE_WINDOW:]
+    for index, token in enumerate(window):
+        if token in _EN_REQUEST_VERBS and not _EN_CLAUSE_BREAKERS & set(window[index + 1:]):
+            return True
+    return False
 
 
 def _infer_format(task: str, context: Mapping[str, Any]) -> tuple[str, str]:

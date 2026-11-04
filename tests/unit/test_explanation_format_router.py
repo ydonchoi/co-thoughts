@@ -301,3 +301,27 @@ def test_exclusions_cover_inflected_forms(task):
 def test_terse_verbless_requests_still_select_format(task, expected):
     result = route_explanation_format({"task": task})
     assert result["capability_status"]["requested"] == [expected]
+
+
+@pytest.mark.parametrize("task", [
+    # Request verb governs a different verb / clause (Codex review on #12).
+    "I need to understand video codecs",
+    "We need to discuss image compression in JPEG",
+    "Show how video codecs work",
+    # "in a <format> <noun>" is a topic noun phrase, not an output form.
+    "Explain the rules in a video game",
+    "What happens in a video codec?",
+])
+def test_cue_must_govern_the_format_word(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]
+
+
+@pytest.mark.parametrize("task, expected", [
+    ("Explain it in a short video", "VIDEO"),
+    ("Explain the piston with an animation of the stroke", "ANIMATION"),
+    ("I need a video about photosynthesis", "VIDEO"),
+])
+def test_governing_cues_still_select_format(task, expected):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == [expected]

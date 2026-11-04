@@ -95,7 +95,7 @@ Remaining held-out false positives (reported, not tuned):
 
 ### 7.4 Gate floors
 
-Development: correct ≥ 67, topic ≥ 20, collision ≥ 8, unnecessary-media ≤ 0.000, missed-media ≤ 0.286. Held-out: correct ≥ 31, topic ≥ 11, collision ≥ 3, unnecessary-media ≤ 0.095, missed-media ≤ 0.294. Both: explicit and plain 100%, wrong-media 0.
+Development: correct ≥ 67, topic ≥ 20, collision ≥ 8, unnecessary-media ≤ 0.000, missed-media ≤ 0.286. Held-out: correct ≥ 32, topic ≥ 12, collision ≥ 3, unnecessary-media ≤ 0.048, missed-media ≤ 0.294 (updated after section 7.6). Both: explicit and plain 100%, wrong-media 0.
 
 ### 7.5 Trade-offs and limits
 
@@ -103,6 +103,16 @@ Development: correct ≥ 67, topic ≥ 20, collision ≥ 8, unnecessary-media �
 - The held-out set has the same author as the rules and the development set, so it shares the author's phrasing habits.
 - Neither set contains terse, verbless requests; the leading-noun and Korean 부탁/필요/원해 cues were added after probing such cases and are pinned by unit tests. Known cost: a task that *opens* with a format word used as a topic ("Image compression in JPEG: how does it work?") is selected.
 - Requests that phrase the format without a request cue or a leading noun (e.g. "Explain photosynthesis with diagrams", plural without an article) are now missed.
+### 7.6 Review follow-up (Codex on #12)
+
+An external automated review found two cue false positives outside both sets:
+
+- A request verb governing a different clause: "I **need to** understand video codecs", "We **need to** discuss image compression". Fix: a request verb counts only if no `to`, wh-word, `that`, or `if` lies between it and the keyword (also covers "Show **how** video codecs work").
+- `in/with a …` modifying another noun: "rules in a **video game**", "in a **video codec**". Fix: the preposition form counts only when the format word heads its phrase (followed by the end, punctuation, or `of/about/that/to/for/with/…`).
+
+After the fix: development unchanged (67/77, unnecessary-media 0.000); held-out **32/38 (0.842)**, unnecessary-media **0.048 (1/21)**, missed-media unchanged.
+
+**Contamination note:** the clause-boundary rule also fixes held-out case HT08 ("Show **that** the image of …"), which was already known to fail when this rule was written. The rule was motivated by the reviewer's examples, not by HT08, but the held-out gain from 31 to 32 is not independent evidence. The remaining held-out false positive is HC01 ("ended in a draw;" — the noun "draw" heads its phrase and is followed by punctuation).
 
 ---
 
