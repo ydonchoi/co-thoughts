@@ -105,6 +105,6 @@ Local attribution, when reliable, may distinguish A1 AI-generated, A2 AI-structu
 
 ## Validation State
 
-T51–T56: AI disclosure and full-pipeline semantic integration **CLOSED FOR TESTED SCOPE**.
+T51–T55: AI disclosure **CLOSED FOR TESTED SCOPE**. T56 full-pipeline semantic integration: **PROPOSED / NOT RUN** (no T56 specification or result exists in this repository).
 
 Live persistence verification and large-scale empirical generation remain open/capability-bound. No architecture expansion is justified by the current evidence.

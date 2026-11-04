@@ -56,16 +56,22 @@ v1.3 문서를 덮어쓰지 않는다. v2.0을 canonical active version으로 �
 - Added T53 Cross-Document-Type AI Disclosure Regression Test.
 - Added T54 AI Disclosure Rendering / Actual Research Note Output Test.
 - Added T55 Multi-Note AI Disclosure / Provenance Consistency Test.
-- Added T56 Research Note Full-Pipeline Output Regression Test.
+- ~~Added T56 Research Note Full-Pipeline Output Regression Test.~~ Correction (2026-11-04): T56 was only proposed as a candidate in T55 §14; no T56 specification or result exists in this repository.
 - Established mandatory artifact-level disclosure: **AI 작성·구조화 연구노트**.
 - Established cross-cutting provenance model using visible marker + provenance block + existing `confession_report` + human-review status.
 - Added optional local provenance distinctions A1 AI-generated, A2 AI-structured, A3 Human-authored, A4 Human-edited, A5 Source-derived; uncertain local attribution must not be fabricated.
 - Confirmed compatibility with D1–D9, NEW / REVISION / EXTENSION / NO_CHANGE / BLOCKED, Branch/Merge, D9, and human post-editing for tested scope.
-- Full-pipeline semantic integration is CLOSED FOR TESTED SCOPE.
+- ~~Full-pipeline semantic integration is CLOSED FOR TESTED SCOPE.~~ Correction (2026-11-04): Full-pipeline semantic integration is NOT RUN / OPEN until T56 is specified and executed.
 - Live Notion persistence and broad empirical generation validation remain OPEN / CAPABILITY-BOUND.
 - No new epistemic entity or Notion database introduced.
 
 Human remains final epistemic decision authority.
+
+## 2026-11-04 — T56 status correction
+
+- The v2.0+++ entry recorded T56 as added and full-pipeline semantic integration as CLOSED FOR TESTED SCOPE, but no T56 test document or result exists in this repository; T55 §14 lists T56 only as the next candidate.
+- Corrected T56 to PROPOSED / NOT RUN and full-pipeline semantic integration to NOT RUN / OPEN in the changelog, research-note protocol documents, and research-note baseline/architecture notes.
+- T51–T55 statements are unchanged by this correction.
 
 ## 2026-10-25 — Problem-Solving Co-Thinking Guidance v0.1 (provisional)
 

@@ -234,12 +234,12 @@ The disclosure must remain present for NEW, REVISION, EXTENSION, NO_CHANGE, and 
 
 ## 14. Validation / Closure State
 
-T51–T56 validate the AI-disclosure contract, cross-document consistency, actual-output rendering requirements, and full-pipeline semantic integration for the tested scope.
+T51–T55 validate the AI-disclosure contract, cross-document consistency, and actual-output rendering requirements for the tested scope. T56 (full-pipeline output regression) is a proposed candidate from T55 §14; no T56 specification or result exists in this repository, so full-pipeline semantic integration is NOT RUN / OPEN.
 
 Current closure:
 - AI disclosure semantic architecture: CLOSED FOR TESTED SCOPE
 - cross-document consistency: CLOSED FOR TESTED SCOPE
-- full-pipeline semantic integration: CLOSED FOR TESTED SCOPE
+- full-pipeline semantic integration: NOT RUN / OPEN (T56 proposed, not run)
 - live writable Notion persistence: OPEN / CAPABILITY-BOUND
 - post-write verification: OPEN / CAPABILITY-BOUND
 - empirical repeated/large-scale generation validation: OPEN
