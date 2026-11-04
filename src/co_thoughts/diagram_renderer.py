@@ -287,121 +287,167 @@ def wrap_label(label: str, max_px: int = _LINE_PX) -> list[str]:
     return lines or [label]
 
 
-def _text_lines(x: float, y_center: float, lines: list[str], css_class: str, size: int) -> str:
+_EDGE_LINE_PX = 120     # wrap edge labels narrower than node labels
+
+
+def _text_lines(
+    x: float, y_center: float, lines: list[str], css_class: str, size: int,
+    anchor: str = "middle",
+) -> str:
     first_y = y_center - (len(lines) - 1) * _LINE_HEIGHT / 2 + 4
     spans = "".join(
         f'<tspan x="{x:g}" y="{first_y + i * _LINE_HEIGHT:g}">{escape(line)}</tspan>'
         for i, line in enumerate(lines)
     )
-    return f'<text class="{css_class}" font-size="{size}" text-anchor="middle">{spans}</text>'
+    return (
+        f'<text class="{css_class}" font-size="{size}" '
+        f'text-anchor="{anchor}">{spans}</text>'
+    )
+
+
+def _block(lines: list[str]) -> tuple[int, int]:
+    """Rendered (width, height) of a wrapped text block."""
+    return max(_text_px(line) for line in lines), len(lines) * _LINE_HEIGHT
 
 
 def render_svg(
     chart: Flowchart, *, title: str, description: str, id_prefix: str = "diagram"
 ) -> str:
+    """Lay out ``chart`` so every node and edge label stays inside its shape
+    and every element stays inside the SVG viewBox."""
     rank = _ranks(chart)
     layers: dict[int, list[str]] = {}
     for node in chart.nodes:
         layers.setdefault(rank[node], []).append(node)
-
-    wrapped = {node_id: wrap_label(node["label"]) for node_id, node in chart.nodes.items()}
-    widest = max(_text_px(line) for lines in wrapped.values() for line in lines)
-    tallest = max(len(lines) for lines in wrapped.values())
-    box_w = max(80, widest + 24)
-    box_h = max(40, tallest * _LINE_HEIGHT + 20)
-    gap_main, gap_cross, margin = 60, 30, 20
     horizontal = chart.direction == "LR"
 
-    pos: dict[str, tuple[float, float]] = {}
-    for layer, members in layers.items():
-        for index, node in enumerate(members):
-            main = margin + layer * ((box_w if horizontal else box_h) + gap_main)
-            cross = margin + index * ((box_h if horizontal else box_w) + gap_cross)
-            pos[node] = (main, cross) if horizontal else (cross, main)
-    content_right = max(x for x, _ in pos.values()) + box_w
-    content_bottom = max(y for _, y in pos.values()) + box_h
+    # --- Node cells: every shape's text area must hold its wrapped label.
+    # A diamond's largest inscribed rectangle is half its width and height,
+    # so decision nodes need twice the text block (plus padding).
+    wrapped = {node_id: wrap_label(node["label"]) for node_id, node in chart.nodes.items()}
+    box_w, box_h = 80, 40
+    for node_id, node in chart.nodes.items():
+        text_w, text_h = _block(wrapped[node_id])
+        if node["shape"] == "decision":
+            need_w, need_h = 2 * text_w + 24, 2 * text_h + 20
+        else:
+            need_w, need_h = text_w + 24, text_h + 20
+        box_w, box_h = max(box_w, need_w), max(box_h, need_h)
 
-    # Only edges between adjacent layers are drawn straight. Back edges,
-    # same-layer edges, self-loops and layer-skipping edges would cross
-    # other nodes or overlap forward edges, so they get their own lane
-    # beside the diagram (right side for TD, below for LR).
+    # --- Edge labels: wrap, then size the gaps that hold them.
+    edge_lines = {
+        id(edge): wrap_label(edge["label"], _EDGE_LINE_PX)
+        for edge in chart.edges if edge["label"]
+    }
+    label_w = max((_block(l)[0] for l in edge_lines.values()), default=0)
+    label_h = max((_block(l)[1] for l in edge_lines.values()), default=0)
     routed = [
         edge for edge in chart.edges
         if rank[edge["target"]] != rank[edge["source"]] + 1
     ]
+    straight_pairs: dict[tuple[str, str], int] = {}
+    for edge in chart.edges:
+        if edge not in routed:
+            key = (edge["source"], edge["target"])
+            straight_pairs[key] = straight_pairs.get(key, 0) + 1
+    max_parallel = max(straight_pairs.values(), default=1)
+    # Labels of straight edges sit in the gap between layers, stacked along
+    # the main axis when edges are parallel.
+    slot_main = (label_w + 8) if horizontal else (label_h + 4)
+    gap_main = max(60, max_parallel * slot_main + 16) if edge_lines else 60
+    # Labels of edges in neighbouring rows (LR) or columns (TD) share the
+    # gap between two layers; space rows/columns so they cannot collide.
+    gap_cross = 30
+    if edge_lines:
+        gap_cross = max(30, (label_h + 8) if horizontal else (label_w + 8))
+    margin = 20
+    # Lane labels sit beside their lane, so lanes are spaced to fit them.
+    routed_labelled = any(id(edge) in edge_lines for edge in routed)
+    lane_gap = _LANE_GAP
+    if routed_labelled:
+        lane_gap = max(_LANE_GAP, (label_h + 6) if horizontal else (label_w + 10))
+
+    # In LR, straight-edge labels sit above their line; reserve room above
+    # the first row so they never leave the viewBox.
+    cross_start = margin + (label_h + 8 if horizontal and edge_lines else 0)
+    pos: dict[str, tuple[float, float]] = {}
+    for layer, members in layers.items():
+        for index, node in enumerate(members):
+            main = margin + layer * ((box_w if horizontal else box_h) + gap_main)
+            cross = cross_start + index * ((box_h if horizontal else box_w) + gap_cross)
+            pos[node] = (main, cross) if horizontal else (cross, main)
+    content_right = max(x for x, _ in pos.values()) + box_w
+    content_bottom = max(y for _, y in pos.values()) + box_h
     lanes = {id(edge): index for index, edge in enumerate(routed)}
-    lane_space = (len(routed) * _LANE_GAP + 10) if routed else 0
-    width = content_right + margin + (0 if horizontal else lane_space)
-    height = content_bottom + margin + (lane_space if horizontal else 0)
+
+    extent = [content_right, content_bottom]
+
+    def grow(x: float, y: float) -> None:
+        extent[0], extent[1] = max(extent[0], x), max(extent[1], y)
+
+    def label_svg(edge_id: int, x: float, y: float, anchor: str) -> str:
+        lines = edge_lines[edge_id]
+        width, height = _block(lines)
+        left = {"start": x, "middle": x - width / 2, "end": x - width}[anchor]
+        grow(left + width, y + height / 2)
+        return _text_lines(x, y, lines, "edge-label", 11, anchor)
 
     title_id, desc_id, arrow_id = (
         f"{id_prefix}-title", f"{id_prefix}-desc", f"{id_prefix}-arrow"
     )
-    out = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" role="img" '
-        f'aria-labelledby="{title_id} {desc_id}" width="{width:g}" '
-        f'height="{height:g}" viewBox="0 0 {width:g} {height:g}">',
-        f'<title id="{title_id}">{escape(title)}</title>',
-        f'<desc id="{desc_id}">{escape(description)}</desc>',
-        f'<defs><marker id="{arrow_id}" viewBox="0 0 10 10" refX="10" refY="5" '
-        'markerWidth="8" markerHeight="8" orient="auto-start-reverse">'
-        '<path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/></marker></defs>',
-    ]
-    # Straight edges with the same endpoints are spread across the cross
-    # axis (0, +14, -14, +28, ...) so parallel branches and their labels
-    # stay distinguishable.
+    body: list[str] = []
     parallel_seen: dict[tuple[str, str], int] = {}
     for edge in chart.edges:
         (sx, sy), (tx, ty) = pos[edge["source"]], pos[edge["target"]]
-        nth = parallel_seen.get((edge["source"], edge["target"]), 0)
-        parallel_seen[(edge["source"], edge["target"])] = nth + 1
-        spread = ((nth + 1) // 2) * _PARALLEL_GAP * (1 if nth % 2 else -1)
         marker = f' marker-end="url(#{arrow_id})"' if edge["arrow"] else ""
         if id(edge) in lanes:
-            offset = 10 + lanes[id(edge)] * _LANE_GAP
+            offset = 10 + lanes[id(edge)] * lane_gap
             if horizontal:
                 lane = content_bottom + offset
                 x1, y1 = sx + box_w * 0.35, sy + box_h
                 x2, y2 = tx + box_w * 0.65, ty + box_h
                 points = [(x1, y1), (x1, lane), (x2, lane), (x2, y2)]
-                label_at = ((x1 + x2) / 2, lane - 4)
+                label_at, anchor = ((x1 + x2) / 2, lane + 3 + label_h / 2), "middle"
             else:
                 lane = content_right + offset
                 x1, y1 = sx + box_w, sy + box_h * 0.35
                 x2, y2 = tx + box_w, ty + box_h * 0.65
                 points = [(x1, y1), (lane, y1), (lane, y2), (x2, y2)]
-                label_at = (lane + 4, (y1 + y2) / 2)
+                label_at, anchor = (lane + 4, (y1 + y2) / 2), "start"
+            for px, py in points:
+                grow(px, py)
             d = " ".join(
                 f"{'M' if i == 0 else 'L'} {px:g} {py:g}" for i, (px, py) in enumerate(points)
             )
-            out.append(
+            body.append(
                 f'<path class="edge" data-route="lane" d="{d}" fill="none" '
                 f'stroke="#333"{marker}/>'
             )
-            anchor = "middle" if horizontal else "start"
         else:
+            key = (edge["source"], edge["target"])
+            nth = parallel_seen.get(key, 0)
+            parallel_seen[key] = nth + 1
+            count = straight_pairs[key]
+            # Parallel lines: 0, +14, -14, +28, ... across the cross axis.
+            spread = ((nth + 1) // 2) * _PARALLEL_GAP * (1 if nth % 2 else -1)
             x1, y1 = sx + box_w / 2, sy + box_h / 2
             x2, y2 = tx + box_w / 2, ty + box_h / 2
             if horizontal:
                 x1, x2 = x1 + box_w / 2, x2 - box_w / 2
                 y1, y2 = y1 + spread, y2 + spread
+                mid = (x1 + x2) / 2 + (nth - (count - 1) / 2) * slot_main
+                label_at, anchor = (mid, min(y1, y2) - 4 - label_h / 2), "middle"
             else:
                 y1, y2 = y1 + box_h / 2, y2 - box_h / 2
                 x1, x2 = x1 + spread, x2 + spread
-            out.append(
+                mid = (y1 + y2) / 2 + (nth - (count - 1) / 2) * slot_main
+                label_at, anchor = (max(x1, x2) + 4, mid), "start"
+            body.append(
                 f'<line class="edge" x1="{x1:g}" y1="{y1:g}" x2="{x2:g}" '
                 f'y2="{y2:g}" stroke="#333"{marker}/>'
             )
-            if horizontal:
-                label_at, anchor = ((x1 + x2) / 2, (y1 + y2) / 2 - 4), "middle"
-            else:
-                # Stagger vertically too, so labels of parallel edges never overprint.
-                label_at, anchor = ((x1 + x2) / 2 + 4, (y1 + y2) / 2 + 4 + nth * 12), "start"
-        if edge["label"]:
-            out.append(
-                f'<text class="edge-label" x="{label_at[0]:g}" y="{label_at[1]:g}" '
-                f'font-size="11" text-anchor="{anchor}">{escape(edge["label"])}</text>'
-            )
+        if id(edge) in edge_lines:
+            body.append(label_svg(id(edge), label_at[0], label_at[1], anchor))
     for node_id, node in chart.nodes.items():
         x, y = pos[node_id]
         if node["shape"] == "decision":
@@ -416,10 +462,21 @@ def render_svg(
                 f'<rect class="node" x="{x:g}" y="{y:g}" width="{box_w}" '
                 f'height="{box_h}"{radius} fill="#fff" stroke="#333"/>'
             )
-        out.append(shape)
-        out.append(_text_lines(x + box_w / 2, y + box_h / 2, wrapped[node_id], "node-label", 12))
-    out.append("</svg>")
-    return "\n".join(out)
+        body.append(shape)
+        body.append(_text_lines(x + box_w / 2, y + box_h / 2, wrapped[node_id], "node-label", 12))
+
+    width, height = extent[0] + margin, extent[1] + margin
+    head = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" role="img" '
+        f'aria-labelledby="{title_id} {desc_id}" width="{width:g}" '
+        f'height="{height:g}" viewBox="0 0 {width:g} {height:g}">',
+        f'<title id="{title_id}">{escape(title)}</title>',
+        f'<desc id="{desc_id}">{escape(description)}</desc>',
+        f'<defs><marker id="{arrow_id}" viewBox="0 0 10 10" refX="10" refY="5" '
+        'markerWidth="8" markerHeight="8" orient="auto-start-reverse">'
+        '<path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/></marker></defs>',
+    ]
+    return "\n".join(head + body + ["</svg>"])
 
 
 class MermaidFlowchartRenderer:

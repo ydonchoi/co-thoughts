@@ -107,7 +107,7 @@ def test_render_output_is_well_formed_svg_with_one_shape_per_node():
     assert len(shapes) == 3
     assert len([el for el in root if el.get("class") == "edge"]) == 3
     assert _texts(root, "node-label") == ["Request received", "Review", "Done"]
-    assert [el.text for el in root if el.get("class") == "edge-label"] == ["approve", "reject"]
+    assert _texts(root, "edge-label") == ["approve", "reject"]
 
 
 def test_render_is_deterministic():
@@ -347,7 +347,87 @@ def test_parallel_edges_and_labels_are_separated(direction):
     lines = [el for el in root if el.get("class") == "edge"]
     coords = {tuple(el.get(k) for k in ("x1", "y1", "x2", "y2")) for el in lines}
     assert len(coords) == 3                              # three distinct lines
-    labels = [(el.get("x"), el.get("y")) for el in root if el.get("class") == "edge-label"]
+    labels = [(el[0].get("x"), el[0].get("y")) for el in root if el.get("class") == "edge-label"]
     assert len(labels) == len(set(labels)) == 2
-    ys = sorted(float(y) for _, y in labels)
-    assert ys[1] - ys[0] >= 11                           # no overprinting at 11px
+    if direction == "TD":
+        ys = sorted(float(y) for _, y in labels)
+        assert ys[1] - ys[0] >= 11                       # stacked, no overprinting
+    else:
+        xs = sorted(float(x) for x, _ in labels)
+        assert xs[1] - xs[0] >= 20                       # side by side, no overprinting
+
+
+# --- Review follow-ups, third round (PR #28): text stays inside shapes and viewBox ---
+
+def _text_boxes(root, css_class):
+    """Approximate rendered boxes of each text element (per tspan)."""
+    from diagram_renderer import _text_px
+    boxes = []
+    for el in root:
+        if el.get("class") != css_class:
+            continue
+        anchor = el.get("text-anchor")
+        for span in el:
+            x, y, w = float(span.get("x")), float(span.get("y")), _text_px(span.text)
+            left = {"start": x, "middle": x - w / 2, "end": x - w}[anchor]
+            boxes.append((left, y - 11, left + w, y + 3))
+    return boxes
+
+
+def _assert_inside_viewbox(root):
+    width, height = float(root.get("width")), float(root.get("height"))
+    for cls in ("node-label", "edge-label"):
+        for left, top, right, bottom in _text_boxes(root, cls):
+            assert left >= 0 and top >= 0 and right <= width and bottom <= height
+
+
+def test_decision_label_fits_inside_the_diamond():
+    _, root = _svg("graph TD\nA{" + " ".join(["decide"] * 20) + "}")
+    points = [tuple(map(float, p.split(","))) for p in
+              next(el for el in root if el.get("class") == "node").get("points").split()]
+    (cx, top), (right, cy) = points[0], points[1]
+    half_w, half_h = right - cx, cy - top
+    for left, t, r, b in _text_boxes(root, "node-label"):
+        for x, y in ((left, t), (r, t), (left, b), (r, b)):
+            # |dx|/half_w + |dy|/half_h <= 1  <=> point inside the diamond
+            assert abs(x - cx) / half_w + abs(y - cy) / half_h <= 1.0
+
+
+@pytest.mark.parametrize("source", [
+    "graph TD\nA -->|" + " ".join(["label"] * 30) + "| B",
+    "graph LR\nA -->|" + " ".join(["label"] * 30) + "| B",
+    "graph TD\nA --> B --> C\nC -->|" + " ".join(["back"] * 40) + "| A",
+    "graph LR\nA --> B --> C\nC -->|" + " ".join(["back"] * 40) + "| A",
+    "graph TD\nA -->|" + "가" * 150 + "| B\nA -->|짧음| B",
+])
+def test_long_edge_labels_wrap_and_stay_inside_the_viewbox(source):
+    _, root = _svg(source)
+    edge_labels = [el for el in root if el.get("class") == "edge-label"]
+    assert any(len(list(el)) > 1 for el in edge_labels)  # wrapped
+    _assert_inside_viewbox(root)
+
+
+def test_edge_labels_do_not_overlap_nodes():
+    _, root = _svg("graph TD\nA[Start] -->|" + " ".join(["word"] * 25) + "| B[End]")
+    nodes = [(float(n.get("x")), float(n.get("y")),
+              float(n.get("x")) + float(n.get("width")), float(n.get("y")) + float(n.get("height")))
+             for n in root if n.get("class") == "node"]
+    for left, top, right, bottom in _text_boxes(root, "edge-label"):
+        for nl, nt, nr, nb in nodes:
+            assert right <= nl or left >= nr or bottom <= nt or top >= nb
+
+
+@pytest.mark.parametrize("direction", ["TD", "LR"])
+def test_labels_of_edges_in_neighbouring_rows_do_not_collide(direction):
+    long = " ".join(["word"] * 12)
+    _, root = _svg(f"graph {direction}\nA --> B -->|{long}| D\nA --> C -->|{long}| E")
+    boxes = _text_boxes(root, "edge-label")
+    by_element = []
+    for el in (e for e in root if e.get("class") == "edge-label"):
+        spans = _text_boxes(ET.fromstring(f'<svg xmlns="http://www.w3.org/2000/svg">{ET.tostring(el, encoding="unicode")}</svg>'), "edge-label")
+        by_element.append((min(b[0] for b in spans), min(b[1] for b in spans),
+                           max(b[2] for b in spans), max(b[3] for b in spans)))
+    (l1, t1, r1, b1), (l2, t2, r2, b2) = by_element
+    assert r1 <= l2 or r2 <= l1 or b1 <= t2 or b2 <= t1
+    assert boxes
+    _assert_inside_viewbox(root)
