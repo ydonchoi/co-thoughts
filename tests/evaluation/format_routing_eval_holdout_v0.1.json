@@ -1,0 +1,48 @@
+{
+  "version": "0.1-holdout",
+  "description": "Held-out tasks written before the request-cue planner change, to check that improvements measured on format_routing_eval_v0.1.json generalize. Same labeling rules and groups as the development set. Do not tune rules against this file; add new cases to a new version instead.",
+  "cases": [
+    {"id": "HE01", "lang": "en", "group": "explicit", "task": "Create a diagram showing how DNS resolution works", "expected": "DIAGRAM"},
+    {"id": "HE02", "lang": "en", "group": "explicit", "task": "Please make a flowchart for the incident response steps", "expected": "DIAGRAM"},
+    {"id": "HE03", "lang": "en", "group": "explicit", "task": "Generate an image of a solar eclipse", "expected": "IMAGE"},
+    {"id": "HE04", "lang": "en", "group": "explicit", "task": "Can you draw the layout of a typical cell?", "expected": "IMAGE"},
+    {"id": "HE05", "lang": "en", "group": "explicit", "task": "Produce a short animation of tectonic plates drifting", "expected": "ANIMATION"},
+    {"id": "HE06", "lang": "en", "group": "explicit", "task": "Record a video walkthrough of the setup process", "expected": "VIDEO"},
+    {"id": "HE07", "lang": "en", "group": "explicit", "task": "Give me an interactive demo of supply and demand", "expected": "INTERACTIVE"},
+    {"id": "HE08", "lang": "en", "group": "explicit", "task": "Simulate a coin toss 1000 times and show the distribution", "expected": "SIMULATION"},
+    {"id": "HE09", "lang": "ko", "group": "explicit", "task": "네트워크 구성을 다이어그램으로 보여줘", "expected": "DIAGRAM"},
+    {"id": "HE10", "lang": "ko", "group": "explicit", "task": "태양계 이미지를 만들어줘", "expected": "IMAGE"},
+    {"id": "HE11", "lang": "ko", "group": "explicit", "task": "지진 발생 원리를 애니메이션으로 만들어줘", "expected": "ANIMATION"},
+    {"id": "HE12", "lang": "ko", "group": "explicit", "task": "환율 변동에 대한 시뮬레이션을 해줘", "expected": "SIMULATION"},
+
+    {"id": "HP01", "lang": "en", "group": "plain", "task": "Write a haiku about autumn", "expected": "TEXT"},
+    {"id": "HP02", "lang": "en", "group": "plain", "task": "How many bytes are in a kilobyte?", "expected": "TEXT"},
+    {"id": "HP03", "lang": "en", "group": "plain", "task": "Draft an email declining the meeting", "expected": "TEXT"},
+    {"id": "HP04", "lang": "ko", "group": "plain", "task": "삼투압의 개념을 쉽게 설명해줘", "expected": "TEXT"},
+    {"id": "HP05", "lang": "ko", "group": "plain", "task": "회의록을 세 줄로 요약해줘", "expected": "TEXT"},
+
+    {"id": "HT01", "lang": "en", "group": "topic", "task": "What are the ethics of deepfake video?", "expected": "TEXT"},
+    {"id": "HT02", "lang": "en", "group": "topic", "task": "Explain why flight simulators are used in pilot training", "expected": "TEXT"},
+    {"id": "HT03", "lang": "en", "group": "topic", "task": "How did Pixar change the animation industry?", "expected": "TEXT"},
+    {"id": "HT04", "lang": "en", "group": "topic", "task": "What is an image in mathematics, as in the image of a function?", "expected": "TEXT"},
+    {"id": "HT05", "lang": "en", "group": "topic", "task": "Explain Venn diagram logic for set intersection", "expected": "TEXT"},
+    {"id": "HT06", "lang": "en", "group": "topic", "task": "Why are interactive whiteboards popular in schools?", "expected": "TEXT"},
+    {"id": "HT07", "lang": "en", "group": "topic", "task": "Review the movie's portrayal of artificial intelligence", "expected": "TEXT"},
+    {"id": "HT08", "lang": "en", "group": "topic", "task": "Show that the image of a compact set under a continuous map is compact", "expected": "TEXT"},
+    {"id": "HT09", "lang": "ko", "group": "topic", "task": "딥페이크 영상의 윤리적 문제를 설명해줘", "expected": "TEXT"},
+    {"id": "HT10", "lang": "ko", "group": "topic", "task": "비행 시뮬레이션 훈련의 효과를 정리해줘", "expected": "TEXT"},
+    {"id": "HT11", "lang": "ko", "group": "topic", "task": "사회적 상호작용 이론을 요약해줘", "expected": "TEXT"},
+    {"id": "HT12", "lang": "ko", "group": "topic", "task": "국가 이미지가 수출에 미치는 영향을 분석해줘", "expected": "TEXT"},
+
+    {"id": "HC01", "lang": "en", "group": "collision", "task": "The match ended in a draw; explain the tiebreak rules", "expected": "TEXT"},
+    {"id": "HC02", "lang": "en", "group": "collision", "task": "What can we draw from these results?", "expected": "TEXT"},
+    {"id": "HC03", "lang": "en", "group": "collision", "task": "Paint the big picture of European integration in words", "expected": "TEXT"},
+    {"id": "HC04", "lang": "ko", "group": "collision", "task": "그림자 노동이 무엇인지 알려줘", "expected": "TEXT"},
+
+    {"id": "HR01", "lang": "en", "group": "paraphrase", "task": "Visualize the dependency graph of these modules", "expected": "DIAGRAM"},
+    {"id": "HR02", "lang": "en", "group": "paraphrase", "task": "Show me a photo of the Eiffel Tower at night", "expected": "IMAGE"},
+    {"id": "HR03", "lang": "en", "group": "paraphrase", "task": "Let me play with the inputs to see how the loan payment changes", "expected": "INTERACTIVE"},
+    {"id": "HR04", "lang": "ko", "group": "paraphrase", "task": "데이터 흐름을 시각화해서 보여줘", "expected": "DIAGRAM"},
+    {"id": "HR05", "lang": "ko", "group": "paraphrase", "task": "에펠탑 사진을 보여줘", "expected": "IMAGE"}
+  ]
+}

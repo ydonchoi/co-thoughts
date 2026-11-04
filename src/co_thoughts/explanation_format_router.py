@@ -77,10 +77,60 @@ def _keyword_pattern(keyword: str) -> re.Pattern[str]:
     return re.compile(escaped)
 
 
-_FORMAT_PATTERNS: tuple[tuple[str, tuple[re.Pattern[str], ...]], ...] = tuple(
-    (format_name, tuple(_keyword_pattern(k) for k in keywords))
+_FORMAT_PATTERNS: tuple[tuple[str, tuple[tuple[str, re.Pattern[str]], ...]], ...] = tuple(
+    (format_name, tuple((k, _keyword_pattern(k)) for k in keywords))
     for format_name, keywords in _FORMAT_KEYWORDS.items()
 )
+
+# --- Request cues -----------------------------------------------------------
+# A format keyword only selects a format when the wording asks for that output,
+# not when the format word is merely the topic ("explain JPEG image
+# compression", "기업 이미지 관리 전략"). See
+# docs/testing/format_routing_keyword_eval_v0.1.md for the measured motivation.
+
+# English request verbs that may appear up to _CUE_WINDOW tokens before a
+# format noun ("show me a picture", "make a short video").
+_EN_REQUEST_VERBS = frozenset({
+    "show", "draw", "make", "create", "give", "generate", "render", "build",
+    "produce", "run", "sketch", "illustrate", "add", "display", "design",
+    "record", "prepare", "provide", "include", "use", "want", "need",
+    "present",
+})
+_CUE_WINDOW = 4
+# A request verb only governs the keyword when no clause boundary sits between
+# them: "I need to understand video codecs" / "Show how video codecs work" /
+# "Show that the image of ..." do not request a video or an image.
+_EN_CLAUSE_BREAKERS = frozenset({
+    "to", "how", "why", "what", "when", "where", "which", "who", "whether",
+    "that", "if",
+})
+# "as a diagram", "in a video", "with an animation", ...
+_EN_PREPOSITION_CUE = re.compile(r"(?:as|in|with|into|using|via)\s+(?:a|an)\s+(?:\S+\s+){0,2}$")
+# The preposition form only marks an output form when the format word heads
+# its phrase ("in a video", "as a diagram, please", "with an animation of ...")
+# rather than modifying another noun ("in a video game", "in a video codec").
+_EN_PHRASE_HEAD_FOLLOWER = re.compile(
+    r"^(?:\s*(?:$|[.,;:!?)])|\s+(?:of|about|on|that|which|showing|explaining|"
+    r"illustrating|to|for|with|please|so|and)(?![a-z0-9]))"
+)
+# Keywords that are themselves request verbs; they count when used as an
+# imperative ("Draw ...", "Can you simulate ...").
+_EN_VERB_KEYWORDS = frozenset({"draw", "simulate", "simulating", "animate", "animating"})
+_EN_POLITE_PREFIX = re.compile(r"^(?:(?:please|kindly|can|could|would|will|you)\s+)*$")
+# A format noun that opens the task is a terse request ("Diagram of the TCP
+# handshake", "A video about photosynthesis", "Image: a red apple").
+_EN_LEADING_NOUN_PREFIX = re.compile(r"^\W*(?:(?:please|a|an|the|one|some)\s+)*$")
+
+# Korean: keyword, optionally one short word, then a particle and a request
+# verb ("구조도를 만들어줘", "인터랙티브 설명을 만들어줘"), or a form particle
+# ("애니메이션으로", "흐름도로") which already marks the output form.
+_KO_FORM_PARTICLE = re.compile(r"^(?:으로|로)")
+_KO_OBJECT_REQUEST = re.compile(
+    r"^(?:\s?\S{0,4})?(?:을|를|이|가)?\s?"
+    r"(?:보여|그려|그리|만들|돌려|해\s?줘|해줘|생성|띄워|부탁|필요|원해)"
+)
+# Korean keywords that already contain a request verb.
+_KO_SELF_CUED = frozenset({"외관을 그려", "움직이는 설명", "동작을 움직임으로"})
 
 # Explicit precedence: the first true signal wins. Richer formats that subsume
 # simpler ones come first (a simulation is also interactive; an animation of a
@@ -113,11 +163,48 @@ def _validate_context_signals(context: Mapping[str, Any]) -> None:
             raise ValueError(f"CONTEXT_SIGNAL_INVALID:{signal}")
 
 
+def _exclusion_pattern(phrase: str) -> re.Pattern[str]:
+    if not phrase.isascii():
+        return re.compile(re.escape(phrase))
+    # Inflection-aware on the first word: "draw upon" also excludes
+    # "draws upon" / "drawing upon"; "big picture" also "bigger picture".
+    first, _, rest = phrase.partition(" ")
+    tail = rf"\s+{re.escape(rest)}" if rest else ""
+    return re.compile(rf"(?<![a-z0-9]){re.escape(first)}[a-z]*{tail}(?![a-z0-9])")
+
+
+_EXCLUSION_PATTERNS = tuple(_exclusion_pattern(p) for p in _KEYWORD_EXCLUSIONS)
+
+
 def _normalize_task_text(task: str) -> str:
     normalized = task.casefold()
-    for phrase in _KEYWORD_EXCLUSIONS:
-        normalized = normalized.replace(phrase, " ")
+    for pattern in _EXCLUSION_PATTERNS:
+        normalized = pattern.sub(" ", normalized)
     return normalized
+
+
+def _is_requested(keyword: str, text: str, start: int, end: int) -> bool:
+    """Return True when the keyword at text[start:end] is asked for as output."""
+    if not keyword.isascii():
+        if keyword in _KO_SELF_CUED:
+            return True
+        after = text[end:]
+        return bool(_KO_FORM_PARTICLE.match(after) or _KO_OBJECT_REQUEST.match(after))
+
+    before = text[:start]
+    sentence_start = re.split(r"[.!?;]\s*", before)[-1]
+    if keyword in _EN_VERB_KEYWORDS:
+        if _EN_POLITE_PREFIX.match(sentence_start):
+            return True
+    elif _EN_LEADING_NOUN_PREFIX.match(before):
+        return True
+    if _EN_PREPOSITION_CUE.search(before) and _EN_PHRASE_HEAD_FOLLOWER.match(text[end:]):
+        return True
+    window = re.findall(r"[a-z0-9]+", before)[-_CUE_WINDOW:]
+    for index, token in enumerate(window):
+        if token in _EN_REQUEST_VERBS and not _EN_CLAUSE_BREAKERS & set(window[index + 1:]):
+            return True
+    return False
 
 
 def _infer_format(task: str, context: Mapping[str, Any]) -> tuple[str, str]:
@@ -128,8 +215,10 @@ def _infer_format(task: str, context: Mapping[str, Any]) -> tuple[str, str]:
 
     normalized = _normalize_task_text(task)
     for format_name, patterns in _FORMAT_PATTERNS:
-        if any(pattern.search(normalized) for pattern in patterns):
-            return format_name, f"task wording indicates {format_name.lower()}"
+        for keyword, pattern in patterns:
+            for match in pattern.finditer(normalized):
+                if _is_requested(keyword.casefold(), normalized, match.start(), match.end()):
+                    return format_name, f"task wording requests {format_name.lower()}"
 
     return "TEXT", "text is the least-complex sufficient default"
 

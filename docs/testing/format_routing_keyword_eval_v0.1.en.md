@@ -55,7 +55,64 @@ Per-format precision is lowest for IMAGE (0.417) and VIDEO (0.429), driven by to
 
 ## 6. Regression gate
 
-`tests/evaluation/test_format_routing_eval.py` enforces: explicit and plain groups at 100%, wrong-media rate 0, overall ≥ 48 correct, collision ≥ 7, topic ≥ 2, unnecessary-media ≤ 0.452, missed-media ≤ 0.286. Raise the floors when the planner improves.
+`tests/evaluation/test_format_routing_eval.py` enforces the floors listed in section 7.4 on both the development and held-out sets. Raise the floors when the planner improves.
+
+## 7. Follow-up: request-cue gating
+
+### 7.1 Change
+
+The planner now selects a non-TEXT format from a keyword only when the wording asks for that output:
+
+- English: a request verb (show, make, create, give, generate, render, build, produce, run, sketch, illustrate, add, display, design, record, prepare, provide, include, use, want, need, present) within 4 tokens before the keyword; or "as/in/with/into/using/via a(n) …"; or the keyword opens the task ("Diagram of …", "A video about …"); verb keywords (draw, simulate, animate) count when used as an imperative ("Draw …", "Can you simulate …").
+- Korean: the keyword followed by a form particle (`로`/`으로`), or optionally one short word and an object particle and a request verb (보여, 그려, 만들, 돌려, 해줘, 생성, 띄워, 부탁, 필요, 원해).
+- Exclusions are inflection-aware on the first word ("draws upon", "drawing on", "bigger picture").
+- No paraphrase lexicon was added; missed-media is unchanged by design (this change targets false positives).
+
+### 7.2 Held-out set
+
+`tests/evaluation/format_routing_eval_holdout_v0.1.json` (38 new cases, same groups) was written and committed **before** the planner change and was not used to tune rules. Its baseline was measured on `main` @ `44b3676`.
+
+### 7.3 Results
+
+| Set | Metric | Before | After |
+|---|---|---|---|
+| Development (77) | Correct | 48 (0.623) | **67 (0.870)** |
+| | Topic group | 2/20 | **20/20** |
+| | Collision group | 7/8 | **8/8** |
+| | Unnecessary-media rate | 0.452 | **0.000** |
+| | Missed-media rate | 0.286 | 0.286 |
+| Held-out (38) | Correct | 20 (0.526) | **31 (0.816)** |
+| | Topic group | 1/12 | **11/12** |
+| | Collision group | 2/4 | **3/4** |
+| | Unnecessary-media rate | 0.619 (13/21) | **0.095 (2/21)** |
+| | Missed-media rate | 0.294 (5/17) | 0.294 (5/17) |
+
+Explicit and plain groups stay at 100% and wrong-media stays at 0 on both sets.
+
+Remaining held-out false positives (reported, not tuned):
+- HT08 "**Show that** the image of a compact set …": the mathematical idiom "show that" is read as a request verb.
+- HC01 "The match ended **in a draw**": the "in a …" form cue fires on the noun "draw".
+
+### 7.4 Gate floors
+
+Development: correct ≥ 67, topic ≥ 20, collision ≥ 8, unnecessary-media ≤ 0.000, missed-media ≤ 0.286. Held-out: correct ≥ 32, topic ≥ 12, collision ≥ 3, unnecessary-media ≤ 0.048, missed-media ≤ 0.294 (updated after section 7.6). Both: explicit and plain 100%, wrong-media 0.
+
+### 7.5 Trade-offs and limits
+
+- Development numbers are optimistic: rules were adjusted on that set (one adjustment: "plot" was removed from the verb list after "the plot of the movie" fired). Treat the held-out numbers as the realistic estimate.
+- The held-out set has the same author as the rules and the development set, so it shares the author's phrasing habits.
+- Neither set contains terse, verbless requests; the leading-noun and Korean 부탁/필요/원해 cues were added after probing such cases and are pinned by unit tests. Known cost: a task that *opens* with a format word used as a topic ("Image compression in JPEG: how does it work?") is selected.
+- Requests that phrase the format without a request cue or a leading noun (e.g. "Explain photosynthesis with diagrams", plural without an article) are now missed.
+### 7.6 Review follow-up (Codex on #12)
+
+An external automated review found two cue false positives outside both sets:
+
+- A request verb governing a different clause: "I **need to** understand video codecs", "We **need to** discuss image compression". Fix: a request verb counts only if no `to`, wh-word, `that`, or `if` lies between it and the keyword (also covers "Show **how** video codecs work").
+- `in/with a …` modifying another noun: "rules in a **video game**", "in a **video codec**". Fix: the preposition form counts only when the format word heads its phrase (followed by the end, punctuation, or `of/about/that/to/for/with/…`).
+
+After the fix: development unchanged (67/77, unnecessary-media 0.000); held-out **32/38 (0.842)**, unnecessary-media **0.048 (1/21)**, missed-media unchanged.
+
+**Contamination note:** the clause-boundary rule also fixes held-out case HT08 ("Show **that** the image of …"), which was already known to fail when this rule was written. The rule was motivated by the reviewer's examples, not by HT08, but the held-out gain from 31 to 32 is not independent evidence. The remaining held-out false positive is HC01 ("ended in a draw;" — the noun "draw" heads its phrase and is followed by punctuation).
 
 ---
 

@@ -5,7 +5,7 @@ from cognitive_router import route
 
 def test_public_route_includes_format_plan_without_changing_cognitive_or_verification_fields():
     result = route({
-        "task": "Explain the system architecture diagram and verify its assumptions",
+        "task": "Show the system architecture diagram and verify its assumptions",
         "mode": "DEEP",
         "context": {},
         "capabilities": {"diagram": True},
