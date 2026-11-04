@@ -223,9 +223,9 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 `src/co_thoughts/format_host.py` (참조 구현, 가짜 렌더러로 단위 테스트):
 
 - `RendererRegistry`: 형식별 렌더러를 명시적으로 등록한다. 기본 연결은 없고, TEXT는 등록 대상이 아니다. 렌더러는 `render(payload) -> {"artifact": …}`를 구현하며, INTERACTIVE·SIMULATION 렌더러는 `functional_test(artifact) -> {"passed": bool}`도 구현해야 전달된다.
-- `FormatHost.prepare_request(request)`: 요청의 `capabilities`를 등록된 렌더러로만 다시 쓰고(호출자가 기능을 주장할 수 없음), `output_schema`는 호스트에 설정된 값으로 바꾼다(없으면 제거). 잘못된 스키마는 호스트 생성 시 오류다.
+- `FormatHost.prepare_request(request)`: 요청의 `capabilities`를 등록된 렌더러로만 다시 쓰고(호출자가 기능을 주장할 수 없음), `output_schema`는 호스트에 설정된 값으로 바꾼다(없으면 제거). 잘못된 스키마는 호스트 생성 시 오류이며, 스키마는 생성 시점의 불변 사본으로 보관한다.
 - `FormatHost.deliver(format_routing, content)`: `content["text"]`(TEXT 대체본, 항상 필수)와 선택적 `media`(`{형식: payload}`), `text_alternative`, `captions`를 받아 계획을 실행하고 단계별 기록을 반환한다: `generation_status`(콘텐츠 제공 여부), `render_status`, `functional_test_status`, `accessibility_status`(의무별 MET/NOT_MET), `source_verification_status`(항상 `NOT_RUN`), `verification_status=UNVERIFIED`, `is_evidence=False`.
-- 대체 사유(`fallback_reason`): `MEDIA_CONTENT_MISSING`, `ACCESSIBILITY_REQUIREMENT_NOT_MET:<의무>`(렌더링 전에 확인), `RENDERER_NOT_CONNECTED`, `RENDER_FAILED:<예외>`, `RENDER_OUTPUT_INVALID`, `FUNCTIONAL_TEST_UNAVAILABLE`, `FUNCTIONAL_TEST_FAILED`, `FUNCTIONAL_TEST_ERROR:<예외>`. 어떤 경우든 `planned_format`(선택 결과)은 보존하고 TEXT를 전달한다.
+- 대체 사유(`fallback_reason`): `FORMAT_NOT_IN_OUTPUT_SCHEMA`(호스트 밖에서 만든 계획도 호스트 스키마로 다시 확인), `MEDIA_CONTENT_MISSING`, `ACCESSIBILITY_REQUIREMENT_NOT_MET:<의무>`(렌더링 전에 확인), `RENDERER_NOT_CONNECTED`, `RENDER_FAILED:<예외>`, `RENDER_OUTPUT_INVALID`(mapping이 아니거나 `artifact`가 없거나 `None`), `FUNCTIONAL_TEST_UNAVAILABLE`, `FUNCTIONAL_TEST_FAILED`, `FUNCTIONAL_TEST_ERROR:<예외>`. 어떤 경우든 `planned_format`(선택 결과)은 보존하고 TEXT를 전달한다.
 - 렌더러 출력의 `verification_status`·`is_evidence`·`verified`·`is_verified`는 버린다. 계획 객체는 변경하지 않는다.
 
 ### Phase 4 — 평가 및 승격

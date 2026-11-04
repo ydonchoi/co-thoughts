@@ -81,9 +81,9 @@ class FormatHost:
         output_schema: Mapping[str, Any] | None = None,
     ) -> None:
         self._registry = registry if registry is not None else RendererRegistry()
-        # Fail at construction, not at the first request, on a bad schema.
-        _normalize_output_schema(output_schema)
-        self._output_schema = dict(output_schema) if output_schema is not None else None
+        # Validate at construction and keep an immutable snapshot, so later
+        # changes to the caller's mapping/list cannot change the schema.
+        self._allowed_formats = _normalize_output_schema(output_schema)
 
     def capabilities(self) -> dict[str, bool]:
         """Declare every format: available only if a renderer is registered."""
@@ -103,10 +103,10 @@ class FormatHost:
             raise ValueError("REQUEST_MUST_BE_MAPPING")
         prepared = dict(request)
         prepared["capabilities"] = self.capabilities()
-        if self._output_schema is None:
+        if self._allowed_formats is None:
             prepared.pop("output_schema", None)
         else:
-            prepared["output_schema"] = dict(self._output_schema)
+            prepared["output_schema"] = {"allowed_formats": sorted(self._allowed_formats)}
         return prepared
 
     def deliver(
@@ -128,6 +128,10 @@ class FormatHost:
             return record
 
         record["accessibility_status"] = {req: "NOT_MET" for req in requirements}
+        if self._allowed_formats is not None and planned not in self._allowed_formats:
+            # A plan made outside prepare_request() (or a stale one) must not
+            # bypass the host's output schema.
+            return _fall_back(record, "FORMAT_NOT_IN_OUTPUT_SCHEMA")
         media = content.get("media") or {}
         if not isinstance(media, Mapping):
             raise ValueError("CONTENT_MEDIA_INVALID")
@@ -154,7 +158,7 @@ class FormatHost:
         except Exception as exc:  # renderer failures must not escape the host
             record["render_status"] = "FAILED"
             return _fall_back(record, f"RENDER_FAILED:{type(exc).__name__}")
-        if not isinstance(output, Mapping) or "artifact" not in output:
+        if not isinstance(output, Mapping) or output.get("artifact") is None:
             record["render_status"] = "FAILED"
             return _fall_back(record, "RENDER_OUTPUT_INVALID")
         record["render_status"] = "SUCCEEDED"

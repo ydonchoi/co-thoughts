@@ -275,3 +275,41 @@ def test_deliver_does_not_mutate_the_plan():
 def test_invalid_host_output_schema_fails_at_construction():
     with pytest.raises(ValueError, match="OUTPUT_SCHEMA_TEXT_REQUIRED"):
         FormatHost(output_schema={"allowed_formats": ["DIAGRAM"]})
+
+
+# --- Review follow-ups (PR #27) ---
+
+def test_null_artifact_is_invalid_render_output():
+    host = _host(DIAGRAM=FakeRenderer(output={"artifact": None}))
+    record = host.deliver(
+        _plan(host, {"task": "Draw a flowchart"}),
+        {"text": "T", "media": {"DIAGRAM": "g"}},
+    )
+    assert record["render_status"] == "FAILED"
+    assert record["fallback_reason"] == "RENDER_OUTPUT_INVALID"
+    assert record["delivered_format"] == "TEXT"
+
+
+def test_host_schema_is_snapshotted():
+    schema = {"allowed_formats": ["TEXT"]}
+    registry = RendererRegistry()
+    registry.register("DIAGRAM", FakeRenderer())
+    host = FormatHost(registry, output_schema=schema)
+    schema["allowed_formats"].append("DIAGRAM")              # caller mutates config
+    prepared = host.prepare_request({"task": "x"})
+    prepared["output_schema"]["allowed_formats"].append("DIAGRAM")  # or a prepared copy
+    assert host.prepare_request({"task": "x"})["output_schema"] == {"allowed_formats": ["TEXT"]}
+
+
+def test_deliver_enforces_host_schema_on_outside_plans():
+    registry = RendererRegistry()
+    renderer = FakeRenderer()
+    registry.register("DIAGRAM", renderer)
+    host = FormatHost(registry, output_schema={"allowed_formats": ["TEXT"]})
+    outside_plan = route_explanation_format({
+        "task": "Draw a flowchart", "capabilities": {"diagram": True},
+    })
+    record = host.deliver(outside_plan, {"text": "T", "media": {"DIAGRAM": "g"}})
+    assert record["delivered_format"] == "TEXT"
+    assert record["fallback_reason"] == "FORMAT_NOT_IN_OUTPUT_SCHEMA"
+    assert renderer.calls == []
