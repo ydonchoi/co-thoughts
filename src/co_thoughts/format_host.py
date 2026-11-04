@@ -127,7 +127,12 @@ class FormatHost:
         if planned == "TEXT":
             return record
 
-        record["accessibility_status"] = {req: "NOT_MET" for req in requirements}
+        # Evaluate obligations from the content first, so every fallback path
+        # reports the real status instead of a placeholder.
+        unmet = _check_accessibility(requirements, content)
+        record["accessibility_status"] = {
+            req: ("NOT_MET" if req in unmet else "MET") for req in requirements
+        }
         if self._allowed_formats is not None and planned not in self._allowed_formats:
             # A plan made outside prepare_request() (or a stale one) must not
             # bypass the host's output schema.
@@ -141,9 +146,6 @@ class FormatHost:
             return _fall_back(record, "MEDIA_CONTENT_MISSING")
         record["generation_status"] = "SUCCEEDED"
 
-        unmet = _check_accessibility(requirements, content)
-        for req in requirements:
-            record["accessibility_status"][req] = "NOT_MET" if req in unmet else "MET"
         if unmet:
             # §7 priority 1: never deliver media that breaks an accessibility
             # obligation; deliver the TEXT version instead.
@@ -197,10 +199,17 @@ def _validate_format_routing(format_routing: Any) -> Mapping[str, Any]:
     if not isinstance(format_routing, Mapping):
         raise ValueError("FORMAT_ROUTING_INVALID")
     plan = format_routing.get("format_plan")
-    if not isinstance(plan, Mapping) or plan.get("primary") not in FORMATS:
+    if not isinstance(plan, Mapping):
+        raise ValueError("FORMAT_ROUTING_INVALID")
+    primary = plan.get("primary")
+    # Type-check before hashing so malformed external plans get a stable
+    # error code instead of a raw TypeError.
+    if not isinstance(primary, str) or primary not in FORMATS:
         raise ValueError("FORMAT_ROUTING_INVALID")
     requirements = plan.get("accessibility_requirements", [])
-    if not isinstance(requirements, (list, tuple)):
+    if not isinstance(requirements, (list, tuple)) or not all(
+        isinstance(req, str) for req in requirements
+    ):
         raise ValueError("FORMAT_ROUTING_INVALID")
     return plan
 

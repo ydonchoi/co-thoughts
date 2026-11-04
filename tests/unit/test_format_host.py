@@ -234,7 +234,9 @@ def test_unmet_obligation_blocks_media_before_rendering():
 # --- Input validation and integration ---
 
 @pytest.mark.parametrize("routing", [None, {}, {"format_plan": {"primary": "HOLOGRAM"}},
-                                     {"format_plan": {"primary": "TEXT", "accessibility_requirements": "x"}}])
+                                     {"format_plan": {"primary": "TEXT", "accessibility_requirements": "x"}},
+                                     {"format_plan": {"primary": []}},
+                                     {"format_plan": {"primary": "DIAGRAM", "accessibility_requirements": [{}]}}])
 def test_invalid_format_routing_is_rejected(routing):
     with pytest.raises(ValueError, match="FORMAT_ROUTING_INVALID"):
         FormatHost().deliver(routing, TEXT)
@@ -313,3 +315,18 @@ def test_deliver_enforces_host_schema_on_outside_plans():
     assert record["delivered_format"] == "TEXT"
     assert record["fallback_reason"] == "FORMAT_NOT_IN_OUTPUT_SCHEMA"
     assert renderer.calls == []
+
+
+@pytest.mark.parametrize("schema, content, reason", [
+    ({"allowed_formats": ["TEXT"]}, {"text": "T", "media": {"DIAGRAM": "g"}, "text_alternative": "alt"},
+     "FORMAT_NOT_IN_OUTPUT_SCHEMA"),
+    (None, {"text": "T", "text_alternative": "alt"}, "MEDIA_CONTENT_MISSING"),
+])
+def test_accessibility_status_is_evaluated_on_early_fallbacks(schema, content, reason):
+    registry = RendererRegistry()
+    registry.register("DIAGRAM", FakeRenderer())
+    host = FormatHost(registry, output_schema=schema)
+    plan = {"format_plan": {"primary": "DIAGRAM", "accessibility_requirements": ["TEXT_ALTERNATIVE"]}}
+    record = host.deliver(plan, content)
+    assert record["fallback_reason"] == reason
+    assert record["accessibility_status"] == {"TEXT_ALTERNATIVE": "MET"}
