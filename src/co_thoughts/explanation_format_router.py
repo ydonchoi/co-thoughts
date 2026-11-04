@@ -10,9 +10,12 @@ Plan fields:
   selected (FALLBACK), otherwise empty.
 - ``secondary``: reserved; v0.1 plans a single primary format and returns ``[]``.
 - ``conflicts``: conflicts between the user's explicit ``requested_format`` and
-  the project adapter's ``output_schema``; empty when there is none. The
-  planner reports a conflict and does not override the schema
-  (``selection_status`` ``CONFLICT``, TEXT plan).
+  the user's ``output_intent.accessibility`` requirements or the project
+  adapter's ``output_schema``; empty when there is none. The planner reports a
+  conflict and overrides neither constraint (``selection_status`` ``CONFLICT``,
+  TEXT plan).
+- ``accessibility_requirements``: obligations the host must meet when
+  rendering ``primary`` (``TEXT_ALTERNATIVE``, ``CAPTIONS``); empty otherwise.
 """
 from __future__ import annotations
 
@@ -263,6 +266,35 @@ def _normalize_requested_format(value: Any) -> str | None:
     return normalized
 
 
+_ACCESSIBILITY_KEYS = ("screen_reader", "reduced_motion", "captions", "text_only")
+_MOTION_FORMATS = frozenset({"ANIMATION", "VIDEO"})
+
+
+def _normalize_accessibility(value: Any) -> dict[str, bool]:
+    """Return the user's accessibility requirements (all ``False`` if absent).
+
+    - ``text_only``: only TEXT may be planned.
+    - ``reduced_motion``: ANIMATION and VIDEO may not be planned.
+    - ``screen_reader``: a non-TEXT plan must carry a ``TEXT_ALTERNATIVE``
+      requirement for the host.
+    - ``captions``: a VIDEO plan must carry a ``CAPTIONS`` requirement.
+    """
+    if value is None:
+        return {key: False for key in _ACCESSIBILITY_KEYS}
+    if not isinstance(value, Mapping):
+        raise ValueError("ACCESSIBILITY_INVALID")
+    unknown = sorted(str(key) for key in value if key not in _ACCESSIBILITY_KEYS)
+    if unknown:
+        raise ValueError(f"ACCESSIBILITY_UNKNOWN:{unknown[0]}")
+    normalized = {}
+    for key in _ACCESSIBILITY_KEYS:
+        flag = value.get(key, False)
+        if not isinstance(flag, bool):
+            raise ValueError(f"ACCESSIBILITY_INVALID:{key}")
+        normalized[key] = flag
+    return normalized
+
+
 def _normalize_output_schema(value: Any) -> frozenset[str] | None:
     """Return the formats the project adapter's output schema allows.
 
@@ -434,6 +466,7 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
         output_intent.get("requested_format")
     )
 
+    accessibility = _normalize_accessibility(output_intent.get("accessibility"))
     allowed_by_schema = _normalize_output_schema(request.get("output_schema"))
 
     capabilities = request.get("capabilities")
@@ -474,32 +507,56 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
         capabilities is not None and _CAPABILITY_KEYS[candidate] in capabilities
     )
 
-    conflicts: list[dict[str, Any]] = []
-    schema_blocks = allowed_by_schema is not None and candidate not in allowed_by_schema
+    # Blockers are evaluated in the §7 priority order: the user's
+    # accessibility requirements first, then the project output schema.
+    blockers: list[dict[str, Any]] = []
+    if accessibility["text_only"] and candidate != "TEXT":
+        blockers.append({
+            "type": "REQUESTED_FORMAT_CONFLICTS_WITH_ACCESSIBILITY",
+            "requirement": "text_only",
+            "reason": f"{candidate} is excluded by the text_only accessibility requirement",
+        })
+    if accessibility["reduced_motion"] and candidate in _MOTION_FORMATS:
+        blockers.append({
+            "type": "REQUESTED_FORMAT_CONFLICTS_WITH_ACCESSIBILITY",
+            "requirement": "reduced_motion",
+            "reason": f"{candidate} is excluded by the reduced_motion accessibility requirement",
+        })
+    if allowed_by_schema is not None and candidate not in allowed_by_schema:
+        blockers.append({
+            "type": "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA",
+            "allowed_formats": sorted(allowed_by_schema),
+            "reason": f"{candidate} is not allowed by the project output schema",
+        })
 
-    if schema_blocks:
-        # The project output schema wins over task inference, and an explicit
-        # user request that contradicts it is reported, not silently applied
-        # or silently dropped.
+    conflicts: list[dict[str, Any]] = []
+    if blockers:
+        # An explicit user request that contradicts an accessibility
+        # requirement or the project output schema is reported, not silently
+        # applied or silently dropped; neither constraint is overridden.
         primary = "TEXT"
         fallback = None
-        allowed_list = sorted(allowed_by_schema)
         if requested_format is not None:
             selection_status = "CONFLICT"
-            conflicts.append({
-                "type": "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA",
-                "requested_format": candidate,
-                "allowed_formats": allowed_list,
-            })
-            rationale.append(
-                f"{candidate} is not allowed by the project output schema; "
-                "the schema is not overridden; using TEXT"
-            )
+            for blocker in blockers:
+                entry = {"type": blocker["type"], "requested_format": candidate}
+                if "requirement" in blocker:
+                    entry["requirement"] = blocker["requirement"]
+                if "allowed_formats" in blocker:
+                    entry["allowed_formats"] = blocker["allowed_formats"]
+                conflicts.append(entry)
+                if blocker["type"] == "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA":
+                    rationale.append(
+                        f"{blocker['reason']}; the schema is not overridden; using TEXT"
+                    )
+                else:
+                    rationale.append(
+                        f"{blocker['reason']}; the requirement is not overridden; using TEXT"
+                    )
         else:
             selection_status = "FALLBACK"
-            rationale.append(
-                f"{candidate} is not allowed by the project output schema; using TEXT"
-            )
+            for blocker in blockers:
+                rationale.append(f"{blocker['reason']}; using TEXT")
     elif candidate in available:
         primary = candidate
         selection_status = "SELECTED"
@@ -520,20 +577,39 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
                 f"{candidate} capability was not declared by the host; using TEXT"
             )
 
+    accessibility_requirements: list[str] = []
+    if primary != "TEXT" and accessibility["screen_reader"]:
+        accessibility_requirements.append("TEXT_ALTERNATIVE")
+    if primary == "VIDEO" and accessibility["captions"]:
+        accessibility_requirements.append("CAPTIONS")
+
     uncertainties = []
     if capabilities is None:
         uncertainties.append(
             "Only TEXT is assumed available because the host supplied no capability map"
         )
-    if selection_status == "CONFLICT":
-        uncertainties.append(
-            f"The user requested {candidate}, which the project output schema "
-            "does not allow; the user or project owner must resolve the conflict"
-        )
-    elif schema_blocks:
-        uncertainties.append(
-            f"The project output schema does not allow {candidate}"
-        )
+    if blockers:
+        for blocker in blockers:
+            if selection_status == "CONFLICT":
+                if blocker["type"] == "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA":
+                    uncertainties.append(
+                        f"The user requested {candidate}, which the project output schema "
+                        "does not allow; the user or project owner must resolve the conflict"
+                    )
+                else:
+                    uncertainties.append(
+                        f"The user requested {candidate}, which conflicts with the user's "
+                        f"{blocker['requirement']} accessibility requirement; "
+                        "the user must resolve the conflict"
+                    )
+            elif blocker["type"] == "REQUESTED_FORMAT_NOT_IN_OUTPUT_SCHEMA":
+                uncertainties.append(
+                    f"The project output schema does not allow {candidate}"
+                )
+            else:
+                uncertainties.append(
+                    f"The {blocker['requirement']} accessibility requirement excludes {candidate}"
+                )
     elif selection_status == "FALLBACK":
         if candidate_declared:
             uncertainties.append(
@@ -556,6 +632,7 @@ def route_explanation_format(request: Mapping[str, Any]) -> dict[str, Any]:
             "fallback": fallback,
             "selection_status": selection_status,
             "conflicts": conflicts,
+            "accessibility_requirements": accessibility_requirements,
         },
         "capability_status": {
             "requested": [candidate],
@@ -594,6 +671,7 @@ def plan_explanation_format_safely(request: Mapping[str, Any]) -> dict[str, Any]
                 "fallback": None,
                 "selection_status": "INVALID_INPUT",
                 "conflicts": [],
+                "accessibility_requirements": [],
             },
             "capability_status": {
                 "requested": [],
