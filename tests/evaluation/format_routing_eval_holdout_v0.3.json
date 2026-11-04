@@ -1,0 +1,27 @@
+{
+  "version": "0.3-holdout",
+  "description": "Targeted held-out set for self-cued phrases (let me tweak/change/..., model what happens, boxes and arrows, 바꿔가며, 조절하면서, 움직이는 모습으로, ...), written before adding context checks to them. 'paraphrase' cases use a phrase as a real output request; 'collision' cases use the same phrase in a non-request sense. Same labeling rules as v0.1/v0.2. Do not tune rules against this file.",
+  "cases": [
+    {"id": "SP01", "lang": "en", "group": "paraphrase", "task": "Let me vary the friction coefficient and watch how far the block slides", "expected": "INTERACTIVE"},
+    {"id": "SP02", "lang": "en", "group": "paraphrase", "task": "Let me change the mass and see the period of the pendulum", "expected": "INTERACTIVE"},
+    {"id": "SP03", "lang": "en", "group": "paraphrase", "task": "Let me play with the tax brackets to see who pays more", "expected": "INTERACTIVE"},
+    {"id": "SP04", "lang": "ko", "group": "paraphrase", "task": "할인율을 바꿔가며 매출 변화를 볼 수 있게 해줘", "expected": "INTERACTIVE"},
+    {"id": "SP05", "lang": "ko", "group": "paraphrase", "task": "온도를 조절할 수 있게 해서 결과를 확인하게 해줘", "expected": "INTERACTIVE"},
+    {"id": "SP06", "lang": "en", "group": "paraphrase", "task": "Could you model what happens to traffic if one lane closes?", "expected": "SIMULATION"},
+    {"id": "SP07", "lang": "en", "group": "paraphrase", "task": "Lay out the approval steps as boxes and arrows", "expected": "DIAGRAM"},
+    {"id": "SP08", "lang": "ko", "group": "paraphrase", "task": "피스톤 동작을 움직이는 모습으로 보여줘", "expected": "ANIMATION"},
+
+    {"id": "SN01", "lang": "en", "group": "collision", "task": "Let me change the subject: what is inflation?", "expected": "TEXT"},
+    {"id": "SN02", "lang": "en", "group": "collision", "task": "Let me adjust my question slightly — why is the sky blue?", "expected": "TEXT"},
+    {"id": "SN03", "lang": "en", "group": "collision", "task": "Let me play with words: write a pun about cats", "expected": "TEXT"},
+    {"id": "SN04", "lang": "en", "group": "collision", "task": "Let me tweak my essay intro; suggest a better first sentence", "expected": "TEXT"},
+    {"id": "SN05", "lang": "en", "group": "collision", "task": "Economists model what happens to wages when minimum wage rises; summarize their findings", "expected": "TEXT"},
+    {"id": "SN06", "lang": "en", "group": "collision", "task": "Explain the boxes and arrows notation used in UML", "expected": "TEXT"},
+    {"id": "SN07", "lang": "ko", "group": "collision", "task": "옷을 바꿔가며 입는 이유를 알려줘", "expected": "TEXT"},
+    {"id": "SN08", "lang": "ko", "group": "collision", "task": "식단을 조절하면서 운동하는 방법을 알려줘", "expected": "TEXT"},
+    {"id": "SN09", "lang": "ko", "group": "collision", "task": "음량을 조절할 수 있게 만든 이어폰의 원리를 설명해줘", "expected": "TEXT"},
+    {"id": "SN10", "lang": "ko", "group": "collision", "task": "아이가 장난감을 움직이는 모습으로 보아 발달이 빠른가요?", "expected": "TEXT"},
+    {"id": "SN11", "lang": "en", "group": "collision", "task": "Let me vary my workout routine; what are good options?", "expected": "TEXT"},
+    {"id": "SN12", "lang": "ko", "group": "collision", "task": "속도를 조절하며 읽는 독서법을 정리해줘", "expected": "TEXT"}
+  ]
+}
