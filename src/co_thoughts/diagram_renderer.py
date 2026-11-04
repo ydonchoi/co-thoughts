@@ -34,7 +34,9 @@ MAX_EDGES = 400
 MAX_LABEL_CHARS = 200
 MAX_SOURCE_CHARS = 20_000
 
-_HEADER = re.compile(r"^(?:graph|flowchart)\s+(TD|TB|LR)\s*;?\s*$", re.IGNORECASE)
+# The header may be followed by statements on the same line after ``;``
+# (compact form ``graph TD; A --> B``).
+_HEADER = re.compile(r"^(?:graph|flowchart)\s+(TD|TB|LR)\s*(?:;(.*))?$", re.IGNORECASE)
 _ID = r"[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*"
 _NODE = re.compile(
     rf"\s*({_ID})\s*(?:\[([^\[\]]*)\]|\(([^()]*)\)|\{{([^{{}}]*)\}})?"
@@ -148,7 +150,10 @@ def parse_flowchart(source: str) -> Flowchart:
     direction = "TD" if header.group(1).upper() in ("TD", "TB") else "LR"
     chart = Flowchart(direction=direction)
 
-    for line_no, line in lines[1:]:
+    statements = list(lines[1:])
+    if header.group(2) and header.group(2).strip():
+        statements.insert(0, (lines[0][0], header.group(2)))
+    for line_no, line in statements:
         for statement in _split_statements(line):
             if statement.strip():
                 _parse_statement(chart, statement, line_no)
@@ -248,6 +253,7 @@ def describe(chart: Flowchart) -> str:
 _LINE_PX = 170          # wrap labels at this rendered width
 _LINE_HEIGHT = 15
 _LANE_GAP = 14
+_PARALLEL_GAP = 14
 
 
 def _char_px(char: str) -> int:
@@ -341,8 +347,15 @@ def render_svg(
         'markerWidth="8" markerHeight="8" orient="auto-start-reverse">'
         '<path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/></marker></defs>',
     ]
+    # Straight edges with the same endpoints are spread across the cross
+    # axis (0, +14, -14, +28, ...) so parallel branches and their labels
+    # stay distinguishable.
+    parallel_seen: dict[tuple[str, str], int] = {}
     for edge in chart.edges:
         (sx, sy), (tx, ty) = pos[edge["source"]], pos[edge["target"]]
+        nth = parallel_seen.get((edge["source"], edge["target"]), 0)
+        parallel_seen[(edge["source"], edge["target"])] = nth + 1
+        spread = ((nth + 1) // 2) * _PARALLEL_GAP * (1 if nth % 2 else -1)
         marker = f' marker-end="url(#{arrow_id})"' if edge["arrow"] else ""
         if id(edge) in lanes:
             offset = 10 + lanes[id(edge)] * _LANE_GAP
@@ -371,13 +384,19 @@ def render_svg(
             x2, y2 = tx + box_w / 2, ty + box_h / 2
             if horizontal:
                 x1, x2 = x1 + box_w / 2, x2 - box_w / 2
+                y1, y2 = y1 + spread, y2 + spread
             else:
                 y1, y2 = y1 + box_h / 2, y2 - box_h / 2
+                x1, x2 = x1 + spread, x2 + spread
             out.append(
                 f'<line class="edge" x1="{x1:g}" y1="{y1:g}" x2="{x2:g}" '
                 f'y2="{y2:g}" stroke="#333"{marker}/>'
             )
-            label_at, anchor = ((x1 + x2) / 2, (y1 + y2) / 2 - 4), "middle"
+            if horizontal:
+                label_at, anchor = ((x1 + x2) / 2, (y1 + y2) / 2 - 4), "middle"
+            else:
+                # Stagger vertically too, so labels of parallel edges never overprint.
+                label_at, anchor = ((x1 + x2) / 2 + 4, (y1 + y2) / 2 + 4 + nth * 12), "start"
         if edge["label"]:
             out.append(
                 f'<text class="edge-label" x="{label_at[0]:g}" y="{label_at[1]:g}" '

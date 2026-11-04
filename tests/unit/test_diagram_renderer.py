@@ -323,3 +323,31 @@ def test_semicolons_inside_labels_are_kept():
     assert chart.nodes["B"]["label"] == "x;y"
     assert chart.edges[0]["label"] == "yes; once"
     assert list(chart.nodes) == ["A", "B", "C"]
+
+
+# --- Review follow-ups, second round (PR #28) ---
+
+@pytest.mark.parametrize("source, edges", [
+    ("graph TD; A --> B", 1),
+    ("graph TD;A-->B;B-->C", 2),
+    ("flowchart LR ; A --- B", 1),
+])
+def test_statements_may_follow_the_header_on_the_same_line(source, edges):
+    assert len(parse_flowchart(source).edges) == edges
+
+
+def test_header_only_with_trailing_semicolon_is_still_empty():
+    with pytest.raises(DiagramSyntaxError, match="DIAGRAM_EMPTY"):
+        parse_flowchart("graph TD;")
+
+
+@pytest.mark.parametrize("direction", ["TD", "LR"])
+def test_parallel_edges_and_labels_are_separated(direction):
+    _, root = _svg(f"graph {direction}\nA -->|yes| B\nA -->|no| B\nA --> B")
+    lines = [el for el in root if el.get("class") == "edge"]
+    coords = {tuple(el.get(k) for k in ("x1", "y1", "x2", "y2")) for el in lines}
+    assert len(coords) == 3                              # three distinct lines
+    labels = [(el.get("x"), el.get("y")) for el in root if el.get("class") == "edge-label"]
+    assert len(labels) == len(set(labels)) == 2
+    ys = sorted(float(y) for _, y in labels)
+    assert ys[1] - ys[0] >= 11                           # no overprinting at 11px
