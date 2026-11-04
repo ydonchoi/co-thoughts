@@ -473,7 +473,7 @@
       "id": "I079",
       "lang": "ko",
       "group": "mixed",
-      "task": "Run best-case and worst-case cost scenarios, then calculate the average cost."
+      "task": "최선의 경우랑 최악의 경우 비용 시나리오를 돌려 보고, 그다음 평균 비용을 계산해줘."
     },
     {
       "id": "I080",
