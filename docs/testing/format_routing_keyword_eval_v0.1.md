@@ -114,6 +114,57 @@
 
 **오염 주의:** 절 경계 규칙은 홀드아웃 HT08("Show **that** the image of …")도 해결한다. 이 규칙을 작성할 때 HT08이 실패한다는 사실을 이미 알고 있었다. 규칙의 동기는 리뷰어의 예시였지만, 홀드아웃이 31에서 32로 오른 것은 독립적인 증거가 아니다. 남은 홀드아웃 오탐은 HC01("ended in a draw;" — 명사 "draw"가 구의 중심어이고 뒤에 구두점이 온다)이다.
 
+## 8. 후속: 바꿔 말한 요청 인식
+
+### 8.1 변경 내용
+
+형식별로 바꿔 말하기 어휘를 추가했다. 새 단어는 모두 7절과 같은 요청 표현 조건을 거친다. 단, 그 자체로 출력 형태를 나타내는 구(자체 신호)는 예외다.
+
+| 형식 | 요청 표현 조건을 거치는 단어 | 자체 신호 구 |
+|---|---|---|
+| DIAGRAM | visualize/visualise/visualization, chart, graph, mind map, timeline, 시각화, 차트, 그래프, 도표, 도해, 마인드맵, 타임라인 | boxes and arrows |
+| IMAGE | photo, photograph, 사진 | — |
+| VIDEO | clip, screencast, 녹화, 클립 | — |
+| INTERACTIVE | — | let me tweak/adjust/play with/change/vary, 바꿔가며, 바꿔볼 수 있게, 조절하면서, 조절하며, 조절할 수 있게 |
+| SIMULATION | what-if, scenario analysis, 시나리오별 | model what happens |
+| ANIMATION | in motion | 움직이게, 움직이는 모습으로 |
+
+`visualize`, `visualise`, `chart`, `graph`는 명령문 동사 키워드로도 인정한다("Chart the revenue …", "Graph y = x²").
+
+### 8.2 두 번째 홀드아웃 세트
+
+`tests/evaluation/format_routing_eval_holdout_v0.2.json`(40개: 바꿔 말한 요청 20, "graph theory"·"photo editing"·"chart of accounts"처럼 새 어휘를 주제로 쓴 과제 12, plain 4, explicit 4)은 이번 변경 **전에** 작성·커밋했고, 다른 세트와 겹치는 과제가 없다. 기준선은 `main` @ `fa9dd95`에서 측정했다.
+
+### 8.3 결과
+
+| 세트 | 지표 | 변경 전 | 변경 후 |
+|---|---|---|---|
+| 개발(77) | 정답 | 67 | 77 |
+| | paraphrase 그룹 | 0/10 | 10/10 |
+| | 매체 누락 비율 | 0.286 | 0.000 |
+| 홀드아웃 v0.1(38) | 정답 | 32 | 37 |
+| | paraphrase 그룹 | 0/5 | 5/5 |
+| **홀드아웃 v0.2(40)** | 정답 | 20 (0.500) | **37 (0.925)** |
+| | paraphrase 그룹 | 0/20 | **18/20** |
+| | topic 그룹 | 12/12 | 11/12 |
+| | 불필요한 매체 비율 | 0.000 | **0.062 (1/16)** |
+| | 매체 누락 비율 | 0.833 | **0.083** |
+
+세 세트 모두 explicit·plain 그룹은 100%, 다른 매체 오선택은 0을 유지했다.
+
+**어떤 수치를 믿을지:** 어휘를 개발 세트의 바꿔 말하기 오류에서 만들었으므로 개발 세트 결과는 조정된 값이다. 홀드아웃 v0.1의 바꿔 말하기 사례도 같은 단어(visualize, photo, 시각화, 사진)를 쓰므로 그 향상도 독립적이지 않다. 홀드아웃 v0.2를 기준으로 삼는다. 바꿔 말한 요청 재현율이 0에서 0.9로 올랐고, 그 대가로 TEXT 과제 16개 중 1개에서 새 오탐이 생겼다.
+
+남은 v0.2 오류 (보고만 하고 조정하지 않음):
+- QT03 "Give me tips for **photo** editing" → IMAGE: "give"의 목적어는 "tips"인데, 요청 동사 범위 검사가 동사의 목적어를 확인하지 않는다.
+- QR07 "Render a 3D **view** of the molecule" → TEXT: "view"가 어휘에 없다.
+- QR10 "Give me **controls** to change gravity" → TEXT: "controls"는 주제로 너무 흔해 일부러 넣지 않았다.
+
+### 8.4 한계
+
+- 홀드아웃 v0.2도 같은 작성자가 썼고, 어휘의 큰 방향(chart/graph/photo/clip)을 정한 뒤에 작성했다. topic 그룹은 오탐을 재려고 일부러 그 어휘를 썼지만, 작성자의 표현 습관은 여전히 공유한다.
+- 자체 신호 구("let me change", "조절하면서")는 추가 확인 없이 형식을 고른다. "Let me change the subject" 같은 문장도 INTERACTIVE로 선택된다.
+- 어휘는 닫힌 목록이다. 새로운 바꿔 말하기("render a 3D view", "controls to …")는 명시적으로 추가하고 새 홀드아웃 세트로 측정해야 한다.
+
 ---
 
 [English companion](format_routing_keyword_eval_v0.1.en.md)
