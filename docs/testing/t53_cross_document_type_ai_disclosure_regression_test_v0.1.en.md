@@ -5,6 +5,8 @@ Status: **PASS — CROSS-TYPE AI DISCLOSURE CONTRACT CONSISTENT / NO ARCHITECTUR
 ## 1. Purpose
 T53 tests whether the T51/T52 AI authorship disclosure and provenance rules hold across all current Research Note Document Types D1–D9 and lifecycle outcomes NEW, REVISION, EXTENSION, NO_CHANGE, and BLOCKED.
 
+> Note (2026-11-04): this test references T52, but no T52 test document or result exists in this repository (T52: PROPOSED / NOT RUN). The PASS result is kept unchanged.
+
 AI disclosure is treated as a cross-cutting provenance/presentation layer, not a Document Type, epistemic state, or new knowledge object.
 
 ## 2. Baseline Rules

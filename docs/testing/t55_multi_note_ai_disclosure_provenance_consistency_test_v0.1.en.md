@@ -120,6 +120,8 @@ The semantic sequence is stable across:
 
 T51 conceptual definition → T52 real-conversation application → T53 cross-type validation → T54 output rendering → T55 multi-note consistency.
 
+> Note (2026-11-04): no T52 test document or result exists in this repository (T52: PROPOSED / NOT RUN); the T52 step is a design reference, not an executed test. The T55 PASS result is kept unchanged.
+
 ## 12. Validation Boundary
 T55 is a controlled multi-note regression test. It does not establish statistical population-level attribution accuracy, legal sufficiency, institutional-policy compliance, reliable automated sentence-level authorship detection, or live Notion persistence verification.
 

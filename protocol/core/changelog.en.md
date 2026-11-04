@@ -30,7 +30,7 @@ Core v1.3 principles remain in v2.0. Do not overwrite v1.3; use v2.0 as canonica
 
 ## v2.0+++ — T51–T56 Research Note Disclosure / Full-Pipeline Integration
 
-- Added T51–T55 authorship disclosure, attribution, rendering, and multi-note provenance test specifications. Correction (2026-11-04): this entry originally listed T56 (full-pipeline regression) as added; T56 was only proposed as a candidate in T55 §14 and no T56 specification or result exists in this repository.
+- Added T51 and T53–T55 authorship disclosure, cross-type, rendering, and multi-note provenance test specifications. Correction (2026-11-04): this entry originally listed T52 (real-conversation attribution) as added; T52 was only proposed as a candidate in T51 and no T52 specification or result exists in this repository. Correction (2026-11-04): this entry originally listed T56 (full-pipeline regression) as added; T56 was only proposed as a candidate in T55 §14 and no T56 specification or result exists in this repository.
 - Established artifact-level disclosure and a provenance model using a visible marker, provenance block, `confession_report`, and human-review status.
 - Confirmed compatibility for the tested scope; live Notion persistence and broad empirical generation validation remain OPEN / CAPABILITY-BOUND.
 - No new epistemic entity or Notion database was introduced. Human remains the final epistemic decision authority.
@@ -39,6 +39,11 @@ Core v1.3 principles remain in v2.0. Do not overwrite v1.3; use v2.0 as canonica
 
 - T56 is PROPOSED / NOT RUN; full-pipeline semantic integration is NOT RUN / OPEN. No T56 test document or result exists in this repository.
 - Corrected the research-note protocol documents and baseline/architecture notes accordingly. T51–T55 statements are unchanged.
+
+## 2026-11-04 — T52 status correction (minimal)
+
+- T52 is PROPOSED / NOT RUN; no T52 test document or result exists in this repository. The validated range in the research-note documents is narrowed to T51 and T53–T55.
+- The T53 and T55 test records keep their PASS results, with a note that they reference T52 and that no T52 artifact exists here.
 
 ## 2026-10-25 — Problem-Solving Co-Thinking Guidance v0.1 (provisional)
 
