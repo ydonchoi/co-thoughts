@@ -1,0 +1,486 @@
+{
+  "version": "independent-0.1",
+  "annotator": "codex",
+  "labels": [
+    {
+      "id": "I001",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I002",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I003",
+      "expected": "SIMULATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I004",
+      "expected": "IMAGE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I005",
+      "expected": "ANIMATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I006",
+      "expected": "VIDEO",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I007",
+      "expected": "INTERACTIVE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I008",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I009",
+      "expected": "INTERACTIVE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I010",
+      "expected": "IMAGE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I011",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I012",
+      "expected": "ANIMATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I013",
+      "expected": "VIDEO",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I014",
+      "expected": "INTERACTIVE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I015",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I016",
+      "expected": "IMAGE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I017",
+      "expected": "ANIMATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I018",
+      "expected": "VIDEO",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I019",
+      "expected": "INTERACTIVE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I020",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I021",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I022",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I023",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I024",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I025",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I026",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I027",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I028",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I029",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I030",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I031",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I032",
+      "expected": "SIMULATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I033",
+      "expected": "TEXT",
+      "ambiguous": true,
+      "note": "A reader might infer a plotted output from the statistical terms, though the user asks only for a distinction."
+    },
+    {
+      "id": "I034",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I035",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I036",
+      "expected": "TEXT",
+      "ambiguous": true,
+      "note": "The table is explicit, but the request for a paragraph could be read as the main deliverable."
+    },
+    {
+      "id": "I037",
+      "expected": "IMAGE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I038",
+      "expected": "ANIMATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I039",
+      "expected": "SIMULATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I040",
+      "expected": "VIDEO",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I041",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I042",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I043",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I044",
+      "expected": "IMAGE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I045",
+      "expected": "ANIMATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I046",
+      "expected": "VIDEO",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I047",
+      "expected": "INTERACTIVE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I048",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I049",
+      "expected": "INTERACTIVE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I050",
+      "expected": "IMAGE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I051",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I052",
+      "expected": "ANIMATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I053",
+      "expected": "VIDEO",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I054",
+      "expected": "INTERACTIVE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I055",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I056",
+      "expected": "IMAGE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I057",
+      "expected": "ANIMATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I058",
+      "expected": "VIDEO",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I059",
+      "expected": "INTERACTIVE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I060",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I061",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I062",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I063",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I064",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I065",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I066",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I067",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I068",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I069",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I070",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I071",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I072",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I073",
+      "expected": "TEXT",
+      "ambiguous": true,
+      "note": "The term infographic suggests a visual deliverable, but the wording asks for principles rather than one."
+    },
+    {
+      "id": "I074",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I075",
+      "expected": "DIAGRAM",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I076",
+      "expected": "TEXT",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I077",
+      "expected": "IMAGE",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I078",
+      "expected": "ANIMATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I079",
+      "expected": "SIMULATION",
+      "ambiguous": false,
+      "note": ""
+    },
+    {
+      "id": "I080",
+      "expected": "VIDEO",
+      "ambiguous": true,
+      "note": "The video is explicitly requested first, though the written recap could also be treated as the primary output."
+    }
+  ]
+}
