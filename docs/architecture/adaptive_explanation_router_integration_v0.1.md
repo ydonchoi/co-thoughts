@@ -1,6 +1,6 @@
 # 적응형 설명 형식 라우터 연동 설계 v0.1
 
-> 상태: PARTIALLY IMPLEMENTED — planner·Cognitive Router 연결은 `main` 반영(PR #2–#18, #25–#26), Host/Adapter 인터페이스는 참조 구현(`format_host.py`), 실제 렌더러는 미연결
+> 상태: PARTIALLY IMPLEMENTED — planner·Cognitive Router 연결은 `main` 반영(PR #2–#18, #25–#26), Host/Adapter 인터페이스는 참조 구현(`format_host.py`), DIAGRAM 렌더러(`diagram_renderer.py`, Mermaid flowchart 부분집합 → SVG) 연결, 그 밖의 렌더러는 미연결
 > 대상: co-thoughts v2.0 Cognitive Router 및 Adaptive Explanation Format Protocol v0.1
 > 범위: 인지 작업 계획에서 사용자에게 제시할 설명 형식 계획을 분리·연결하는 인터페이스 설계
 
@@ -215,7 +215,7 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - 단위·통합 회귀 테스트 추가
 - 공통 요청 검증을 Cognitive Router·format planner·runtime `SafetyGate`·v1.3 execution 요청에 통일(PR #6–#8)
 
-### Phase 3 — Host/Adapter 렌더링 연결 (인터페이스 구현됨, 렌더러 미연결)
+### Phase 3 — Host/Adapter 렌더링 연결 (인터페이스 구현됨, DIAGRAM 렌더러 연결)
 - 실제 사용 가능한 렌더러만 연결
 - 생성·렌더링·기능 시험·출처 검증을 분리 기록
 - 실패 시 텍스트 대체 경로 검증
@@ -227,6 +227,15 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 - `FormatHost.deliver(format_routing, content)`: `content["text"]`(TEXT 대체본, 항상 필수)와 선택적 `media`(`{형식: payload}`), `text_alternative`, `captions`를 받아 계획을 실행하고 단계별 기록을 반환한다: `generation_status`(콘텐츠 제공 여부), `render_status`, `functional_test_status`, `accessibility_status`(의무별 MET/NOT_MET), `source_verification_status`(항상 `NOT_RUN`), `verification_status=UNVERIFIED`, `is_evidence=False`.
 - 대체 사유(`fallback_reason`): `FORMAT_NOT_IN_OUTPUT_SCHEMA`(호스트 밖에서 만든 계획도 호스트 스키마로 다시 확인), `MEDIA_CONTENT_MISSING`, `ACCESSIBILITY_REQUIREMENT_NOT_MET:<의무>`(렌더링 전에 확인), `RENDERER_NOT_CONNECTED`, `RENDER_FAILED:<예외>`, `RENDER_OUTPUT_INVALID`(mapping이 아니거나 `artifact`가 없거나 `None`), `FUNCTIONAL_TEST_UNAVAILABLE`, `FUNCTIONAL_TEST_FAILED`, `FUNCTIONAL_TEST_ERROR:<예외>`. 어떤 경우든 `planned_format`(선택 결과)은 보존하고 TEXT를 전달한다.
 - 렌더러 출력의 `verification_status`·`is_evidence`·`verified`·`is_verified`는 버린다. 계획 객체는 변경하지 않는다.
+
+DIAGRAM 렌더러 `src/co_thoughts/diagram_renderer.py`(`MermaidFlowchartRenderer`, 외부 의존성 없음):
+
+- 지원 부분집합: 머리글 `graph`/`flowchart` + `TD`·`TB`·`LR`; 노드 `id`, `id[라벨]`, `id(라벨)`(둥근 상자), `id{라벨}`(판단); 연결 `-->`(화살표)·`---`(선), 라벨 `-->|라벨|`·`-- 라벨 -->`, 체인 `A --> B --> C`; `%%` 주석, `;` 구분. 그 밖의 문법(`subgraph`, `==>`, `&`, 다른 다이어그램 종류 등)은 `DiagramSyntaxError`(고정 코드: `DIAGRAM_HEADER_UNSUPPORTED`, `DIAGRAM_SYNTAX_UNSUPPORTED:line N`, `DIAGRAM_NODE_REDEFINED:<id>` 등)로 거부하므로 호스트에서 `RENDER_FAILED:DiagramSyntaxError`와 TEXT 대체가 된다. 추측해서 그리지 않는다.
+- 한도: 노드 200, 연결 400, 라벨 200자, 원본 20,000자.
+- 배치: 진입 연결이 없는 노드에서 시작하는 너비 우선 계층 배치(결정적, 순환 허용). 라벨은 XML 이스케이프한다.
+- 접근성: SVG에 `role="img"`, `<title>`(기본 "Flowchart", payload `title`로 지정 가능), `<desc>`(payload `description` 또는 노드·연결 자동 요약)를 넣는다. 호스트의 `TEXT_ALTERNATIVE` 의무는 별도로 `content["text_alternative"]`로 확인한다.
+- 출력: `{"artifact": SVG 문자열, "mime_type": "image/svg+xml", "node_count", "edge_count", "summary"}`. 렌더링은 도식 내용을 검증하지 않는다.
+- 등록 예: `registry.register("DIAGRAM", MermaidFlowchartRenderer())`. 테스트는 SVG 구문 유효성(XML 파싱), 노드·연결 수, 배치 방향, 이스케이프, `<title>`/`<desc>`, 호스트 경유 전달·실패 대체·접근성 차단을 각각 확인한다.
 
 ### Phase 4 — 평가 및 승격
 - v0.1 키워드 평가: `docs/testing/format_routing_keyword_eval_v0.1.md` (작성자 라벨링 과제 77개, 전체 0.623, 주제 언급으로 인한 불필요한 매체 비율 0.452, 바꿔 말한 요청 재현율 0). 요청 표현 조건(보고서 7절)으로 홀드아웃 세트(38개)는 0.526에서 0.842로, 불필요한 매체 비율은 0.619에서 0.048로 개선됐다. 바꿔 말한 요청 인식(보고서 8절)으로 두 번째 홀드아웃 세트(40개)의 바꿔 말한 요청 재현율이 0/20에서 18/20으로 올랐고, TEXT 과제 16개 중 1개에서 새 오탐이 생겼다. 자체 신호 구문 문맥 확인(보고서 9절)으로 세 번째 홀드아웃 세트(20개)는 8/20에서 20/20이 되었고, 세트 밖 새 사례로는 11/12였다. PR #13–#18의 리뷰 후속 수정 내역은 보고서 8.5·9.5·9.6절에 있다.
@@ -258,7 +267,8 @@ COGNITIVE PLAN             EXPLANATION FORMAT ROUTER
 | 접근성 입력 | 구현됨 (단위 테스트) | `output_intent.accessibility`, `accessibility_requirements`, 접근성 충돌 (§5, §6). 의무 이행·검증(대체 텍스트·자막 생성)은 Phase 3 범위로 미구현 |
 | 보조 형식(`secondary`), `audience`/`detail_level` | 미구현 | §5–§7 |
 | Host/Adapter 인터페이스 (Phase 3) | 참조 구현 (가짜 렌더러로 단위 테스트) | `format_host.py`: 렌더러 등록, 기능 선언, 단계별 상태 기록, TEXT 대체. planner의 `render_status`는 여전히 `NOT_RUN`이며, 실행 결과는 호스트 기록에 있다 |
-| 실제 렌더러·매체 생성·기능 시험 | 미실행 | 사용 가능한 host renderer 확인 안 됨 |
+| DIAGRAM 렌더러 | 구현됨 (단위 테스트) | `diagram_renderer.py`: Mermaid flowchart 부분집합 → SVG, `<title>`/`<desc>`, 미지원 문법은 거부. 브라우저·보조기술에서의 실제 표시 시험은 미실행 |
+| 그 밖의 렌더러(IMAGE·ANIMATION·VIDEO·INTERACTIVE·SIMULATION)·기능 시험 | 미구현·미실행 | 사용 가능한 renderer 없음 |
 | SARA v3 Live 왕복 | 미검증 | Live 테스트 `test_live_cothoughts_to_sara_v3_round_trip`(실제 `SARAv3Connection`)는 `CO_THOUGHTS_SARA_V3_LIVE=1`과 형제 SARA v3 체크아웃(`SARA_v3/cli.py`)이 둘 다 있을 때만 실행되고, 그 밖에는 건너뛴다. `SARA_LLM_*` provider 설정은 건너뛰기 조건이 아니라 통과 전제조건이다(플래그와 체크아웃만 있고 provider 설정이 없으면 실행되어 실패한다). 이번 작업에서는 실행되지 않았다. 나머지 통합 테스트는 가짜 어댑터(`FakeV24Adapter`)를 쓴다. |
 
 평가 수치는 같은 작성자가 만든 세트에서 측정한 값이므로 일반화 성능으로 해석하지 않는다. 특정 커밋의 CI 결과는 GitHub Actions 기록으로 확인한다.
@@ -288,7 +298,7 @@ PR #12–#18에서 리뷰가 규칙을 바꿀 때마다 새 반례를 찾았다.
 2. ~~독립 평가 체계~~ — **보류** (2026-11-04 프로젝트 소유자 결정). 지침(`docs/testing/format_routing_independent_eval_guidelines_v0.1.md`)은 유지하며, 재개 시 새 평가자가 처음부터 작성한다. 그동안 형식 선택 수치는 같은 작성자 세트 기준으로만 보고한다.
 3. 출력 스키마 충돌 보고와 접근성 입력 — 구현됨 (§7 우선순위 1·2, §11)
 4. Host/Adapter 인터페이스: 렌더러 프로토콜, 생성·렌더링·기능 시험·출처 검증 상태 분리 기록, 실패 시 TEXT 대체 — 참조 구현됨(`format_host.py`)
-5. 실제 렌더러 연결: DIAGRAM부터, 렌더링·접근성·기능 시험을 분리 검증
+5. 실제 렌더러 연결: DIAGRAM부터, 렌더링·접근성·기능 시험을 분리 검증 — DIAGRAM 구현됨(`diagram_renderer.py`), 다른 형식은 미연결
 6. SARA v3 Live 왕복 검증: 실제 Provider 환경에서 Co-thoughts → SARA → assessment envelope → 후속 backend 전달
 
 외부 검토(2026-11-04)는 SARA v3 쪽 일부 게이트가 WAIVED 상태라고 언급했다. 이 저장소에서는 확인하지 않았다. 이 저장소에는 Live 왕복 테스트가 있지만 명시적으로 켜야 실행되며 이번에는 건너뛰었으므로, Live 왕복은 미검증 상태다.
