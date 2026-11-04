@@ -1,0 +1,485 @@
+{
+  "version": "independent-0.1",
+  "cases": [
+    {
+      "id": "I001",
+      "lang": "en",
+      "group": "explicit",
+      "task": "Make a flowchart for how a password reset works."
+    },
+    {
+      "id": "I002",
+      "lang": "en",
+      "group": "explicit",
+      "task": "Draw an architecture diagram of a small web app with a browser, API, and database."
+    },
+    {
+      "id": "I003",
+      "lang": "en",
+      "group": "explicit",
+      "task": "Run a simulation of quarterly revenue under three growth assumptions and report the outcomes."
+    },
+    {
+      "id": "I004",
+      "lang": "en",
+      "group": "explicit",
+      "task": "Create a picture of a red bicycle leaning against a brick wall."
+    },
+    {
+      "id": "I005",
+      "lang": "en",
+      "group": "explicit",
+      "task": "Make a short animation showing the phases of the Moon."
+    },
+    {
+      "id": "I006",
+      "lang": "en",
+      "group": "explicit",
+      "task": "Produce a narrated video explaining how to use the new expense portal."
+    },
+    {
+      "id": "I007",
+      "lang": "en",
+      "group": "explicit",
+      "task": "Build an interactive slider so I can change the interest rate and see the monthly payment."
+    },
+    {
+      "id": "I008",
+      "lang": "en",
+      "group": "paraphrase",
+      "task": "Map the steps from planting a seed to harvesting a tomato, with arrows between them."
+    },
+    {
+      "id": "I009",
+      "lang": "en",
+      "group": "paraphrase",
+      "task": "Let me move the three project milestones around and see how the schedule changes."
+    },
+    {
+      "id": "I010",
+      "lang": "en",
+      "group": "paraphrase",
+      "task": "I need a photo of a cozy reading nook on a rainy afternoon."
+    },
+    {
+      "id": "I011",
+      "lang": "en",
+      "group": "paraphrase",
+      "task": "Show the population trend as a line with years along the bottom."
+    },
+    {
+      "id": "I012",
+      "lang": "en",
+      "group": "paraphrase",
+      "task": "Can you make the robot wave, then sit down, in a looping moving sequence?"
+    },
+    {
+      "id": "I013",
+      "lang": "en",
+      "group": "paraphrase",
+      "task": "Give me a narrated clip of a baker preparing sourdough from start to finish."
+    },
+    {
+      "id": "I014",
+      "lang": "en",
+      "group": "paraphrase",
+      "task": "Let me adjust the dosage and body weight and see the estimated concentration update."
+    },
+    {
+      "id": "I015",
+      "lang": "en",
+      "group": "terse",
+      "task": "Database tables and links, as a diagram please."
+    },
+    {
+      "id": "I016",
+      "lang": "en",
+      "group": "terse",
+      "task": "A watercolor fox in autumn leaves, please."
+    },
+    {
+      "id": "I017",
+      "lang": "en",
+      "group": "terse",
+      "task": "Animate a bouncing ball, three seconds."
+    },
+    {
+      "id": "I018",
+      "lang": "en",
+      "group": "terse",
+      "task": "Video walkthrough of the sign-up flow."
+    },
+    {
+      "id": "I019",
+      "lang": "en",
+      "group": "terse",
+      "task": "Interactive tax estimate with editable income."
+    },
+    {
+      "id": "I020",
+      "lang": "en",
+      "group": "plain",
+      "task": "Explain why leaves change color in autumn."
+    },
+    {
+      "id": "I021",
+      "lang": "en",
+      "group": "plain",
+      "task": "Summarize the meeting notes in five bullet points."
+    },
+    {
+      "id": "I022",
+      "lang": "en",
+      "group": "plain",
+      "task": "Translate this paragraph into Spanish."
+    },
+    {
+      "id": "I023",
+      "lang": "en",
+      "group": "plain",
+      "task": "List three ways to reduce food waste at home."
+    },
+    {
+      "id": "I024",
+      "lang": "en",
+      "group": "plain",
+      "task": "Calculate the total cost of 4 notebooks at $2.75 each."
+    },
+    {
+      "id": "I025",
+      "lang": "en",
+      "group": "plain",
+      "task": "Compare these two laptop specifications in a table."
+    },
+    {
+      "id": "I026",
+      "lang": "en",
+      "group": "plain",
+      "task": "Draft a polite message asking to reschedule Friday's call."
+    },
+    {
+      "id": "I027",
+      "lang": "en",
+      "group": "topic",
+      "task": "How does a flowchart differ from a checklist?"
+    },
+    {
+      "id": "I028",
+      "lang": "en",
+      "group": "topic",
+      "task": "What software is easiest for drawing a network diagram?"
+    },
+    {
+      "id": "I029",
+      "lang": "en",
+      "group": "topic",
+      "task": "Explain the history of animation in early cinema."
+    },
+    {
+      "id": "I030",
+      "lang": "en",
+      "group": "topic",
+      "task": "Why do video files get so large at high resolution?"
+    },
+    {
+      "id": "I031",
+      "lang": "en",
+      "group": "topic",
+      "task": "What does an interactive website do behind the scenes?"
+    },
+    {
+      "id": "I032",
+      "lang": "en",
+      "group": "topic",
+      "task": "How are weather simulations used to forecast storms?"
+    },
+    {
+      "id": "I033",
+      "lang": "en",
+      "group": "topic",
+      "task": "What is the difference between a bar chart and a histogram?"
+    },
+    {
+      "id": "I034",
+      "lang": "en",
+      "group": "topic",
+      "task": "Can you explain the basic idea behind mind mapping?"
+    },
+    {
+      "id": "I035",
+      "lang": "en",
+      "group": "mixed",
+      "task": "First draw a simple flowchart for online checkout, then explain where payment verification happens."
+    },
+    {
+      "id": "I036",
+      "lang": "en",
+      "group": "mixed",
+      "task": "Summarize the survey in a table and include a short paragraph on the main pattern."
+    },
+    {
+      "id": "I037",
+      "lang": "en",
+      "group": "mixed",
+      "task": "Make a little picture of a lighthouse, and tell me what colors you chose."
+    },
+    {
+      "id": "I038",
+      "lang": "en",
+      "group": "mixed",
+      "task": "Create an animation of a plant growing; add a brief caption for each stage."
+    },
+    {
+      "id": "I039",
+      "lang": "en",
+      "group": "mixed",
+      "task": "Run three sales growth scenarios, then calculate the year-over-year change."
+    },
+    {
+      "id": "I040",
+      "lang": "en",
+      "group": "mixed",
+      "task": "I want a short video of the demo, with captions so I can follow it without sound."
+    },
+    {
+      "id": "I041",
+      "lang": "ko",
+      "group": "explicit",
+      "task": "비밀번호 재설정 과정을 흐름도로 그려줘."
+    },
+    {
+      "id": "I042",
+      "lang": "ko",
+      "group": "explicit",
+      "task": "브라우저, 서버, 데이터베이스가 연결된 구조를 다이어그램으로 만들어 주세요."
+    },
+    {
+      "id": "I043",
+      "lang": "ko",
+      "group": "explicit",
+      "task": "월별 매출을 막대그래프로 보여줘."
+    },
+    {
+      "id": "I044",
+      "lang": "ko",
+      "group": "explicit",
+      "task": "비 오는 날 창가에 앉아 있는 고양이 그림을 그려줘."
+    },
+    {
+      "id": "I045",
+      "lang": "ko",
+      "group": "explicit",
+      "task": "달의 모양이 한 달 동안 바뀌는 모습을 짧은 애니메이션으로 만들어줘."
+    },
+    {
+      "id": "I046",
+      "lang": "ko",
+      "group": "explicit",
+      "task": "새 사내 포털 사용법을 설명하는 나레이션 영상 부탁해요."
+    },
+    {
+      "id": "I047",
+      "lang": "ko",
+      "group": "explicit",
+      "task": "금리를 조절하면 월 납입액이 바뀌는 인터랙티브 계산기를 만들어줘."
+    },
+    {
+      "id": "I048",
+      "lang": "ko",
+      "group": "paraphrase",
+      "task": "토마토 씨앗을 심어 수확하기까지 단계를 화살표로 연결해줘."
+    },
+    {
+      "id": "I049",
+      "lang": "ko",
+      "group": "paraphrase",
+      "task": "프로젝트 일정을 직접 바꿔 보면서 마감일 영향도 확인하게 해줘."
+    },
+    {
+      "id": "I050",
+      "lang": "ko",
+      "group": "paraphrase",
+      "task": "눈 내리는 골목의 작은 빵집 사진이 필요해."
+    },
+    {
+      "id": "I051",
+      "lang": "ko",
+      "group": "paraphrase",
+      "task": "지난 10년 기온이 어떻게 변했는지 선으로 나타내 줘."
+    },
+    {
+      "id": "I052",
+      "lang": "ko",
+      "group": "paraphrase",
+      "task": "강아지가 꼬리를 흔들다가 앉는 움직이는 장면을 반복해서 보여줘."
+    },
+    {
+      "id": "I053",
+      "lang": "ko",
+      "group": "paraphrase",
+      "task": "도자기 만드는 과정을 자막과 설명 음성이 있는 클립으로 부탁해."
+    },
+    {
+      "id": "I054",
+      "lang": "ko",
+      "group": "paraphrase",
+      "task": "나이랑 운동 시간을 바꿔 보면 예상 칼로리 소모량이 갱신되게 해줘."
+    },
+    {
+      "id": "I055",
+      "lang": "ko",
+      "group": "terse",
+      "task": "서버 구성도 부탁."
+    },
+    {
+      "id": "I056",
+      "lang": "ko",
+      "group": "terse",
+      "task": "벚꽃이 흩날리는 풍경화 하나."
+    },
+    {
+      "id": "I057",
+      "lang": "ko",
+      "group": "terse",
+      "task": "종이비행기 날아가는 애니메이션, 5초."
+    },
+    {
+      "id": "I058",
+      "lang": "ko",
+      "group": "terse",
+      "task": "앱 설치 과정 영상으로."
+    },
+    {
+      "id": "I059",
+      "lang": "ko",
+      "group": "terse",
+      "task": "입력값 바꾸는 전기요금 계산기."
+    },
+    {
+      "id": "I060",
+      "lang": "ko",
+      "group": "plain",
+      "task": "초콜릿이 녹는 원리를 쉽게 설명해줘."
+    },
+    {
+      "id": "I061",
+      "lang": "ko",
+      "group": "plain",
+      "task": "이 회의 내용을 핵심 세 가지로 요약해 주세요."
+    },
+    {
+      "id": "I062",
+      "lang": "ko",
+      "group": "plain",
+      "task": "이 문장을 자연스러운 영어로 번역해줘."
+    },
+    {
+      "id": "I063",
+      "lang": "ko",
+      "group": "plain",
+      "task": "집에서 키우기 쉬운 허브 네 가지 알려줘."
+    },
+    {
+      "id": "I064",
+      "lang": "ko",
+      "group": "plain",
+      "task": "사과 6개가 개당 1,200원이면 총 얼마야?"
+    },
+    {
+      "id": "I065",
+      "lang": "ko",
+      "group": "plain",
+      "task": "두 보험 상품의 보장 내용을 표로 비교해줘."
+    },
+    {
+      "id": "I066",
+      "lang": "ko",
+      "group": "plain",
+      "task": "이번 주 안에 답을 달라고 정중하게 메일 써줘."
+    },
+    {
+      "id": "I067",
+      "lang": "ko",
+      "group": "topic",
+      "task": "순서도가 복잡한 업무를 정리하는 데 왜 도움이 돼?"
+    },
+    {
+      "id": "I068",
+      "lang": "ko",
+      "group": "topic",
+      "task": "마인드맵 그릴 때 쓸 만한 앱은 뭐가 있어?"
+    },
+    {
+      "id": "I069",
+      "lang": "ko",
+      "group": "topic",
+      "task": "애니메이션 영화 제작 과정은 어떻게 돼?"
+    },
+    {
+      "id": "I070",
+      "lang": "ko",
+      "group": "topic",
+      "task": "영상 압축은 화질에 어떤 영향을 주는지 설명해줘."
+    },
+    {
+      "id": "I071",
+      "lang": "ko",
+      "group": "topic",
+      "task": "인터랙티브 전시와 일반 전시는 어떻게 달라?"
+    },
+    {
+      "id": "I072",
+      "lang": "ko",
+      "group": "topic",
+      "task": "경제학에서 시뮬레이션을 어떤 목적으로 사용하는지 궁금해."
+    },
+    {
+      "id": "I073",
+      "lang": "ko",
+      "group": "topic",
+      "task": "산점도와 꺾은선그래프는 각각 언제 쓰는 거야?"
+    },
+    {
+      "id": "I074",
+      "lang": "ko",
+      "group": "topic",
+      "task": "좋은 인포그래픽을 만들려면 어떤 원칙을 따라야 해?"
+    },
+    {
+      "id": "I075",
+      "lang": "ko",
+      "group": "mixed",
+      "task": "먼저 이사 준비 순서를 화살표로 그려주고, 각 단계도 한 문장씩 설명해줘."
+    },
+    {
+      "id": "I076",
+      "lang": "ko",
+      "group": "mixed",
+      "task": "결과를 표로 정리한 다음 가장 큰 차이가 뭔지 알려줘."
+    },
+    {
+      "id": "I077",
+      "lang": "ko",
+      "group": "mixed",
+      "task": "한옥 마당 그림 하나 부탁하고, 그림에 담긴 요소도 간단히 설명해줘."
+    },
+    {
+      "id": "I078",
+      "lang": "ko",
+      "group": "mixed",
+      "task": "새싹이 자라 꽃이 피는 애니메이션을 만들고 단계별 이름도 붙여줘."
+    },
+    {
+      "id": "I079",
+      "lang": "ko",
+      "group": "mixed",
+      "task": "Run best-case and worst-case cost scenarios, then calculate the average cost."
+    },
+    {
+      "id": "I080",
+      "lang": "ko",
+      "group": "mixed",
+      "task": "사용법 안내 영상을 만들고 마지막에 핵심만 글로 정리해줘."
+    }
+  ]
+}
