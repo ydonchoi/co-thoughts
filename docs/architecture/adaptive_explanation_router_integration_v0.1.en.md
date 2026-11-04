@@ -1,6 +1,6 @@
 # Adaptive Explanation Format Router Integration Design v0.1
 
-> Status: PARTIALLY IMPLEMENTED / PR #2 OPEN (CI: see PR #2 checks)
+> Status: PARTIALLY IMPLEMENTED — planner and Cognitive Router integration are on `main` (PRs #2–#18); Host/Adapter and renderers are not implemented
 > Target: co-thoughts v2.0 Cognitive Router and Adaptive Explanation Format Protocol v0.1
 > Scope: An interface design that separates and connects cognitive planning with human-facing explanation-format planning.
 
@@ -20,7 +20,7 @@ The inspected implementation currently provides:
 - `CognitiveRuntime` validates backend responses and prevents epistemic-status promotion.
 - Adaptive Explanation Format Protocol v0.1 is design guidance, not a runtime media selector.
 
-A rule-based planner and its Cognitive Router connection have now been added on a feature branch. Actual rendering, media generation, and UI integration are not implemented. The change is under review in PR #2. CI status is tracked by the GitHub Actions checks on PR #2 and is not recorded here, so this document does not go stale as commits are added.
+The rule-based planner and its Cognitive Router connection are on `main` (PR #2, with follow-up improvements #3–#18). Actual rendering, media generation, and UI integration are not implemented. CI results are tracked per commit in GitHub Actions and are not recorded here, so this document does not go stale.
 
 ## 3. Recommended Architecture
 
@@ -196,11 +196,11 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Returns rationale, assumptions, uncertainty, and status.
 - Does not generate or render non-text media.
 
-### Phase 2 — Cognitive Router Integration (implemented, PR review pending)
+### Phase 2 — Cognitive Router Integration (implemented, on `main`)
 - Adds `format_routing` to `route()` output.
 - Integrates while preserving existing `operations`, `verification_routing`, and `workflow_routing` semantics.
 - Adds unit and integration regression tests.
-- CI: see PR #2 checks.
+- Shared request validation unified across the Cognitive Router, format planner, runtime `SafetyGate`, and the v1.3 execution request (PRs #6–#8).
 
 ### Phase 3 — Host/Adapter Rendering Integration
 - Connect only renderers that are actually available.
@@ -208,7 +208,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Verify text fallback when rendering fails.
 
 ### Phase 4 — Evaluation and Promotion
-- v0.1 keyword evaluation: `docs/testing/format_routing_keyword_eval_v0.1.en.md` (77 author-labeled tasks; overall 0.623, unnecessary-media rate 0.452 driven by topic mentions, paraphrase recall 0). Request-cue gating (section 7 of that report) brings the held-out set (38 cases) from 0.526 to 0.842 and its unnecessary-media rate from 0.619 to 0.048. Paraphrase recognition (section 8) raises paraphrase recall on a second held-out set (40 cases) from 0/20 to 18/20, with one new false positive in 16 TEXT tasks.
+- v0.1 keyword evaluation: `docs/testing/format_routing_keyword_eval_v0.1.en.md` (77 author-labeled tasks; overall 0.623, unnecessary-media rate 0.452 driven by topic mentions, paraphrase recall 0). Request-cue gating (section 7 of that report) brings the held-out set (38 cases) from 0.526 to 0.842 and its unnecessary-media rate from 0.619 to 0.048. Paraphrase recognition (section 8) raises paraphrase recall on a second held-out set (40 cases) from 0/20 to 18/20, with one new false positive in 16 TEXT tasks. Context checks for self-cued phrases (section 9) bring a third held-out set (20 cases) from 8/20 to 20/20, and 11/12 on fresh probes outside every set. Review follow-ups for PRs #13–#18 are in report sections 8.5, 9.5, and 9.6.
 - Evaluate selection accuracy, unnecessary media generation, fallback, and accessibility across representative task groups.
 - Promote implementation status only after independent and regression tests pass.
 
@@ -225,12 +225,46 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 
 ## 12. Current Status
 
-- Design document: authored and status updated
-- New format planner: implemented on feature branch
-- Cognitive Router integration: implemented on feature branch
-- Unit and integration tests: added. CI status is tracked by the GitHub Actions checks on PR #2 and is not recorded here, so this document does not go stale as commits are added.
-- Renderer integration: not implemented; no usable host renderer was identified in the inspected scope
-- Media generation, rendering, and functional testing: not run
-- Independent verification: not performed
+| Area | Status | Evidence |
+|---|---|---|
+| Format planner (rule-based) | Implemented, on `main` | PR #2, improvements #3–#18 |
+| Cognitive Router integration | Implemented, on `main` | PR #2 |
+| Shared request validation | Implemented | PRs #6–#8 |
+| Format-selection evaluation | In-project measurement | dev 77/77, held-out v0.1 37/38, v0.2 37/40, v0.3 20/20, fresh probes outside all sets 11/12 (`docs/testing/format_routing_keyword_eval_v0.1.en.md`) |
+| Independent evaluation | Not performed | All sets and labels share one author |
+| Output-schema conflict reporting, accessibility input, secondary formats, `audience`/`detail_level` | Not implemented | §5–§7, §11 |
+| Host/Adapter integration (Phase 3) | Not implemented | `render_status` is always `NOT_RUN` |
+| Real renderers, media generation, functional tests | Not run | No usable host renderer identified |
+| SARA v3 live round trip | Not verified | Integration tests use a fake adapter (`FakeV24Adapter`) only |
 
-Do not treat the changes as merged into `main` before PR #2 is merged. Implementation remains partially verified until CI and independent review are complete.
+Evaluation numbers come from sets written by the same author and are not generalization estimates. Per-commit CI results are tracked in GitHub Actions.
+
+## 13. Development Process and Stabilizing the Rule-Based Approach
+
+### 13.1 Independent review before merge
+
+PRs #12–#17 were merged before the automated review (Codex) finished; the review then found new false positives/misses after merge, each needing a follow-up PR (#12: 2, #13: 3, #14: 1, #15: 5, #16: 3, #17: 1). #18 finished review before merge and fixed its one finding in the same PR. From now on:
+
+1. Merge only after CI passes **and** the automated review has completed.
+2. After pushing fixes in response to review, request a fresh review of the latest commit with `@codex review`.
+3. Reproduce each finding on the pre-fix code before fixing it, and pin the examples in unit tests.
+4. Never tune rules on held-out sets; if a held-out error is fixed by a rule change, record that in the report.
+
+### 13.2 When to stop extending the rules
+
+In PRs #12–#18, review found new counterexamples after every rule change. The rules approximate syntax lexically, so **feature growth of keyword/exception rules stops here**; only defect fixes are accepted.
+
+- No new format vocabulary or new exception categories; only fixes for regressions (defects that break existing behavior).
+- Further gains should (a) prefer host-declared `output_intent.requested_format` and context signals, and (b) be decided by comparing the rule-based planner with a learned classifier on an independent evaluation set.
+- Reviewer counterexamples are collected into an adversarial regression set (deferred).
+
+### 13.3 Next steps (priority order)
+
+1. Documentation and status sync (including this section)
+2. Independent evaluation: a set built by someone other than the author, closer to real Korean/English requests
+3. Output-schema conflict reporting and accessibility input (§7 priorities 1–2, §11)
+4. Host/Adapter interface: renderer protocol, separate records for generation/rendering/functional test/source verification, TEXT fallback on failure
+5. Real renderer integration, starting with DIAGRAM, with rendering, accessibility, and functional tests verified separately
+6. SARA v3 live round trip in a real provider environment: Co-thoughts → SARA → assessment envelope → downstream backend
+
+An external review (2026-11-04) noted that some SARA v3 gates are WAIVED. That is not verified in this repository; only the conclusion that the live round trip is unverified is supported by this repository's tests.
