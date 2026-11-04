@@ -301,7 +301,7 @@ These labels describe authorship/provenance, not epistemic state. Uncertain loca
 
 ## 16. Integrated Validation Status
 
-T14–T50 established the current semantic, lifecycle, template, traceability, D9, and one-stop regression baseline. T51–T56 additionally established AI disclosure/provenance semantics and full-pipeline semantic integration for the tested scope.
+T14–T50 established the current semantic, lifecycle, template, traceability, D9, and one-stop regression baseline. T51–T55 additionally established AI disclosure/provenance semantics for the tested scope. T56 (full-pipeline output regression) is a proposed candidate from T55 §14; no T56 specification or result exists in this repository, so full-pipeline semantic integration is NOT RUN / OPEN.
 
 Current status:
 - semantic architecture: CLOSED FOR TESTED SCOPE
@@ -310,6 +310,7 @@ Current status:
 - D9 network-level semantics: CLOSED FOR TESTED SCOPE
 - one-stop orchestration semantics: CLOSED FOR TESTED SCOPE
 - AI disclosure integration: CLOSED FOR TESTED SCOPE
+- full-pipeline semantic integration (T56): NOT RUN / OPEN
 - live persistence verification: OPEN / CAPABILITY-BOUND
 - empirical generation validation: OPEN
 
