@@ -210,6 +210,20 @@
 - v0.3와 조건을 같은 작성자가 같은 세션에서 설계했으므로 20/20은 낙관적이다. 새 사례 확인 결과(11/12)를 더 믿을 만한 지표로 본다.
 - 조건은 어휘 기반이다. 관계없는 절의 관찰 동사(위 사례)는 여전히 INTERACTIVE를 고르고, 관찰 표현 없는 조작 요청("Let me change the gravity", see/watch 없음)은 이제 놓친다.
 
+### 9.5 리뷰 후속 조치 (#15에 대한 Codex 리뷰)
+
+#15의 Codex 리뷰가 머지 후에 끝났고 5건을 보고했다. 모두 `main` @ `1de56be`에서 재현됐고 수정했다.
+
+| 지적 | 수정 |
+|---|---|
+| "He h**as** boxes and arrows …"에서 "has" 안의 `as`가 조건으로 걸림 (`as/in a …` 조건에도 같은 버그: "He h**as a** video …" → VIDEO) | 두 조건 모두 전치사 앞에 단어 경계 요구 |
+| "researchers **need to** model what happens …" → SIMULATION | `model what happens`의 요청 동사도 절 경계 규칙 적용. "I want **you to** model …"은 계속 인정 |
+| "Would you **be able to** model what happens …" → TEXT | `model what happens` 앞의 간접 요청 표현(`be able to`, `possibly`) 인정 |
+| "움직이는 모습으로 **간단히** 보여줘" → TEXT | 한국어 요청 동사 앞에 수식어 두 단어까지 허용 |
+| "조절하면서 결과를 확인할 수 있게 해주고, 그 **원리**도 설명해줘" → TEXT | 설명 요청 명사 앞에 인터랙티브 요청 형태(있게 해, 보여, 만들어)가 이미 있으면 막지 않음 |
+
+네 평가 세트 결과는 바뀌지 않았다(개발 77/77, v0.1 37/38, v0.2 37/40, v0.3 20/20). 예시는 단위 테스트로 고정했다.
+
 ---
 
 [English companion](format_routing_keyword_eval_v0.1.en.md)

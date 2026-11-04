@@ -421,3 +421,27 @@ def test_self_cued_phrases_in_non_request_sense_stay_text(task):
 def test_self_cued_phrases_in_request_context_select_format(task, expected):
     result = route_explanation_format({"task": task})
     assert result["capability_status"]["requested"] == [expected]
+
+
+# --- Codex review on #15 ----------------------------------------------------
+
+@pytest.mark.parametrize("task", [
+    "He has boxes and arrows on his whiteboard; summarize the meeting",
+    "He has a video of the launch; summarize what happened",
+    "Explain why researchers need to model what happens to wages when minimum wage rises",
+    "식단을 조절하면서 체중 변화를 확인하는 방법을 알려줘",
+])
+def test_review_15_non_requests_stay_text(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]
+
+
+@pytest.mark.parametrize("task, expected", [
+    ("Would you be able to model what happens if one lane closes?", "SIMULATION"),
+    ("I want you to model what happens if rates rise", "SIMULATION"),
+    ("피스톤 동작을 움직이는 모습으로 간단히 보여줘", "ANIMATION"),
+    ("온도를 조절하면서 결과를 확인할 수 있게 해주고, 그 원리도 설명해줘", "INTERACTIVE"),
+])
+def test_review_15_requests_select_format(task, expected):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == [expected]
