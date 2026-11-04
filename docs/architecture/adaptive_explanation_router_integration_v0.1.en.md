@@ -208,6 +208,7 @@ TEXT is the default for simple tasks. Do not add visual media unless it material
 - Verify text fallback when rendering fails.
 
 ### Phase 4 — Evaluation and Promotion
+- v0.1 keyword evaluation: `docs/testing/format_routing_keyword_eval_v0.1.en.md` (77 author-labeled tasks; overall 0.623, unnecessary-media rate 0.452 driven by topic mentions, paraphrase recall 0).
 - Evaluate selection accuracy, unnecessary media generation, fallback, and accessibility across representative task groups.
 - Promote implementation status only after independent and regression tests pass.
 
