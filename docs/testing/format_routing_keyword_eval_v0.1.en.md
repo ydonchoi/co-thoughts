@@ -175,6 +175,41 @@ The Codex review of #13 completed after merge and reported three false positives
 
 All three evaluation sets are unchanged (dev 77/77, held-out v0.1 37/38, held-out v0.2 37/40); the examples are pinned by unit tests.
 
+## 9. Follow-up: context checks for self-cued phrases
+
+### 9.1 Change
+
+Self-cued phrases (section 8.1) used to select a format with no further check. They now need a phrase-specific context condition:
+
+| Phrase | Condition |
+|---|---|
+| let me tweak / adjust / play with / change / vary | an observation cue (see, watch, observe, compare, what happens) later in the same sentence (sentence ends at `. ! ? ; :` or an em dash) |
+| 바꿔가며, 바꿔 가며, 바꿔볼 수 있게, 조절하면서, 조절하며, 조절할 수 있게 | an observation/result cue later (결과, 확인, 볼 수, 보여, 변화, 변하, 바뀌, 달라지) and no explanation noun (방법, 이유, 원리) |
+| model what happens | imperative position (optionally after please/can/could/…) or a request verb within the cue window |
+| boxes and arrows | preceded by as / in / with / using / into |
+| 움직이는 모습으로 | followed by a request verb (보여, 그려, 만들, 설명해, 나타내) |
+| 외관을 그려, 움직이는 설명, 동작을 움직임으로 | unchanged (no context check) |
+
+### 9.2 Third held-out set
+
+`tests/evaluation/format_routing_eval_holdout_v0.3.json` (20 targeted cases: 8 real requests using self-cued phrases, 12 uses of the same phrases in a non-request sense such as "Let me change the subject", "식단을 조절하면서 운동하는 방법") was committed **before** the change. Baseline on `main` @ `c22d403`: 8/20 (collision 0/12).
+
+### 9.3 Results
+
+| Set | Before | After |
+|---|---|---|
+| Held-out v0.3 (20) | 8 (collision 0/12) | **20 (collision 12/12)** |
+| Development (77) | 77 | 77 |
+| Held-out v0.1 (38) | 37 | 37 |
+| Held-out v0.2 (40) | 37 | 37 |
+
+Fresh probes outside every set: 11/12. The miss is "Let me adjust the tone **and see** if it reads better: rewrite this email" → INTERACTIVE: the observation cue is present, but the task is about writing. It is reported, not tuned.
+
+### 9.4 Limits
+
+- v0.3 and the conditions were designed in the same session by the same author, so 20/20 is optimistic; the probe result (11/12) is a better guide.
+- The conditions are lexical. An observation verb in an unrelated clause (probe above) still triggers INTERACTIVE, and a manipulation request without an observation cue ("Let me change the gravity", with no "see/watch") is now missed.
+
 ---
 
 [Korean source](format_routing_keyword_eval_v0.1.md)

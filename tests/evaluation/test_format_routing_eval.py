@@ -1,7 +1,8 @@
 """Regression gate for the Phase 4 keyword evaluation.
 
 Floors are the measured values after request-cue gating and paraphrase
-recognition (see docs/testing/format_routing_keyword_eval_v0.1.md, sections 7-8). They guard
+recognition, and self-cue context checks (see
+docs/testing/format_routing_keyword_eval_v0.1.md, sections 7-9). They guard
 against regressions; raise them when the planner improves. The held-out sets
 must not be used to tune rules.
 """
@@ -18,9 +19,11 @@ HERE = Path(__file__).parent
 DEV_CASES = load_cases(HERE / "format_routing_eval_v0.1.json")
 HOLDOUT_CASES = load_cases(HERE / "format_routing_eval_holdout_v0.1.json")
 HOLDOUT2_CASES = load_cases(HERE / "format_routing_eval_holdout_v0.2.json")
+HOLDOUT3_CASES = load_cases(HERE / "format_routing_eval_holdout_v0.3.json")
 DEV = evaluate(DEV_CASES)
 HOLDOUT = evaluate(HOLDOUT_CASES)
 HOLDOUT2 = evaluate(HOLDOUT2_CASES)
+HOLDOUT3 = evaluate(HOLDOUT3_CASES)
 GROUPS = {"explicit", "plain", "topic", "collision", "paraphrase"}
 
 
@@ -28,6 +31,7 @@ GROUPS = {"explicit", "plain", "topic", "collision", "paraphrase"}
     (DEV_CASES, {"explicit": 25, "plain": 14, "topic": 20, "collision": 8, "paraphrase": 10}),
     (HOLDOUT_CASES, {"explicit": 12, "plain": 5, "topic": 12, "collision": 4, "paraphrase": 5}),
     (HOLDOUT2_CASES, {"explicit": 4, "plain": 4, "topic": 12, "paraphrase": 20}),
+    (HOLDOUT3_CASES, {"paraphrase": 8, "collision": 12}),
 ])
 def test_datasets_are_well_formed(cases, sizes):
     ids = [c["id"] for c in cases]
@@ -40,7 +44,7 @@ def test_datasets_are_well_formed(cases, sizes):
 
 
 def test_datasets_do_not_overlap():
-    sets = [DEV_CASES, HOLDOUT_CASES, HOLDOUT2_CASES]
+    sets = [DEV_CASES, HOLDOUT_CASES, HOLDOUT2_CASES, HOLDOUT3_CASES]
     for i, left in enumerate(sets):
         for right in sets[i + 1:]:
             assert not {c["id"] for c in left} & {c["id"] for c in right}
@@ -70,6 +74,13 @@ def test_holdout_floors_do_not_regress():
     assert HOLDOUT["by_group"]["paraphrase"]["correct"] >= 5
     assert HOLDOUT["unnecessary_media_rate"] <= 0.048
     assert HOLDOUT["missed_media_rate"] <= 0.0
+
+
+def test_holdout3_self_cue_floors_do_not_regress():
+    assert HOLDOUT3["overall"]["correct"] >= 20
+    assert HOLDOUT3["by_group"]["collision"]["correct"] >= 12
+    assert HOLDOUT3["by_group"]["paraphrase"]["correct"] >= 8
+    assert HOLDOUT3["wrong_media_rate"] == 0.0
 
 
 def test_holdout2_floors_do_not_regress():
