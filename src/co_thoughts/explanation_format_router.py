@@ -161,18 +161,39 @@ _EN_LEADING_NOUN_PREFIX = re.compile(r"^\W*(?:(?:please|a|an|the|one|some)\s+)*$
 _KO_FORM_PARTICLE = re.compile(r"^(?:으로|로)")
 _KO_OBJECT_REQUEST = re.compile(
     r"^(?:\s?\S{0,4})?(?:을|를|이|가)?\s?"
-    r"(?:보여|그려|그리|만들|돌려|해\s?줘|해줘|생성|띄워|부탁|필요|원해)\S*"
+    # ㄴ-forms (그린, 만든, ...) only count when sequential ("그린 다음 ...");
+    # otherwise _ko_is_attributive rejects them ("만든 이어폰").
+    r"(?:보여|그려|그리|만들|돌려|해\s?줘|해줘|생성|띄워|부탁|필요|원해"
+    r"|그린|만든|보여준|돌린|생성한|띄운)\S*"
 )
 
 
-def _ko_is_attributive(word: str) -> bool:
+_KO_SEQUENCE_NOUN = re.compile(r"^\s*(?:다음|뒤|후)")
+# Only production verbs in ㄴ-form can start a "<make it> 다음 <then ...>"
+# request, and only when the sentence still ends in a request.
+_KO_SEQUENCE_PRODUCTION = ("그린", "만든", "보여준", "돌린", "생성한", "띄운")
+_KO_REQUEST_ENDING = re.compile(r"줘|주세요|주시")
+
+
+def _ko_is_attributive(word: str, following: str = "") -> bool:
     """True for an attributive (noun-modifying) Korean verb form.
 
     "그려주는 프로그램", "만들어주는 도구", "필요한 이유", "만든 이어폰" describe
     something rather than ask for it; "그려줘", "만들어주고", "보여주세요" ask.
+    A production verb in ㄴ-form followed by 다음/뒤/후 and a later request
+    ending is sequential, not attributive: "흐름도를 그린 다음 설명해줘" still
+    asks for the diagram, while "흐름도를 그린 다음 단계는 뭐야?" and
+    "구조도가 필요한 다음 단계는 무엇인가?" do not.
     """
     word = word.rstrip(".,;:!?)\"'")
     if not word:
+        return False
+    sequence = _KO_SEQUENCE_NOUN.match(following)
+    if (
+        sequence
+        and word.startswith(_KO_SEQUENCE_PRODUCTION)
+        and _KO_REQUEST_ENDING.search(following[sequence.end():])
+    ):
         return False
     last = word[-1]
     if last == "는":
@@ -281,7 +302,8 @@ def _self_cue_holds(keyword: str, text: str, start: int, end: int) -> bool:
         # ("... 확인할 수 있게 해주고, 그 원리도 설명해줘").
         head = rest[:explanation.start()]
         return bool(_KO_OBSERVATION_CUE.search(head)) and any(
-            not _ko_is_attributive(m.group(0)) for m in _KO_INTERACTIVE_REQUEST_FORM.finditer(head)
+            not _ko_is_attributive(m.group(0), head[m.end():])
+            for m in _KO_INTERACTIVE_REQUEST_FORM.finditer(head)
         )
     if keyword == "model what happens":
         sentence_start = re.split(r"[.!?;]\s*", before)[-1]
@@ -304,7 +326,7 @@ def _self_cue_holds(keyword: str, text: str, start: int, end: int) -> bool:
         return bool(_EN_FORM_PREPOSITION_BEFORE.search(before))
     if keyword == "움직이는 모습으로":
         match = _KO_MOTION_FORM_REQUEST.match(after)
-        return bool(match) and not _ko_is_attributive(match.group(0).split()[-1])
+        return bool(match) and not _ko_is_attributive(match.group(0).split()[-1], after[match.end():])
     return True
 
 
@@ -319,9 +341,9 @@ def _is_requested(keyword: str, text: str, start: int, end: int) -> bool:
             # "흐름도로 그려주는 프로그램" describes a tool, not a request.
             rest = after[particle.end():]
             verb = _KO_OBJECT_REQUEST.match(rest)
-            return not (verb and _ko_is_attributive(verb.group(0).split()[-1]))
+            return not (verb and _ko_is_attributive(verb.group(0).split()[-1], rest[verb.end():]))
         verb = _KO_OBJECT_REQUEST.match(after)
-        return bool(verb) and not _ko_is_attributive(verb.group(0).split()[-1])
+        return bool(verb) and not _ko_is_attributive(verb.group(0).split()[-1], after[verb.end():])
 
     before = text[:start]
     sentence_start = re.split(r"[.!?;]\s*", before)[-1]

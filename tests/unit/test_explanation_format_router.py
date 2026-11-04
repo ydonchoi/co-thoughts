@@ -470,3 +470,34 @@ def test_korean_attributive_verb_forms_are_not_requests(task):
 def test_first_person_model_requests_select_simulation(task):
     result = route_explanation_format({"task": task})
     assert result["capability_status"]["requested"] == ["SIMULATION"]
+
+
+# --- Codex review on #17: sequential -(으)ㄴ 다음/뒤/후 -----------------------
+
+@pytest.mark.parametrize("task", [
+    "흐름도를 그린 다음 설명해줘",
+    "구조도를 만든 뒤에 보여줘",
+    "도식을 그린 후 설명해줘",
+])
+def test_korean_sequential_forms_still_request_the_format(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["DIAGRAM"]
+
+
+@pytest.mark.parametrize("task", [
+    "구조도를 만든 사람이 누구야?",
+    "흐름도를 그린 이유를 설명해줘",
+])
+def test_korean_n_forms_without_sequence_noun_stay_attributive(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]
+
+
+@pytest.mark.parametrize("task", [
+    # Codex review on #18: 다음/뒤/후 alone does not make a ㄴ-form a request.
+    "구조도가 필요한 다음 단계는 무엇인가?",
+    "흐름도를 그린 다음 단계는 뭐야?",
+])
+def test_sequence_exception_needs_production_verb_and_request_ending(task):
+    result = route_explanation_format({"task": task})
+    assert result["capability_status"]["requested"] == ["TEXT"]
