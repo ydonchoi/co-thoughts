@@ -252,7 +252,7 @@ The disclosure must remain present for NEW, REVISION, EXTENSION, NO_CHANGE, and 
 
 ## 14. Validation / Closure State
 
-T51–T55 validate the AI disclosure contract, cross-document consistency, and actual output rendering requirements for the tested scope. T56 (full-pipeline output regression) is a proposed candidate from T55 §14; no T56 specification or result exists in this repository, so full-pipeline semantic integration is NOT RUN / OPEN.
+T51 and T53–T55 validate the AI disclosure contract, cross-document consistency, and actual output rendering requirements for the tested scope. T52 (real-conversation attribution regression) is proposed in T51 but no T52 test document or result exists in this repository (PROPOSED / NOT RUN; correction 2026-11-04). T56 (full-pipeline output regression) is a proposed candidate from T55 §14; no T56 specification or result exists in this repository, so full-pipeline semantic integration is NOT RUN / OPEN.
 
 Current closure:
 - AI disclosure semantic architecture: CLOSED FOR TESTED SCOPE

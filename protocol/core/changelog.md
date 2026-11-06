@@ -52,7 +52,7 @@ v1.3 문서를 덮어쓰지 않는다. v2.0을 canonical active version으로 �
 ## v2.0+++ — T51–T56 Research Note Disclosure / Full-Pipeline Integration
 
 - Added T51 AI Authorship Disclosure / Provenance Transparency Test.
-- Added T52 Real-Conversation Research Note Attribution Regression Test.
+- ~~Added T52 Real-Conversation Research Note Attribution Regression Test.~~ Correction (2026-11-04): T52 was only proposed as a candidate in T51; no T52 specification or result exists in this repository.
 - Added T53 Cross-Document-Type AI Disclosure Regression Test.
 - Added T54 AI Disclosure Rendering / Actual Research Note Output Test.
 - Added T55 Multi-Note AI Disclosure / Provenance Consistency Test.
@@ -72,6 +72,12 @@ Human remains final epistemic decision authority.
 - The v2.0+++ entry recorded T56 as added and full-pipeline semantic integration as CLOSED FOR TESTED SCOPE, but no T56 test document or result exists in this repository; T55 §14 lists T56 only as the next candidate.
 - Corrected T56 to PROPOSED / NOT RUN and full-pipeline semantic integration to NOT RUN / OPEN in the changelog, research-note protocol documents, and research-note baseline/architecture notes.
 - T51–T55 statements are unchanged by this correction.
+
+## 2026-11-04 — T52 status correction (minimal)
+
+- The v2.0+++ entry recorded T52 as added, and several research-note documents described T51–T55 (including T52 "real-conversation application") as established. No T52 test document or result exists in this repository; T51 lists T52 only as the next candidate.
+- Corrected T52 to PROPOSED / NOT RUN and narrowed the validated range to T51 and T53–T55 in the changelog and research-note protocol/baseline/architecture documents.
+- Minimal correction: the T53 and T55 test records keep their PASS results; a note now states that they reference T52 and that no T52 artifact exists in this repository. Whether their PASS scope depends on T52 is left to a separate decision.
 
 ## 2026-10-25 — Problem-Solving Co-Thinking Guidance v0.1 (provisional)
 
