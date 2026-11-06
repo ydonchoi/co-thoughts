@@ -67,7 +67,7 @@ Every AI-generated or AI-structured Research Note must disclose AI participation
 
 ## 6. Validation State
 
-T51–T55 establish consistency of the tested disclosure and output semantics for the tested scope. T56 (full-pipeline output regression) is a proposed candidate from T55 §14; no T56 specification or result exists in this repository, so full-pipeline semantic integration is NOT RUN / OPEN. Live writable Notion persistence, post-write verification, and empirical repeated/large-scale generation validation remain capability-bound or open.
+T51 and T53–T55 establish consistency of the tested disclosure and output semantics for the tested scope. T52 (real-conversation attribution regression) is proposed in T51 but no T52 test document or result exists in this repository (PROPOSED / NOT RUN; correction 2026-11-04). T56 (full-pipeline output regression) is a proposed candidate from T55 §14; no T56 specification or result exists in this repository, so full-pipeline semantic integration is NOT RUN / OPEN. Live writable Notion persistence, post-write verification, and empirical repeated/large-scale generation validation remain capability-bound or open.
 
 ---
 
