@@ -436,40 +436,68 @@ def test_labels_of_edges_in_neighbouring_rows_do_not_collide(direction):
 # --- Review follow-ups, fourth round (PR #28) ---
 
 def _node_rects(root):
+    """(kind, left, top, right, bottom) per node, in document order."""
     rects = []
     for el in root:
         if el.get("class") != "node":
             continue
         if el.tag == f"{SVG}rect":
             x, y = float(el.get("x")), float(el.get("y"))
-            rects.append((x, y, x + float(el.get("width")), y + float(el.get("height"))))
-        else:  # diamond: use its bounding box (conservative)
+            kind = "round" if el.get("rx") else "rect"
+            rects.append((kind, x, y, x + float(el.get("width")), y + float(el.get("height"))))
+        else:
             pts = [tuple(map(float, p.split(","))) for p in el.get("points").split()]
             xs, ys = [p[0] for p in pts], [p[1] for p in pts]
-            rects.append((min(xs), min(ys), max(xs), max(ys)))
+            rects.append(("decision", min(xs), min(ys), max(xs), max(ys)))
     return rects
 
 
-def _segments(root):
-    segs = []
+def _edge_points(root):
+    """Polyline points of every edge, in document order."""
+    edges = []
     for el in root:
         if el.get("class") != "edge":
             continue
         if el.tag == f"{SVG}line":
-            segs.append(tuple(float(el.get(k)) for k in ("x1", "y1", "x2", "y2")))
+            edges.append([(float(el.get("x1")), float(el.get("y1"))),
+                          (float(el.get("x2")), float(el.get("y2")))])
         else:
             nums = [float(v) for v in el.get("d").replace("M", "").replace("L", "").split()]
-            pts = list(zip(nums[0::2], nums[1::2]))
-            segs += [(a[0], a[1], b[0], b[1]) for a, b in zip(pts, pts[1:])]
-    return segs
+            edges.append(list(zip(nums[0::2], nums[1::2])))
+    return edges
 
 
-def _crosses_interior(seg, rect, eps=0.5):
+def _segments(root):
+    return [(a[0], a[1], b[0], b[1]) for pts in _edge_points(root) for a, b in zip(pts, pts[1:])]
+
+
+def _inside(shape, x, y, eps=0.5):
+    """Strictly inside the real shape (a diamond is not its bounding box)."""
+    kind, left, top, right, bottom = shape
+    if kind == "decision":
+        cx, cy, hw, hh = (left + right) / 2, (top + bottom) / 2, (right - left) / 2, (bottom - top) / 2
+        return abs(x - cx) / hw + abs(y - cy) / hh < 1 - eps / min(hw, hh)
+    return left + eps < x < right - eps and top + eps < y < bottom - eps
+
+
+def _crosses_interior(seg, shape, samples=200):
     x1, y1, x2, y2 = seg
-    left, top, right, bottom = rect[0] + eps, rect[1] + eps, rect[2] - eps, rect[3] - eps
-    assert x1 == x2 or y1 == y2 or True
-    lo_x, hi_x, lo_y, hi_y = min(x1, x2), max(x1, x2), min(y1, y2), max(y1, y2)
-    return lo_x < right and hi_x > left and lo_y < bottom and hi_y > top
+    return any(
+        _inside(shape, x1 + (x2 - x1) * i / samples, y1 + (y2 - y1) * i / samples)
+        for i in range(samples + 1)
+    )
+
+
+def _on_outline(shape, point, eps=0.01):
+    kind, left, top, right, bottom = shape
+    x, y = point
+    if kind == "decision":
+        cx, cy, hw, hh = (left + right) / 2, (top + bottom) / 2, (right - left) / 2, (bottom - top) / 2
+        return abs(abs(x - cx) / hw + abs(y - cy) / hh - 1) < eps
+    corner = 12 if kind == "round" else 0     # stay off the rounded corners
+    on_h = (abs(y - top) < eps or abs(y - bottom) < eps) and left + corner <= x <= right - corner
+    on_v = (abs(x - left) < eps or abs(x - right) < eps) and top + corner <= y <= bottom - corner
+    return on_h or on_v
 
 
 @pytest.mark.parametrize("source", [
@@ -529,3 +557,87 @@ def test_generated_summary_is_bounded():
     assert len(desc) <= MAX_DESCRIPTION_CHARS
     assert desc.endswith("(truncated)")
     assert output["summary"] == desc
+
+
+# --- Review follow-ups, fifth round (PR #28) ---
+
+def _crossing_pairs(root):
+    """Pairs of straight edges that properly cross each other."""
+    lines = [pts for pts in _edge_points(root) if len(pts) == 2]
+
+    def side(p, q, r):
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+    count = 0
+    for i, (a, b) in enumerate(lines):
+        for c, d in lines[i + 1:]:
+            if side(a, b, c) * side(a, b, d) < 0 and side(c, d, a) * side(c, d, b) < 0:
+                count += 1
+    return count
+
+
+@pytest.mark.parametrize("source", [
+    "graph TD\nA; C; D; B; A --> B; C --> D",                    # reported
+    "graph LR\nA; C; D; B; A --> B; C --> D",
+    "graph TD\nA; B; C; Z; Y; X; A --> X; B --> Y; C --> Z",
+    "graph TD\nR --> A; R --> B; R --> C; C --> P; B --> Q; A --> S",
+    "graph TD\nA; B; D; C; A --> C; B --> D; C --> F; D --> E",
+])
+def test_layers_are_ordered_so_avoidable_crossings_disappear(source):
+    _, root = _svg(source)
+    assert _crossing_pairs(root) == 0
+
+
+def test_layer_ordering_never_adds_crossings_and_is_deterministic():
+    from diagram_renderer import _crossings, _order_layers, _ranks
+    # K(3,3): crossings are unavoidable, so the heuristic must simply not make it worse.
+    source = "graph TD\n" + "\n".join(f"{a} --> {b}" for a in "ABC" for b in "XYZ")
+    chart = parse_flowchart(source)
+    rank = _ranks(chart)
+    declared = {}
+    for node in chart.nodes:
+        declared.setdefault(rank[node], []).append(node)
+    adjacent = [(e["source"], e["target"]) for e in chart.edges]
+    ordered = _order_layers(chart, rank)
+    assert _crossings(ordered, adjacent, rank) <= _crossings(declared, adjacent, rank)
+    assert sorted(ordered[0]) == ["A", "B", "C"] and sorted(ordered[1]) == ["X", "Y", "Z"]
+    assert _order_layers(chart, rank) == ordered
+    assert _svg(source)[0]["artifact"].split("</desc>")[1] == _svg(source)[0]["artifact"].split("</desc>")[1]
+
+
+def test_declaration_order_is_kept_when_it_has_no_crossings():
+    _, root = _svg("graph TD\nA --> X\nB --> Y\nC --> Z")
+    assert _texts(root, "node-label") == ["A", "X", "B", "Y", "C", "Z"]
+    xs = [n[1] for n in _node_rects(root)]
+    assert xs[0] < xs[2] < xs[4] and xs[1] < xs[3] < xs[5]
+
+
+@pytest.mark.parametrize("source", [
+    "graph TD\n" + "\n".join(["A --> B"] * 6),                  # reported (TD)
+    "graph LR\n" + "\n".join(["A --> B"] * 4),                  # reported (LR)
+    "graph TD\n" + "\n".join(["A --> B"] * 40),
+    "graph LR\n" + "\n".join(["A(x) --> B(y)"] * 9),
+    "graph TD\nA{Decide} -->|yes| B\nA -->|no| B\nA --> B\nB --> A\nA --> A",
+    "graph LR\nA{Decide} -->|yes| B{Again}\nA -->|no| B\nB --> A",
+    "graph TD\nA --> B --> C --> A\nA --> C\nC --> C\nX(r) --> Y(r) --> X",
+    "graph LR\nA --> B --> C --> A\nA --> C\nC --> C\nX(r) --> Y(r) --> X",
+])
+def test_every_edge_starts_and_ends_on_its_nodes_outline(source):
+    chart = parse_flowchart(source)
+    _, root = _svg(source)
+    shapes = dict(zip(chart.nodes, _node_rects(root)))
+    edges = _edge_points(root)
+    assert len(edges) == len(chart.edges)
+    for edge, points in zip(chart.edges, edges):
+        assert _on_outline(shapes[edge["source"]], points[0]), (edge, points[0])
+        assert _on_outline(shapes[edge["target"]], points[-1]), (edge, points[-1])
+    for seg in _segments(root):
+        for shape in shapes.values():
+            assert not _crosses_interior(seg, shape), (seg, shape)
+    _assert_inside_viewbox(root)
+
+
+def test_a_few_parallel_edges_stay_distinct():
+    _, root = _svg("graph TD\nA --> B\nA --> B\nA --> B")
+    starts = sorted(points[0][0] for points in _edge_points(root))
+    assert starts[1] - starts[0] >= 10 and starts[2] - starts[1] >= 10

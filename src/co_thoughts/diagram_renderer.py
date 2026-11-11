@@ -327,15 +327,99 @@ def _block(lines: list[str]) -> tuple[float, int]:
     return max(_text_px(line) for line in lines), len(lines) * _LINE_HEIGHT
 
 
+_ATTACH_PAD = 14        # keep attach points off corners (rounded rx is 12)
+_ORDER_SWEEPS = 4
+
+
+def _crossings(layers: dict[int, list[str]], adjacent: list[tuple[str, str]],
+               rank: dict[str, int]) -> int:
+    """Number of crossing pairs among straight (adjacent-layer) edges."""
+    index = {node: i for members in layers.values() for i, node in enumerate(members)}
+    by_layer: dict[int, list[tuple[int, int]]] = {}
+    for source, target in adjacent:
+        by_layer.setdefault(rank[source], []).append((index[source], index[target]))
+    total = 0
+    for pairs in by_layer.values():
+        pairs.sort()
+        for i, (s1, t1) in enumerate(pairs):
+            for s2, t2 in pairs[i + 1:]:
+                if s1 < s2 and t1 > t2:
+                    total += 1
+    return total
+
+
+def _order_layers(chart: Flowchart, rank: dict[str, int]) -> dict[int, list[str]]:
+    """Order each layer to reduce crossings between straight edges.
+
+    Barycenter sweeps (down, then up) starting from declaration order; the
+    ordering with the fewest crossings seen is kept, so the result is never
+    worse than declaration order. Deterministic: ties keep the current order.
+    This is a heuristic, not a guaranteed minimum.
+    """
+    layers: dict[int, list[str]] = {}
+    for node in chart.nodes:
+        layers.setdefault(rank[node], []).append(node)
+    adjacent = [
+        (edge["source"], edge["target"]) for edge in chart.edges
+        if rank[edge["target"]] == rank[edge["source"]] + 1
+    ]
+    best, best_count = {r: list(m) for r, m in layers.items()}, _crossings(layers, adjacent, rank)
+    if best_count == 0:
+        return best
+    above: dict[str, list[str]] = {node: [] for node in chart.nodes}
+    below: dict[str, list[str]] = {node: [] for node in chart.nodes}
+    for source, target in adjacent:
+        below[source].append(target)
+        above[target].append(source)
+    ordered = sorted(layers)
+
+    def sweep(ranks: list[int], neighbours: dict[str, list[str]], step: int) -> None:
+        for r in ranks:
+            reference = {node: i for i, node in enumerate(layers[r + step])}
+            keyed = []
+            for i, node in enumerate(layers[r]):
+                linked = neighbours[node]
+                centre = (
+                    sum(reference[n] for n in linked) / len(linked) if linked else float(i)
+                )
+                keyed.append((centre, i, node))
+            layers[r] = [node for _, _, node in sorted(keyed)]
+
+    for _ in range(_ORDER_SWEEPS):
+        sweep(ordered[1:], above, -1)
+        sweep(list(reversed(ordered[:-1])), below, +1)
+        count = _crossings(layers, adjacent, rank)
+        if count < best_count:
+            best, best_count = {r: list(m) for r, m in layers.items()}, count
+        if best_count == 0:
+            break
+    return best
+
+
+def _attach(shape: str, x: float, y: float, w: float, h: float,
+            side: str, offset: float) -> tuple[float, float]:
+    """Point ON the node's outline on ``side``, ``offset`` px from that side's
+    centre. The offset is clamped so the point stays on the outline (clear of
+    rounded corners), and follows the slanted edge of a decision diamond."""
+    cx, cy = x + w / 2, y + h / 2
+    if side in ("top", "bottom"):
+        limit = max(0.0, w / 2 - _ATTACH_PAD)
+        d = max(-limit, min(limit, offset))
+        inset = (h / 2) * abs(d) / (w / 2) if shape == "decision" else 0.0
+        return (cx + d, y + inset) if side == "top" else (cx + d, y + h - inset)
+    limit = max(0.0, h / 2 - _ATTACH_PAD)
+    d = max(-limit, min(limit, offset))
+    inset = (w / 2) * abs(d) / (h / 2) if shape == "decision" else 0.0
+    return (x + inset, cy + d) if side == "left" else (x + w - inset, cy + d)
+
+
 def render_svg(
     chart: Flowchart, *, title: str, description: str, id_prefix: str = "diagram"
 ) -> str:
     """Lay out ``chart`` so every node and edge label stays inside its shape
     and every element stays inside the SVG viewBox."""
     rank = _ranks(chart)
-    layers: dict[int, list[str]] = {}
-    for node in chart.nodes:
-        layers.setdefault(rank[node], []).append(node)
+    layers = _order_layers(chart, rank)
     horizontal = chart.direction == "LR"
 
     # --- Node cells: every shape's text area must hold its wrapped label.
@@ -427,21 +511,25 @@ def render_svg(
             index = lanes[id(edge)]
             offset = 10 + index * lane_gap
             track = 6 + (index % _MAX_TRACKS) * 4
+            s_shape = chart.nodes[edge["source"]]["shape"]
+            t_shape = chart.nodes[edge["target"]]["shape"]
             if horizontal:
                 # right side -> gap column -> lane below -> gap column -> left side
                 lane = content_bottom + offset
-                exit_y, entry_y = sy + box_h * 0.85, ty + box_h * 0.85
+                start = _attach(s_shape, sx, sy, box_w, box_h, "right", box_h * 0.35)
+                end = _attach(t_shape, tx, ty, box_w, box_h, "left", box_h * 0.35)
                 out_x, in_x = sx + box_w + track, tx - track
-                points = [(sx + box_w, exit_y), (out_x, exit_y), (out_x, lane),
-                          (in_x, lane), (in_x, entry_y), (tx, entry_y)]
+                points = [start, (out_x, start[1]), (out_x, lane),
+                          (in_x, lane), (in_x, end[1]), end]
                 label_at, anchor = ((out_x + in_x) / 2, lane + 3 + label_h / 2), "middle"
             else:
                 # bottom -> gap row -> lane on the right -> gap row -> top
                 lane = content_right + offset
-                exit_x, entry_x = sx + box_w * 0.85, tx + box_w * 0.85
+                start = _attach(s_shape, sx, sy, box_w, box_h, "bottom", box_w * 0.35)
+                end = _attach(t_shape, tx, ty, box_w, box_h, "top", box_w * 0.35)
                 out_y, in_y = sy + box_h + track, ty - track
-                points = [(exit_x, sy + box_h), (exit_x, out_y), (lane, out_y),
-                          (lane, in_y), (entry_x, in_y), (entry_x, ty)]
+                points = [start, (start[0], out_y), (lane, out_y),
+                          (lane, in_y), (end[0], in_y), end]
                 label_at, anchor = (lane + 4, (out_y + in_y) / 2), "start"
             for px, py in points:
                 grow(px, py)
@@ -457,18 +545,23 @@ def render_svg(
             nth = parallel_seen.get(key, 0)
             parallel_seen[key] = nth + 1
             count = straight_pairs[key]
-            # Parallel lines: 0, +14, -14, +28, ... across the cross axis.
-            spread = ((nth + 1) // 2) * _PARALLEL_GAP * (1 if nth % 2 else -1)
-            x1, y1 = sx + box_w / 2, sy + box_h / 2
-            x2, y2 = tx + box_w / 2, ty + box_h / 2
+            # Parallel lines are spread evenly about the side's centre. The
+            # step shrinks with the count so every end stays ON its node's
+            # outline; very many parallel edges therefore converge.
+            cross_extent = box_h if horizontal else box_w
+            room = max(0.0, cross_extent - 2 * _ATTACH_PAD)
+            step = min(_PARALLEL_GAP, room / (count - 1)) if count > 1 else 0.0
+            spread = (nth - (count - 1) / 2) * step
+            s_shape = chart.nodes[edge["source"]]["shape"]
+            t_shape = chart.nodes[edge["target"]]["shape"]
             if horizontal:
-                x1, x2 = x1 + box_w / 2, x2 - box_w / 2
-                y1, y2 = y1 + spread, y2 + spread
+                x1, y1 = _attach(s_shape, sx, sy, box_w, box_h, "right", spread)
+                x2, y2 = _attach(t_shape, tx, ty, box_w, box_h, "left", spread)
                 mid = (x1 + x2) / 2 + (nth - (count - 1) / 2) * slot_main
                 label_at, anchor = (mid, min(y1, y2) - 4 - label_h / 2), "middle"
             else:
-                y1, y2 = y1 + box_h / 2, y2 - box_h / 2
-                x1, x2 = x1 + spread, x2 + spread
+                x1, y1 = _attach(s_shape, sx, sy, box_w, box_h, "bottom", spread)
+                x2, y2 = _attach(t_shape, tx, ty, box_w, box_h, "top", spread)
                 mid = (y1 + y2) / 2 + (nth - (count - 1) / 2) * slot_main
                 label_at, anchor = (max(x1, x2) + 4, mid), "start"
             body.append(
