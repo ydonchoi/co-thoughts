@@ -22,6 +22,7 @@ verifies the diagram's content; the host keeps ``verification_status``
 from __future__ import annotations
 
 import hashlib
+import itertools
 import re
 import unicodedata
 from collections.abc import Mapping
@@ -681,18 +682,41 @@ def render_svg(
     return "\n".join(head + body + ["</svg>"])
 
 
+# Each renderer created without an explicit namespace gets its own, so SVGs
+# from different renderers in one process never share element ids.
+_RENDERER_SEQUENCE = itertools.count(1)
+_ID_NAMESPACE = re.compile(r"[A-Za-z0-9_-]{1,64}")
+
+
 class MermaidFlowchartRenderer:
     """``format_host`` renderer for DIAGRAM.
 
     The payload is the Mermaid source string, or a mapping with ``source`` and
-    optional ``title`` / ``description`` strings. Element ids are derived from
-    the content plus a per-renderer counter, so several SVGs returned by one
-    renderer can be inlined in the same document without duplicate ids, while
-    the same input to a fresh renderer gives identical output.
+    optional ``title`` / ``description`` strings.
+
+    Element ids (``<title>``, ``<desc>``, arrow marker) are
+    ``diagram-<namespace>-<content hash>-<n>``, where ``n`` counts the SVGs
+    this renderer has returned:
+
+    - By default every renderer gets its own namespace (``r1``, ``r2``, ... in
+      creation order within the process), so SVGs from one renderer or from
+      several renderers in the same process can be inlined in one document
+      without duplicate ids. Everything except these ids is identical for
+      the same input.
+    - Pass ``id_namespace`` to choose the namespace: output is then
+      byte-for-byte reproducible for the same sequence of inputs, and SVGs
+      produced in different processes can be kept apart by giving each
+      renderer a different namespace. Renderers that share a namespace can
+      produce the same ids; keeping them apart is then the caller's job.
     """
 
-    def __init__(self) -> None:
-        self._count = 0
+    def __init__(self, *, id_namespace: str | None = None) -> None:
+        if id_namespace is None:
+            id_namespace = f"r{next(_RENDERER_SEQUENCE)}"
+        elif not isinstance(id_namespace, str) or not _ID_NAMESPACE.fullmatch(id_namespace):
+            raise ValueError("DIAGRAM_ID_NAMESPACE_INVALID")
+        self._namespace = id_namespace
+        self._sequence = itertools.count(1)
 
     def render(self, payload: Any) -> dict[str, Any]:
         if isinstance(payload, Mapping):
@@ -715,7 +739,6 @@ class MermaidFlowchartRenderer:
         summary = describe(chart)
         title_text = (title or "Flowchart").strip()
         desc_text = (description or summary).strip()
-        self._count += 1
         digest = hashlib.sha256(
             "\x1f".join((source, title_text, desc_text)).encode("utf-8")
         ).hexdigest()[:10]
@@ -723,7 +746,7 @@ class MermaidFlowchartRenderer:
             chart,
             title=title_text,
             description=desc_text,
-            id_prefix=f"diagram-{digest}-{self._count}",
+            id_prefix=f"diagram-{self._namespace}-{digest}-{next(self._sequence)}",
         )
         return {
             "artifact": svg,

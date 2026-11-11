@@ -1,3 +1,4 @@
+import re
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -111,7 +112,13 @@ def test_render_output_is_well_formed_svg_with_one_shape_per_node():
 
 
 def test_render_is_deterministic():
-    assert _svg(APPROVAL)[0]["artifact"] == _svg(APPROVAL)[0]["artifact"]
+    # Same namespace, same input -> byte-for-byte identical output.
+    first = MermaidFlowchartRenderer(id_namespace="doc").render(APPROVAL)["artifact"]
+    second = MermaidFlowchartRenderer(id_namespace="doc").render(APPROVAL)["artifact"]
+    assert first == second
+    # Without a namespace only the element ids differ between renderers.
+    strip = lambda svg: re.sub(r"diagram-[A-Za-z0-9_-]+-(title|desc|arrow)", r"ID-\1", svg)
+    assert strip(_svg(APPROVAL)[0]["artifact"]) == strip(_svg(APPROVAL)[0]["artifact"]) == strip(first)
 
 
 def test_lr_layout_places_successors_to_the_right():
@@ -602,7 +609,8 @@ def test_layer_ordering_never_adds_crossings_and_is_deterministic():
     assert _crossings(ordered, adjacent, rank) <= _crossings(declared, adjacent, rank)
     assert sorted(ordered[0]) == ["A", "B", "C"] and sorted(ordered[1]) == ["X", "Y", "Z"]
     assert _order_layers(chart, rank) == ordered
-    assert _svg(source)[0]["artifact"].split("</desc>")[1] == _svg(source)[0]["artifact"].split("</desc>")[1]
+    render = lambda: MermaidFlowchartRenderer(id_namespace="doc").render(source)["artifact"]
+    assert render() == render()
 
 
 def test_declaration_order_is_kept_when_it_has_no_crossings():
@@ -806,3 +814,42 @@ def test_layout_invariants_hold_on_seeded_random_flowcharts():
             label = rng.choice(edge_labels + [" ".join(["label"] * rng.randint(1, 10))])
             lines.append(f"{a} -->|{label}| {b}" if label else f"{a} --> {b}")
         _assert_layout_invariants("\n".join(lines))
+
+
+# --- Review follow-ups, seventh round (PR #28): ids across renderer instances ---
+
+def _ids(svg):
+    return [el.get("id") for el in ET.fromstring(svg).iter() if el.get("id")]
+
+
+def test_ids_are_unique_across_renderer_instances_for_the_same_payload():
+    # Reported: two fresh renderers gave the same ids for the same payload,
+    # so inlining both SVGs in one document produced duplicate ids.
+    ids = []
+    for _ in range(3):
+        renderer = MermaidFlowchartRenderer()
+        ids += _ids(renderer.render(APPROVAL)["artifact"])
+        ids += _ids(renderer.render(APPROVAL)["artifact"])
+    assert len(ids) == len(set(ids)) == 18
+
+
+def test_internal_references_use_the_svgs_own_ids():
+    svg = MermaidFlowchartRenderer().render(APPROVAL)["artifact"]
+    root = ET.fromstring(svg)
+    ids = set(_ids(svg))
+    assert set(root.get("aria-labelledby").split()) <= ids
+    markers = set(re.findall(r"url\(#([^)]+)\)", svg))
+    assert markers and markers <= ids
+
+
+def test_explicit_id_namespace_is_used_and_separates_renderers():
+    first = _ids(MermaidFlowchartRenderer(id_namespace="page-1").render(APPROVAL)["artifact"])
+    second = _ids(MermaidFlowchartRenderer(id_namespace="page-2").render(APPROVAL)["artifact"])
+    assert all(i.startswith("diagram-page-1-") for i in first)
+    assert not set(first) & set(second)
+
+
+@pytest.mark.parametrize("namespace", ["", "a b", 'x"y', "<a>", "가", "n" * 65, 3])
+def test_invalid_id_namespace_is_rejected(namespace):
+    with pytest.raises(ValueError, match="DIAGRAM_ID_NAMESPACE_INVALID"):
+        MermaidFlowchartRenderer(id_namespace=namespace)
