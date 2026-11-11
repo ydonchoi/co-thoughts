@@ -621,6 +621,12 @@ def test_declaration_order_is_kept_when_it_has_no_crossings():
     "graph LR\nA{Decide} -->|yes| B{Again}\nA -->|no| B\nB --> A",
     "graph TD\nA --> B --> C --> A\nA --> C\nC --> C\nX(r) --> Y(r) --> X",
     "graph LR\nA --> B --> C --> A\nA --> C\nC --> C\nX(r) --> Y(r) --> X",
+    # sixth round: parallel edges into a diamond in another row/column
+    "graph LR; A --> B{WWWWWWWWWWWWWWWWWWWWWWW}; A --> C{short}; A --> C",   # reported
+    "graph TD; A --> B{WWWWWWWWWWWWWWWWWWWWWWW}; A --> C{short}; A --> C",
+    "graph LR; A{Q} --> B; A --> C; A --> C; A --> D{R}; A --> D; A --> D",
+    "graph TD; A{Q} --> B{R}; A --> C{S}; A --> C; X --> C; X --> C; X --> B",
+    "graph LR; P --> T{t}; Q --> T; Q --> T; R(r) --> T; R --> T; R --> T",
 ])
 def test_every_edge_starts_and_ends_on_its_nodes_outline(source):
     chart = parse_flowchart(source)
@@ -641,3 +647,162 @@ def test_a_few_parallel_edges_stay_distinct():
     _, root = _svg("graph TD\nA --> B\nA --> B\nA --> B")
     starts = sorted(points[0][0] for points in _edge_points(root))
     assert starts[1] - starts[0] >= 10 and starts[2] - starts[1] >= 10
+
+
+# --- Review follow-ups, sixth round (PR #28) ---
+
+def _label_boxes(root):
+    """Bounding box of each edge-label element, in document order."""
+    boxes = []
+    for el in (e for e in root if e.get("class") == "edge-label"):
+        wrapper = ET.fromstring(
+            f'<svg xmlns="http://www.w3.org/2000/svg">{ET.tostring(el, encoding="unicode")}</svg>'
+        )
+        spans = _text_boxes(wrapper, "edge-label")
+        boxes.append((min(b[0] for b in spans), min(b[1] for b in spans),
+                      max(b[2] for b in spans), max(b[3] for b in spans)))
+    return boxes
+
+
+def _disjoint(a, b):
+    return a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1]
+
+
+_LONG = " ".join(["label"] * 12)
+_K33 = "\n".join(f"{a} -->|{a}{b}| {b}" for a in "ABC" for b in "XYZ")
+
+
+@pytest.mark.parametrize("source", [
+    "graph LR; A -->|one| B; A -->|two| C; A -->|three| D",              # reported
+    "graph TD; A -->|one| B; A -->|two| C; A -->|three| D",
+    "graph LR; B -->|x| T; C -->|y| T; D -->|z| T",                      # fan-in
+    "graph TD; B -->|x| T; C -->|y| T; D -->|z| T",
+    "graph TD\nP -->|p| T0\nQ -->|q| T1\nS -->|a| T0\nS -->|b| T1",      # source on the far side
+    "graph LR\nP -->|p| T0\nQ -->|q| T1\nS -->|a| T0\nS -->|b| T1",
+    "graph TD\n" + _K33,                                                  # unavoidable crossings
+    "graph LR\n" + _K33,
+    f"graph LR; A -->|{_LONG}| B; A -->|{_LONG}| C; A -->|{_LONG}| D",    # tall labels
+    f"graph TD; A -->|{_LONG}| B; A -->|{_LONG}| C; A -->|{_LONG}| D",
+    "graph LR; A -->|a1| B; A -->|a2| B; A -->|c| C; A -->|d1| D; A -->|d2| D",
+    "graph TD; A -->|a1| B; A -->|a2| B; A -->|c| C; A -->|d1| D; A -->|d2| D",
+    "graph LR; A{Q} -->|yes| B{R}; A -->|no| C{S}; A -->|maybe| C",
+    "graph TD; A{Q} -->|yes| B{R}; A -->|no| C{S}; A -->|maybe| C",
+    "graph LR\nA -->|go| B -->|on| C\nC -->|back| A\nA -->|skip| C\nA -->|x| D\nA -->|y| E",
+    "graph TD\nA -->|go| B -->|on| C\nC -->|back| A\nA -->|skip| C\nA -->|x| D\nA -->|y| E",
+])
+def test_edge_labels_never_overlap_each_other_or_a_node(source):
+    chart = parse_flowchart(source)
+    _, root = _svg(source)
+    boxes = _label_boxes(root)
+    assert len(boxes) == sum(1 for edge in chart.edges if edge["label"])
+    for i, first in enumerate(boxes):
+        for second in boxes[i + 1:]:
+            assert _disjoint(first, second), (first, second)
+    for box in boxes:
+        for _, left, top, right, bottom in _node_rects(root):
+            assert _disjoint(box, (left, top, right, bottom)), box
+    _assert_inside_viewbox(root)
+
+
+@pytest.mark.parametrize("direction, axis", [("LR", 1), ("TD", 0)])
+def test_fan_out_labels_follow_their_own_edges(direction, axis):
+    # Each label sits at the middle of its own edge, so labels of a fan-out
+    # appear in the same order as their targets and are never moved.
+    source = f"graph {direction}; A -->|one| B; A -->|two| C; A -->|three| D"
+    chart = parse_flowchart(source)
+    _, root = _svg(source)
+    shapes = dict(zip(chart.nodes, _node_rects(root)))
+    starts = [box[axis] for box in _label_boxes(root)]   # top (LR) / left (TD) of each label
+    assert starts == sorted(starts) and len(set(starts)) == 3
+    pitch = shapes["C"][1 + axis] - shapes["B"][1 + axis]
+    assert starts[1] - starts[0] == pytest.approx(pitch / 2)
+    assert starts[2] - starts[1] == pytest.approx(pitch / 2)
+
+
+def test_many_labels_in_one_gap_are_placed_without_overlap_quickly():
+    import time
+    source = "graph LR\n" + "\n".join(
+        f"s{a} -->|label {a}-{b}| t{b}" for a in range(14) for b in range(14)
+    )
+    started = time.perf_counter()
+    _, root = _svg(source)
+    elapsed = time.perf_counter() - started
+    boxes = _label_boxes(root)
+    assert len(boxes) == 196
+    for i, first in enumerate(boxes):
+        for second in boxes[i + 1:]:
+            assert _disjoint(first, second)
+    _assert_inside_viewbox(root)
+    assert elapsed < 5                                    # generous bound; ~0.1 s locally
+
+
+_PLACEMENT_REGRESSION = """graph LR
+n0[Decide]
+n1[가나다 라마]
+n2(x)
+n3[x]
+n0 --> n1
+n0 --> n2
+n0 -->|no| n2
+n2 --> n2
+n1 -->|한글 라벨| n1
+n3 --> n1
+n0 -->|label label label label label label label label label label| n3
+n2 -->|한글 라벨| n3
+n2 -->|한글 라벨| n2
+n2 -->|no| n1
+n3 -->|yes| n2
+n2 -->|label label label label| n3
+n2 -->|no| n1
+n3 -->|yes| n0
+n0 -->|label label label label| n0
+n3 -->|label label label label| n3"""
+
+
+def _assert_layout_invariants(source):
+    """Every invariant the layout promises, checked on the rendered SVG."""
+    chart = parse_flowchart(source)
+    _, root = _svg(source)
+    shapes = dict(zip(chart.nodes, _node_rects(root)))
+    edges = _edge_points(root)
+    assert len(edges) == len(chart.edges)
+    for edge, points in zip(chart.edges, edges):
+        assert _on_outline(shapes[edge["source"]], points[0]), (source, edge)
+        assert _on_outline(shapes[edge["target"]], points[-1]), (source, edge)
+    for seg in _segments(root):
+        for shape in shapes.values():
+            assert not _crosses_interior(seg, shape, samples=40), (source, seg, shape)
+    boxes = _label_boxes(root)
+    for i, first in enumerate(boxes):
+        for second in boxes[i + 1:]:
+            assert _disjoint(first, second), (source, first, second)
+    for box in boxes:
+        for _, left, top, right, bottom in shapes.values():
+            assert _disjoint(box, (left, top, right, bottom)), (source, box)
+    _assert_inside_viewbox(root)
+
+
+def test_label_placement_terminates_on_the_input_that_once_looped():
+    # Found by random testing while fixing the sixth-round findings: moving a
+    # label exactly clear of another left a rounding-sized overlap, and the
+    # first version of the placement loop never finished on this input.
+    _assert_layout_invariants(_PLACEMENT_REGRESSION)
+
+
+def test_layout_invariants_hold_on_seeded_random_flowcharts():
+    import random
+    rng = random.Random(20261111)                         # fixed seed: reproducible
+    node_labels = ["x", "Decide", "가나다 라마"]
+    edge_labels = ["", "", "yes", "no", "한글 라벨"]
+    for _ in range(150):
+        ids = [f"n{i}" for i in range(rng.randint(2, 9))]
+        lines = [f"graph {rng.choice(['TD', 'LR'])}"]
+        for node in ids:
+            label = rng.choice(node_labels + ["W" * rng.randint(1, 30), " ".join(["word"] * rng.randint(1, 8))])
+            kind = rng.random()
+            lines.append(f"{node}{{{label}}}" if kind < 0.35 else f"{node}({label})" if kind < 0.55 else f"{node}[{label}]")
+        for _ in range(rng.randint(1, 16)):
+            a, b = rng.choice(ids), rng.choice(ids)
+            label = rng.choice(edge_labels + [" ".join(["label"] * rng.randint(1, 10))])
+            lines.append(f"{a} -->|{label}| {b}" if label else f"{a} --> {b}")
+        _assert_layout_invariants("\n".join(lines))

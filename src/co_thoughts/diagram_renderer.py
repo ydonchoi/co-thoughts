@@ -316,9 +316,11 @@ def _text_lines(
         f'<tspan x="{x:g}" y="{first_y + i * _LINE_HEIGHT:g}">{escape(line)}</tspan>'
         for i, line in enumerate(lines)
     )
+    # Edge labels get a white halo so a line passing behind stays readable.
+    halo = ' stroke="#fff" stroke-width="3" paint-order="stroke"' if css_class == "edge-label" else ""
     return (
         f'<text class="{css_class}" font-size="{size}" '
-        f'text-anchor="{anchor}">{spans}</text>'
+        f'text-anchor="{anchor}"{halo}>{spans}</text>'
     )
 
 
@@ -413,6 +415,18 @@ def _attach(shape: str, x: float, y: float, w: float, h: float,
     return (x + inset, cy + d) if side == "left" else (x + w - inset, cy + d)
 
 
+_LABEL_PAD = 2          # minimum clearance between two edge labels
+
+
+def _overlaps(a: tuple[float, float, float, float],
+              b: tuple[float, float, float, float]) -> bool:
+    """Boxes closer than the label clearance. The small tolerance keeps a box
+    that was just moved exactly clear from counting as overlapping again."""
+    gap = _LABEL_PAD - 1e-6
+    return (a[0] < b[2] + gap and b[0] < a[2] + gap
+            and a[1] < b[3] + gap and b[1] < a[3] + gap)
+
+
 def render_svg(
     chart: Flowchart, *, title: str, description: str, id_prefix: str = "diagram"
 ) -> str:
@@ -458,9 +472,15 @@ def render_svg(
     gap_main = max(60, max_parallel * slot_main + 16) if edge_lines else 60
     # Labels of edges in neighbouring rows (LR) or columns (TD) share the
     # gap between two layers; space rows/columns so they cannot collide.
+    # A label sits at the middle of its own edge. Edges that share a node
+    # are half a row/column apart there, so the pitch is at least twice a
+    # label (plus clearance); other collisions are resolved after placement.
     gap_cross = 30
     if edge_lines:
-        gap_cross = max(30, (label_h + 8) if horizontal else (label_w + 8))
+        if horizontal:
+            gap_cross = max(30, label_h + 8, 2 * (label_h + _LABEL_PAD) - box_h)
+        else:
+            gap_cross = max(30, label_w + 8, 2 * (label_w + _LABEL_PAD) + 8 - box_w)
     margin = 20
     # Lane labels sit beside their lane, so lanes are spaced to fit them.
     routed_labelled = any(id(edge) in edge_lines for edge in routed)
@@ -492,12 +512,14 @@ def render_svg(
     def grow(x: float, y: float) -> None:
         extent[0], extent[1] = max(extent[0], x), max(extent[1], y)
 
-    def label_svg(edge_id: int, x: float, y: float, anchor: str) -> str:
-        lines = edge_lines[edge_id]
-        width, height = _block(lines)
+    def label_box(edge_id: int, x: float, y: float, anchor: str) -> tuple[float, float, float, float]:
+        width, height = _block(edge_lines[edge_id])
         left = {"start": x, "middle": x - width / 2, "end": x - width}[anchor]
-        grow(left + width, y + height / 2)
-        return _text_lines(x, y, lines, "edge-label", 11, anchor)
+        return (left, y - height / 2, left + width, y + height / 2)
+
+    # edge id -> (x, y centre, anchor, movable). Lane labels are fixed beside
+    # their lane; straight-edge labels may be moved apart after placement.
+    label_specs: dict[int, tuple[float, float, str, bool]] = {}
 
     title_id, desc_id, arrow_id = (
         f"{id_prefix}-title", f"{id_prefix}-desc", f"{id_prefix}-arrow"
@@ -554,22 +576,79 @@ def render_svg(
             spread = (nth - (count - 1) / 2) * step
             s_shape = chart.nodes[edge["source"]]["shape"]
             t_shape = chart.nodes[edge["target"]]["shape"]
+            s_side, t_side = ("right", "left") if horizontal else ("bottom", "top")
+            start = _attach(s_shape, sx, sy, box_w, box_h, s_side, spread)
+            end = _attach(t_shape, tx, ty, box_w, box_h, t_side, spread)
+            # The slanted line runs only between the facing sides of the two
+            # layers, so it stays in the gap and cannot touch another node.
+            # A diamond's outline lies inside that side; a short stub along
+            # the main axis joins it, like a lane edge leaving a diamond.
             if horizontal:
-                x1, y1 = _attach(s_shape, sx, sy, box_w, box_h, "right", spread)
-                x2, y2 = _attach(t_shape, tx, ty, box_w, box_h, "left", spread)
-                mid = (x1 + x2) / 2 + (nth - (count - 1) / 2) * slot_main
-                label_at, anchor = (mid, min(y1, y2) - 4 - label_h / 2), "middle"
+                x1, y1, x2, y2 = sx + box_w, start[1], tx, end[1]
             else:
-                x1, y1 = _attach(s_shape, sx, sy, box_w, box_h, "bottom", spread)
-                x2, y2 = _attach(t_shape, tx, ty, box_w, box_h, "top", spread)
-                mid = (y1 + y2) / 2 + (nth - (count - 1) / 2) * slot_main
-                label_at, anchor = (max(x1, x2) + 4, mid), "start"
-            body.append(
-                f'<line class="edge" x1="{x1:g}" y1="{y1:g}" x2="{x2:g}" '
-                f'y2="{y2:g}" stroke="#333"{marker}/>'
-            )
+                x1, y1, x2, y2 = start[0], sy + box_h, end[0], ty
+            points = [start, (x1, y1), (x2, y2), end]
+            points = [pt for i, pt in enumerate(points) if i == 0 or pt != points[i - 1]]
+            shift = (nth - (count - 1) / 2) * slot_main
+            own_h = _block(edge_lines[id(edge)])[1] if id(edge) in edge_lines else 0
+            if horizontal:
+                # Label above its own line, at the middle of the layer gap
+                # (parallel edges side by side along the line).
+                main = (x1 + x2) / 2 + shift
+                on_line = y1 + (y2 - y1) * (main - x1) / (x2 - x1)
+                label_at, anchor = (main, on_line - 4 - own_h / 2), "middle"
+            else:
+                main = (y1 + y2) / 2 + shift
+                on_line = x1 + (x2 - x1) * (main - y1) / (y2 - y1)
+                label_at, anchor = (on_line + 4, main), "start"
+            if len(points) == 2:
+                body.append(
+                    f'<line class="edge" x1="{x1:g}" y1="{y1:g}" x2="{x2:g}" '
+                    f'y2="{y2:g}" stroke="#333"{marker}/>'
+                )
+            else:
+                d = " ".join(
+                    f"{'M' if i == 0 else 'L'} {px:g} {py:g}" for i, (px, py) in enumerate(points)
+                )
+                body.append(
+                    f'<path class="edge" data-route="direct" d="{d}" fill="none" '
+                    f'stroke="#333"{marker}/>'
+                )
         if id(edge) in edge_lines:
-            body.append(label_svg(id(edge), label_at[0], label_at[1], anchor))
+            label_specs[id(edge)] = (label_at[0], label_at[1], anchor, id(edge) not in lanes)
+
+    # --- Edge labels: no two may overlap. Lane labels are fixed; each
+    # straight-edge label, in declaration order, is moved along the cross
+    # axis (down in LR, right in TD) past any label it would overlap. A label
+    # only ever moves one way, so one pass over the placed labels in order of
+    # their position is enough: it cannot run on, and stays deterministic.
+    axis = 1 if horizontal else 0
+    placed = sorted(
+        (label_box(edge_id, x, y, anchor)
+         for edge_id, (x, y, anchor, movable) in label_specs.items() if not movable),
+        key=lambda item: item[axis],
+    )
+    for edge_id, (x, y, anchor, movable) in label_specs.items():
+        if not movable:
+            continue
+        box = label_box(edge_id, x, y, anchor)
+        for other in placed:
+            if _overlaps(box, other):
+                delta = other[axis + 2] + _LABEL_PAD - box[axis]
+                if horizontal:
+                    y += delta
+                else:
+                    x += delta
+                box = label_box(edge_id, x, y, anchor)
+        placed.append(box)
+        placed.sort(key=lambda item: item[axis])
+        label_specs[edge_id] = (x, y, anchor, movable)
+    for edge in chart.edges:
+        if id(edge) in label_specs:
+            x, y, anchor, _ = label_specs[id(edge)]
+            box = label_box(id(edge), x, y, anchor)
+            grow(box[2], box[3])
+            body.append(_text_lines(x, y, edge_lines[id(edge)], "edge-label", 11, anchor))
     for node_id, node in chart.nodes.items():
         x, y = pos[node_id]
         if node["shape"] == "decision":
