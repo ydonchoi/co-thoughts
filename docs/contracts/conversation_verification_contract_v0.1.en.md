@@ -1,6 +1,6 @@
 # Whole-Conversation Independent Verification Contract v0.1
 
-Status: Implemented (unit-tested against a fake SARA). The real provider round trip is not verified
+Status: Implemented (unit-tested against a fake SARA). The real provider round trip is confirmed only conditionally (§9)
 Implementation: `src/co_thoughts/conversation_verification.py`, `src/co_thoughts/runtime.py`
 Decision: 2026-11-04, project owner (ydonchoi)
 
@@ -93,8 +93,8 @@ User asks for verification
 ## 7. Result
 
 - `execution_status`: `SUCCEEDED` / `PARTIALLY_FAILED` / `FAILED` / `NOT_APPLICABLE` (no claims to send) / `NOT_CONNECTED`
-- `coverage`: `claims_total`, `claims_assessed`, `claims_not_assessed`
-- `claim_results`: per claim, `claim_ref` (`<turn_id>:<USER|ASSISTANT>:<claim_id>`), `turn_id`, `role`, `claim_id`, `text`, `sara_claim_id`, `status` (`ASSESSED`/`NOT_ASSESSED`), and `sara_verification_status` or `reason_codes`
+- `coverage`: `claims_total`, `claims_assessed`, `claims_not_required_by_sara`, `claims_not_assessed`
+- `claim_results`: per claim, `claim_ref` (`<turn_id>:<USER|ASSISTANT>:<claim_id>`), `turn_id`, `role`, `claim_id`, `text`, `sara_claim_id`, `status` (`ASSESSED`/`NOT_REQUIRED_BY_SARA`/`NOT_ASSESSED`), and `sara_verification_status` or `reason_codes`
 - `batches`: per batch, `sent_scope`, `execution_status`, `error_code`, `sara_reason_codes`
 - `assessment_envelopes`: SARA's envelopes, unmodified, with pseudonymous claim ids `K<n>`. They can be carried into the next turn as `sara_assessment_envelopes`.
 - `verification_status` is always `UNVERIFIED`, `is_evidence` is `false`, and `truthfulness_status` is `UNASSESSED`. SARA's verdicts live only in `claim_results`; Co-thoughts does not promote its own output.
@@ -102,6 +102,7 @@ User asks for verification
 **Preventing silent failure:**
 - One failing batch does not stop the others.
 - A claim for which SARA exited normally but returned no envelope is marked `NOT_ASSESSED`. SARA's own codes go into `reason_codes`, for example `JUDGMENT_UNAVAILABLE_OR_INVALID` and `LLM_PROVIDER_HTTP_ERROR_400`.
+- Exception: when SARA itself **decides that no verification is needed**, the claim is counted separately as `NOT_REQUIRED_BY_SARA`. SARA starts verification only when its judgment finds an inference with HIGH confidence, so a plain factual claim is legitimately skipped. This applies only when SARA's `activation_decision` has `activation_action=NO_INFERENCE_TRIGGER` and `activation_triggered=false`. Anything else (a missing or inconsistent value, `SARA_PRECHECK_REVIEW`, and so on) stays `NOT_ASSESSED`. `NOT_REQUIRED_BY_SARA` does not mean verified.
 - Free-text error messages are never surfaced.
 
 ## 8. Note on exposure
@@ -116,7 +117,7 @@ User asks for verification
 |---|---|
 | Recording, planning, confirmation, batching, pseudonyms, result mapping | Unit tests (fake SARA, `tests/unit/test_sara_v3_integration.py`) |
 | SARA CLI process fail-closed | Run against a real SARA checkout (no provider settings) |
-| Real provider round trip | Not verified. In the 2026-11-04 attempt the provider failed with a low credit balance (HTTP 400). The new live test reported this exactly as `claims_not_assessed=2` and failed |
+| Real provider round trip | Conditionally confirmed (2026-11-12). With the Gemini API (`gemini-3.1-flash-lite`, free tier) the live test passed 3/3 (two inference claims, two envelopes, next turn `PRESERVED`). Conditions: (1) it ran against a **local copy** of SARA whose Gemini request uses `responseJsonSchema` instead of `responseSchema`; unmodified SARA always gets HTTP 400 from Gemini because of `additionalProperties`. (2) With no Brave search key, every envelope was `UNVERIFIED` (`BRAVE_SEARCH_API_KEY_REQUIRED`), so source-based verdicts were not tested. (3) In 1 of 3 separate attempts the judgment returned `INVALID_OUTPUT` and one claim was `NOT_ASSESSED`. The 2026-11-04 Anthropic attempt failed on a low credit balance (HTTP 400) |
 
 ---
 

@@ -1,6 +1,6 @@
 # 대화 전체 독립 검증 계약 v0.1
 
-상태: 구현됨 (가짜 SARA로 단위 테스트). 실제 provider 왕복은 미검증
+상태: 구현됨 (가짜 SARA로 단위 테스트). 실제 provider 왕복은 조건부로만 확인됨 (§9)
 구현: `src/co_thoughts/conversation_verification.py`, `src/co_thoughts/runtime.py`
 결정: 2026-11-04 프로젝트 소유자 (ydonchoi)
 
@@ -93,8 +93,8 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 ## 7. 결과
 
 - `execution_status`: `SUCCEEDED` / `PARTIALLY_FAILED` / `FAILED` / `NOT_APPLICABLE`(보낼 claim 없음) / `NOT_CONNECTED`
-- `coverage`: `claims_total`, `claims_assessed`, `claims_not_assessed`
-- `claim_results`: claim별 `claim_ref`(`<turn_id>:<USER|ASSISTANT>:<claim_id>`), `turn_id`, `role`, `claim_id`, `text`, `sara_claim_id`, `status`(`ASSESSED`/`NOT_ASSESSED`), `sara_verification_status` 또는 `reason_codes`
+- `coverage`: `claims_total`, `claims_assessed`, `claims_not_required_by_sara`, `claims_not_assessed`
+- `claim_results`: claim별 `claim_ref`(`<turn_id>:<USER|ASSISTANT>:<claim_id>`), `turn_id`, `role`, `claim_id`, `text`, `sara_claim_id`, `status`(`ASSESSED`/`NOT_REQUIRED_BY_SARA`/`NOT_ASSESSED`), `sara_verification_status` 또는 `reason_codes`
 - `batches`: 배치별 `sent_scope`, `execution_status`, `error_code`, `sara_reason_codes`
 - `assessment_envelopes`: SARA 원본 envelope. 수정하지 않고, claim ID는 가명 `K<n>`이다. 다음 턴에 `sara_assessment_envelopes`로 전달할 수 있다.
 - `verification_status`는 항상 `UNVERIFIED`, `is_evidence`는 `false`, `truthfulness_status`는 `UNASSESSED`다. SARA의 판정은 `claim_results` 안에만 있고, Co-thoughts가 자기 출력을 승격하지 않는다.
@@ -102,6 +102,7 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 **조용한 실패 방지:**
 - 배치 하나가 실패해도 나머지 배치는 진행한다.
 - SARA가 정상 종료했지만 envelope를 돌려주지 않은 claim은 `NOT_ASSESSED`로 표시한다. SARA 자신의 코드를 `reason_codes`에 넣는다. 예: `JUDGMENT_UNAVAILABLE_OR_INVALID`, `LLM_PROVIDER_HTTP_ERROR_400`.
+- 예외: SARA가 스스로 **검증이 필요 없다고 판정한** 경우는 `NOT_REQUIRED_BY_SARA`로 따로 집계한다. SARA는 judgment가 "추론 있음"을 HIGH 확신으로 판정할 때만 검증을 시작하므로, 단순 사실 주장은 정상적으로 건너뛰어진다. 이 분류는 SARA의 `activation_decision`이 `activation_action=NO_INFERENCE_TRIGGER`이고 `activation_triggered=false`일 때만 적용한다. 그 밖의 경우(값이 하나라도 없거나 어긋남, `SARA_PRECHECK_REVIEW` 등)는 모두 `NOT_ASSESSED`다. `NOT_REQUIRED_BY_SARA`는 검증되었다는 뜻이 아니다.
 - 자유 텍스트 오류 메시지는 내보내지 않는다.
 
 ## 8. 노출 범위에 대한 주의
@@ -116,4 +117,4 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 |---|---|
 | 기록·계획·확인·배치·가명화·결과 대응 | 단위 테스트 (가짜 SARA, `tests/unit/test_sara_v3_integration.py`) |
 | SARA CLI 프로세스 fail-closed | 실제 SARA 체크아웃으로 실행됨 (provider 설정 없음) |
-| 실제 provider 왕복 | 미검증. 2026-11-04 시험에서 provider가 크레딧 부족(HTTP 400)으로 실패했다. 새 라이브 테스트는 이를 `claims_not_assessed=2`로 정확히 보고하고 실패했다 |
+| 실제 provider 왕복 | 조건부 확인 (2026-11-12). Gemini API(`gemini-3.1-flash-lite`, 무료 등급)로 라이브 테스트가 3/3 통과했다(추론형 주장 2개, envelope 2개, 다음 턴 `PRESERVED`). 조건: (1) SARA의 Gemini 요청을 `responseSchema`에서 `responseJsonSchema`로 고친 **로컬 복사본**으로 실행했다. 원본 SARA는 Gemini에서 `additionalProperties` 때문에 항상 HTTP 400이 난다. (2) Brave 검색 키가 없어 envelope는 모두 `UNVERIFIED`(`BRAVE_SEARCH_API_KEY_REQUIRED`)였고, 출처 기반 판정은 시험하지 않았다. (3) 별도 시험 3회 중 1회는 judgment가 `INVALID_OUTPUT`을 내 주장 1개가 `NOT_ASSESSED`였다. 2026-11-04 Anthropic 시도는 크레딧 부족(HTTP 400)으로 실패했다 |

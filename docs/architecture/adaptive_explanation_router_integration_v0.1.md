@@ -271,7 +271,7 @@ DIAGRAM 렌더러 `src/co_thoughts/diagram_renderer.py`(`MermaidFlowchartRendere
 | DIAGRAM 렌더러 | 구현됨 (단위 테스트) | `diagram_renderer.py`: Mermaid flowchart 부분집합 → SVG, `<title>`/`<desc>`, 미지원 문법은 거부. 브라우저·보조기술에서의 실제 표시 시험은 미실행 |
 | 그 밖의 렌더러(IMAGE·ANIMATION·VIDEO·INTERACTIVE·SIMULATION)·기능 시험 | 미구현·미실행 | 사용 가능한 renderer 없음 |
 | SARA v3 호출 방식 | 전환됨 (2026-11-04, 단위 테스트) | 턴마다 자동 호출하지 않는다. 사용자가 요청하면 대화 전체를 검증한다. 사용자·AI 주장 모두 대상, 턴 ID별 발화 본문만 전송, 전송 전 미리보기와 `plan_id` 확인, 식별자 가명화. 계약: [`conversation_verification_contract_v0.1.md`](../contracts/conversation_verification_contract_v0.1.md) |
-| SARA v3 Live 왕복 | 미검증 | Live 테스트 `test_live_conversation_verification_round_trip`은 `CO_THOUGHTS_SARA_V3_LIVE=1`과 SARA v3 체크아웃(`SARA_v3/cli.py`, 기본 `../SARA`, 또는 `CO_THOUGHTS_SARA_ROOT`)이 모두 있을 때만 실행된다. 2026-11-04에 실제 체크아웃과 provider 설정으로 실행했지만, provider가 크레딧 부족(HTTP 400)으로 실패했다. SARA는 이를 `NOT_ASSESSED`로 흡수했고, 테스트는 `claims_not_assessed=2`로 실패를 보고했다. 이 테스트는 claim이 하나라도 평가되지 않으면 실패하도록 강화했다. SARA CLI의 fail-closed 테스트는 실제 체크아웃으로 통과했다. 나머지 통합 테스트는 가짜 SARA를 쓴다. |
+| SARA v3 Live 왕복 | 조건부 확인 (원본 SARA는 미검증) | Live 테스트 `test_live_conversation_verification_round_trip`은 `CO_THOUGHTS_SARA_V3_LIVE=1`과 SARA v3 체크아웃(`SARA_v3/cli.py`, 기본 `../SARA`, 또는 `CO_THOUGHTS_SARA_ROOT`)이 모두 있을 때만 실행된다. 2026-11-12 Gemini API(`gemini-3.1-flash-lite`)로 3/3 통과했다. 단, Gemini 요청을 `responseJsonSchema`로 고친 SARA 로컬 복사본으로 실행했고(원본은 HTTP 400), Brave 검색 키가 없어 envelope는 모두 `UNVERIFIED`였다. 자세한 조건은 [계약 문서 §9](../contracts/conversation_verification_contract_v0.1.md). SARA가 검증 불필요로 판정한 주장은 `NOT_REQUIRED_BY_SARA`로 따로 집계한다. 2026-11-04 Anthropic 시도는 크레딧 부족으로 실패했다. |
 
 평가 수치는 같은 작성자가 만든 세트에서 측정한 값이므로 일반화 성능으로 해석하지 않는다. 특정 커밋의 CI 결과는 GitHub Actions 기록으로 확인한다.
 
@@ -303,4 +303,4 @@ PR #12–#18에서 리뷰가 규칙을 바꿀 때마다 새 반례를 찾았다.
 5. 실제 렌더러 연결: DIAGRAM부터, 렌더링·접근성·기능 시험을 분리 검증 — DIAGRAM 구현됨(`diagram_renderer.py`), 다른 형식은 미연결
 6. SARA v3 Live 왕복 검증: 실제 Provider 환경에서, 사용자 요청 대화 검증 → SARA → assessment envelope → 후속 backend 전달 (provider 크레딧 또는 무료 provider 필요)
 
-외부 검토(2026-11-04)는 SARA v3 쪽 일부 게이트가 WAIVED 상태라고 언급했다. 이 저장소에서는 확인하지 않았다. 이 저장소에서는 2026-11-04에 Live 왕복을 실행했지만, provider가 크레딧 부족으로 실패해 끝까지 성공한 적이 없다. 따라서 Live 왕복은 미검증 상태다.
+외부 검토(2026-11-04)는 SARA v3 쪽 일부 게이트가 WAIVED 상태라고 언급했다. 이 저장소에서는 확인하지 않았다. 이 저장소에서는 2026-11-12에 Gemini로 Live 왕복이 처음 끝까지 성공했지만, 고친 SARA 복사본을 썼고 검색 없이 실행했다. 원본 SARA의 Gemini 수정(`ydonchoi/SARA`)과 Brave 검색 키를 갖춘 실행이 남아 있으므로, 원본 기준 Live 왕복은 아직 미검증이다.
