@@ -25,6 +25,7 @@ from sara_integration import SARAv3Connection, SARAv3Error, _ERROR_CODE, _valida
 ROLES = ("USER", "ASSISTANT")
 RESULT_SCHEMA = "co-thoughts.conversation-verification.v1"
 PLAN_SCHEMA = "co-thoughts.conversation-verification-plan.v1"
+SARA_NO_TRIGGER = "NO_INFERENCE_TRIGGER"
 
 
 def normalize_claims(value: Any, *, prefix: str, error: str) -> list[dict[str, str]]:
@@ -226,6 +227,9 @@ def run_plan(plan: Mapping[str, Any], connection: SARAv3Connection) -> dict[str,
             reasons = _sara_reasons(result)
             if reasons:
                 report["sara_reason_codes"] = reasons
+            action = _sara_activation(result)
+            if action:
+                report["sara_activation_action"] = action
         except Exception as exc:
             code = str(exc)
             report["execution_status"] = "FAILED"
@@ -239,6 +243,10 @@ def run_plan(plan: Mapping[str, Any], connection: SARAv3Connection) -> dict[str,
                      "batch": batch["batch"]}
             if sara_id in by_claim:
                 entry.update(status="ASSESSED", sara_verification_status=by_claim[sara_id]["verification_status"])
+            elif report.get("sara_activation_action") == SARA_NO_TRIGGER:
+                # SARA itself judged, with high confidence, that this utterance needs no
+                # verification. That is SARA's decision, not a failure to assess.
+                entry.update(status="NOT_REQUIRED_BY_SARA", reason_codes=report.get("sara_reason_codes", []))
             else:
                 entry.update(status="NOT_ASSESSED",
                              reason_codes=([report["error_code"]] if "error_code" in report
@@ -253,9 +261,24 @@ def run_plan(plan: Mapping[str, Any], connection: SARAv3Connection) -> dict[str,
 
 
 def _coverage(claim_results: list[Mapping[str, Any]]) -> dict[str, int]:
-    assessed = sum(1 for item in claim_results if item["status"] == "ASSESSED")
-    return {"claims_total": len(claim_results), "claims_assessed": assessed,
-            "claims_not_assessed": len(claim_results) - assessed}
+    counts = {status: sum(1 for item in claim_results if item["status"] == status)
+              for status in ("ASSESSED", "NOT_REQUIRED_BY_SARA", "NOT_ASSESSED")}
+    return {"claims_total": len(claim_results), "claims_assessed": counts["ASSESSED"],
+            "claims_not_required_by_sara": counts["NOT_REQUIRED_BY_SARA"],
+            "claims_not_assessed": counts["NOT_ASSESSED"]}
+
+
+def _sara_activation(result: Mapping[str, Any]) -> str | None:
+    """SARA's routing action; NO_INFERENCE_TRIGGER only counts when SARA also says it did not trigger."""
+    decision = result.get("activation_decision")
+    if not isinstance(decision, Mapping):
+        return None
+    action = decision.get("activation_action")
+    if not isinstance(action, str) or not _ERROR_CODE.fullmatch(action):
+        return None
+    if action == SARA_NO_TRIGGER and decision.get("activation_triggered") is not False:
+        return None
+    return action
 
 
 def _sara_reasons(result: Mapping[str, Any]) -> list[str]:

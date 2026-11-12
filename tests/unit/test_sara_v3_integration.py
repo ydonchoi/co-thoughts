@@ -221,7 +221,8 @@ def test_claims_beyond_the_per_call_limit_are_split_into_batches():
     plan, result = verify(rt)
     assert [len(turn["claim_candidates"]) for turn in sara.turns] == [8, 2]
     assert sara.turns[0]["content"] == sara.turns[1]["content"] == ASSISTANT_TEXT
-    assert result["coverage"] == {"claims_total": 10, "claims_assessed": 10, "claims_not_assessed": 0}
+    assert result["coverage"] == {"claims_total": 10, "claims_assessed": 10,
+                                  "claims_not_required_by_sara": 0, "claims_not_assessed": 0}
 
 
 def test_identical_claims_within_one_utterance_are_sent_once():
@@ -271,10 +272,42 @@ def test_sara_that_assesses_nothing_is_reported_not_silent():
     rt.run(request())
     plan, result = verify(rt)
     assert result["execution_status"] == "SUCCEEDED"
-    assert result["coverage"] == {"claims_total": 1, "claims_assessed": 0, "claims_not_assessed": 1}
+    assert result["coverage"] == {"claims_total": 1, "claims_assessed": 0,
+                                  "claims_not_required_by_sara": 0, "claims_not_assessed": 1}
     assert result["claim_results"][0]["status"] == "NOT_ASSESSED"
     assert result["claim_results"][0]["reason_codes"] == ["JUDGMENT_UNAVAILABLE_OR_INVALID",
                                                          "LLM_PROVIDER_HTTP_ERROR_400"]
+
+
+def test_sara_deciding_no_verification_is_reported_separately_from_failure():
+    no_trigger = sara_result(activation_decision={
+        "activation_action": "NO_INFERENCE_TRIGGER", "activation_triggered": False,
+        "reason_code": "NO_INFERENCE_DETECTED_WITH_HIGH_CONFIDENCE"})
+    rt = runtime(Backend(), RecordingSARA(result=no_trigger))
+    rt.run(request())
+    plan, result = verify(rt)
+    assert result["coverage"] == {"claims_total": 1, "claims_assessed": 0,
+                                  "claims_not_required_by_sara": 1, "claims_not_assessed": 0}
+    claim = result["claim_results"][0]
+    assert claim["status"] == "NOT_REQUIRED_BY_SARA"
+    assert claim["reason_codes"] == ["NO_INFERENCE_DETECTED_WITH_HIGH_CONFIDENCE"]
+    assert result["batches"][0]["sara_activation_action"] == "NO_INFERENCE_TRIGGER"
+    assert result["verification_status"] == "UNVERIFIED"
+
+
+@pytest.mark.parametrize("decision", [
+    {"activation_action": "NO_INFERENCE_TRIGGER", "activation_triggered": True},
+    {"activation_action": "NO_INFERENCE_TRIGGER"},
+    {"activation_action": "SARA_PRECHECK_REVIEW", "activation_triggered": True,
+     "reason_code": "JUDGMENT_CONFIDENCE_NOT_HIGH"},
+    {"activation_action": "no trigger, trust me", "activation_triggered": False},
+])
+def test_anything_short_of_a_consistent_no_trigger_stays_not_assessed(decision):
+    rt = runtime(Backend(), RecordingSARA(result=sara_result(activation_decision=decision)))
+    rt.run(request())
+    plan, result = verify(rt)
+    assert result["claim_results"][0]["status"] == "NOT_ASSESSED"
+    assert result["coverage"]["claims_not_required_by_sara"] == 0
 
 
 def test_one_failing_batch_does_not_stop_the_others_and_is_sanitized():
@@ -447,13 +480,16 @@ def test_sibling_sara_v3_process_fails_closed_without_provider_configuration(mon
 
 
 LIVE = os.environ.get("CO_THOUGHTS_SARA_V3_LIVE", "").strip() == "1"
+# SARA starts verification only when its judgment finds an inference with HIGH confidence,
+# so the live claim must contain one; a plain factual claim is legitimately skipped by SARA.
+LIVE_INFERENCE = "Cases fell 20 percent after the mask policy started, so the mask policy caused the decline."
 
 
 @pytest.mark.skipif(not (LIVE and SIBLING), reason="set CO_THOUGHTS_SARA_V3_LIVE=1 with SARA_LLM_* configured")
 def test_live_conversation_verification_round_trip():
-    backend = Backend()
+    backend = Backend(claims=[{"id": "C1", "text": LIVE_INFERENCE}])
     rt = CognitiveRuntime(backend, sara_v3_connection=SARAv3Connection())
-    rt.run(request("TURN-1", user_claims=USER_CLAIM))
+    rt.run(request("TURN-1", task=LIVE_INFERENCE, user_claims=[{"id": "U1", "text": LIVE_INFERENCE}]))
     plan = rt.plan_conversation_verification("CONV-1")
     result = rt.verify_conversation("CONV-1", confirmation=plan["plan_id"])
     report = os.environ.get("CO_THOUGHTS_SARA_V3_LIVE_REPORT", "").strip()
@@ -462,8 +498,10 @@ def test_live_conversation_verification_round_trip():
             json.dump({"plan_preview": plan["preview"], "verification": result},
                       handle, ensure_ascii=False, indent=2, default=str)
     assert result["execution_status"] == "SUCCEEDED", result["batches"]
-    # A run that assessed nothing (e.g. a provider error SARA absorbed) is not a passing round trip.
+    # A run that assessed nothing (e.g. a provider error SARA absorbed) is not a passing round trip,
+    # and at least one real envelope must exist so the carry-over leg below is exercised.
     assert result["coverage"]["claims_not_assessed"] == 0, result["claim_results"]
+    assert result["coverage"]["claims_assessed"] >= 1, result["claim_results"]
 
     carried = result["assessment_envelopes"]
     second = rt.run(request("TURN-2", sara_assessment_envelopes=carried))
