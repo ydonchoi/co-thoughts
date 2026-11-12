@@ -45,7 +45,7 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
   - 우선 요청의 `user_claims`(호스트가 지정)를 쓴다. 없으면 백엔드 출력의 `user_claims`(백엔드가 추출)를 쓴다.
   - Co-thoughts는 사용자 발화에서 claim을 직접 추출하지 않는다.
   - claim을 지정하지 않으면 `UC-n`이 ID로 붙는다.
-  - 요청의 `user_claims` 항목은 `source_urls`(사용자가 인용한 출처 URL 목록)를 가질 수 있다. 주장당 5개까지, HTTPS·기본 포트만 허용하고, 인증 정보·fragment·공백이 있으면 백엔드 호출 전에 `USER_CLAIMS_INVALID`로 거부한다. 중복은 하나로 합친다.
+  - 요청의 `user_claims` 항목은 `source_urls`(사용자가 인용한 출처 URL 목록)를 가질 수 있다. 주장당 5개까지, HTTPS·기본 포트만 허용하고, 인증 정보·fragment·공백이 있으면 백엔드 호출 전에 `USER_CLAIMS_INVALID`로 거부한다. 중복 URL은 하나로 합친다. 같은 문장의 claim이 여러 번 오면 첫 번째 ID를 남기고 모든 사본의 URL을 합치며(합쳐서 5개 이하), 버려지는 사본의 URL도 똑같이 검증한다.
   - 백엔드 출력의 `claims`나 `user_claims`에 붙은 `source_urls`는 백엔드 근거이므로 기록하지 않는다.
   - `run_workflow`, `run_natural_language` 경로로 요청해도 `user_claims`는 그대로 기록까지 전달된다(회귀 테스트로 고정).
 - **사용자 발화 본문:** 요청의 `task`

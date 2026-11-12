@@ -456,6 +456,23 @@ def test_invalid_user_source_urls_are_rejected_before_backend_call(urls):
     assert backend.requests == []
 
 
+def test_repeated_claim_text_merges_its_citations_and_validates_every_copy():
+    sara = RecordingSARA()
+    rt = runtime(Backend(), sara)
+    rt.run(request(user_claims=[{"id": "U1", "text": "Same claim.", "source_urls": [PRESS]},
+                                {"id": "U2", "text": "Same  claim.", "source_urls": [STATS, PRESS]}]))
+    verify(rt)
+    assert sara.turns[0]["claim_candidates"] == [{"id": "K1", "text": "Same claim."}]
+    assert [item["url"] for item in sara.turns[0]["evidence"]] == [PRESS, STATS]
+    for dupes in ([{"text": "Same claim."}, {"text": "Same claim.", "source_urls": ["http://bad.example"]}],
+                  [{"text": "Same claim.", "source_urls": [f"https://www.korea.kr/{i}" for i in range(3)]},
+                   {"text": "Same claim.", "source_urls": [f"https://www.korea.kr/x{i}" for i in range(3)]}]):
+        backend = Backend()
+        with pytest.raises(ValueError, match="USER_CLAIMS_INVALID"):
+            runtime(backend, RecordingSARA()).run(request(user_claims=dupes))
+        assert backend.requests == []
+
+
 def test_too_many_urls_in_one_call_is_refused_at_planning():
     claims = [{"id": f"U{i}", "text": f"Claim {i}.",
                "source_urls": [f"https://www.korea.kr/{i}-{j}" for j in range(5)]} for i in range(3)]

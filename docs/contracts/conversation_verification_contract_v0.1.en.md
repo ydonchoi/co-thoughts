@@ -45,7 +45,7 @@ User asks for verification
   - The request's `user_claims` (set by the host) are used first. Without them, the backend output's `user_claims` (extracted by the backend) are used.
   - Co-thoughts does not extract claims from user text itself.
   - Claims without an id get `UC-n`.
-  - An item in the request's `user_claims` may carry `source_urls`, the URLs the user cites. Up to five per claim, HTTPS on the default port only; one with credentials, a fragment or whitespace is rejected before the backend call with `USER_CLAIMS_INVALID`. Duplicates are merged.
+  - An item in the request's `user_claims` may carry `source_urls`, the URLs the user cites. Up to five per claim, HTTPS on the default port only; one with credentials, a fragment or whitespace is rejected before the backend call with `USER_CLAIMS_INVALID`. Duplicate URLs are merged. When the same claim text arrives more than once, the first id is kept and the URLs of every copy are merged (five at most in total); the URLs of a dropped copy are validated all the same.
   - `source_urls` on the backend output's `claims` or `user_claims` are backend evidence and are not recorded.
   - Requests through `run_workflow` and `run_natural_language` carry `user_claims` through to the record as well (pinned by a regression test).
 - **User utterance body:** the request's `task`

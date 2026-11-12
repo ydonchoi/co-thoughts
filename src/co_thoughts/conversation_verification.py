@@ -64,8 +64,8 @@ def normalize_claims(value: Any, *, prefix: str, error: str, allow_sources: bool
         return []
     if not isinstance(value, (list, tuple)):
         raise ValueError(error)
-    claims: list[dict[str, str]] = []
-    seen_texts: set[str] = set()
+    claims: list[dict[str, Any]] = []
+    by_text: dict[str, dict[str, Any]] = {}
     for index, item in enumerate(value):
         if not isinstance(item, Mapping):
             raise ValueError(error)
@@ -73,16 +73,24 @@ def normalize_claims(value: Any, *, prefix: str, error: str, allow_sources: bool
         if not isinstance(text, str) or not text.strip():
             raise ValueError(error)
         text = " ".join(text.split())
-        if text in seen_texts:
+        # Validate every item's sources, including a duplicate's, before deduplicating.
+        urls = (_source_urls(item["source_urls"], error)
+                if allow_sources and item.get("source_urls") is not None else [])
+        if text in by_text:
+            # A repeated claim keeps its first id; the citations of every copy are merged.
+            kept = by_text[text]
+            merged = list(dict.fromkeys([*kept.get("source_urls", []), *urls]))
+            if len(merged) > MAX_SOURCE_URLS_PER_CLAIM:
+                raise ValueError(error)
+            if merged:
+                kept["source_urls"] = merged
             continue
-        seen_texts.add(text)
         claim_id = item.get("id")
         claim_id = str(claim_id).strip() if claim_id is not None and str(claim_id).strip() else f"{prefix}-{index + 1}"
         claim: dict[str, Any] = {"id": claim_id, "text": text}
-        if allow_sources and item.get("source_urls") is not None:
-            urls = _source_urls(item["source_urls"], error)
-            if urls:
-                claim["source_urls"] = urls
+        if urls:
+            claim["source_urls"] = urls
+        by_text[text] = claim
         claims.append(claim)
     return claims
 
