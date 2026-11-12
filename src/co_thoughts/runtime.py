@@ -166,7 +166,8 @@ class CognitiveRuntime:
         # Envelopes from an earlier turn reach the backend as context, but the
         # copies kept here stay authoritative over anything the backend echoes.
         prior_envelopes = validate_assessment_envelopes(request.get("sara_assessment_envelopes", []))
-        request_user_claims = normalize_claims(request.get("user_claims"), prefix="UC", error="USER_CLAIMS_INVALID")
+        request_user_claims = normalize_claims(request.get("user_claims"), prefix="UC", error="USER_CLAIMS_INVALID",
+                                               allow_sources=True)
         raw = self.backend.generate(request)
         if not isinstance(raw, Mapping):
             raise TypeError("BACKEND_RESPONSE_MUST_BE_MAPPING")

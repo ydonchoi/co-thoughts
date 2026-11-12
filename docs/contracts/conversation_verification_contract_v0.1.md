@@ -20,6 +20,7 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 | 기본 범위 | 대화 전체. `turn_ids` 또는 `claim_refs`로 줄일 수 있다 |
 | 전송 전 확인 | 계획(`plan`)의 미리보기를 보여 준 뒤, 그 `plan_id`를 확인값으로 받아야 실행한다 |
 | 식별자 | SARA로 가는 `conversation_id`·`request_id`·`turn_id`·claim ID·provenance ID는 실행마다 새로 만든 가명이다. 실제 ID와의 대응은 로컬에만 둔다 |
+| 사용자 인용 출처 (2026-11-13 추가) | 호스트가 준 `user_claims[].source_urls`만 그 발화의 SARA 호출에 `evidence`로 보낸다. 백엔드가 붙인 URL은 보내지 않는다 |
 
 ## 3. 흐름
 
@@ -44,6 +45,8 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
   - 우선 요청의 `user_claims`(호스트가 지정)를 쓴다. 없으면 백엔드 출력의 `user_claims`(백엔드가 추출)를 쓴다.
   - Co-thoughts는 사용자 발화에서 claim을 직접 추출하지 않는다.
   - claim을 지정하지 않으면 `UC-n`이 ID로 붙는다.
+  - 요청의 `user_claims` 항목은 `source_urls`(사용자가 인용한 출처 URL 목록)를 가질 수 있다. 주장당 5개까지, HTTPS·기본 포트만 허용하고, 인증 정보·fragment·공백이 있으면 백엔드 호출 전에 `USER_CLAIMS_INVALID`로 거부한다. 중복은 하나로 합친다.
+  - 백엔드 출력의 `claims`나 `user_claims`에 붙은 `source_urls`는 백엔드 근거이므로 기록하지 않는다.
   - `run_workflow`, `run_natural_language` 경로로 요청해도 `user_claims`는 그대로 기록까지 전달된다(회귀 테스트로 고정).
 - **사용자 발화 본문:** 요청의 `task`
 - **AI 응답 본문:** 출력의 `response`. 비어 있으면 claim 문장들을 이어 붙인다.
@@ -70,6 +73,7 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 | `turns_sent`, `turn_ids_sent` | 전송될 턴 |
 | `claims_sent`, `claims_by_role` | 전송될 claim 수(USER / ASSISTANT) |
 | `content_chars_sent` | 전송될 본문 글자 수 합 |
+| `source_urls_sent` | 전송될 사용자 인용 URL 수(호출별 합) |
 | `send_unit` | `ONE_UTTERANCE_BODY_PER_CALL` |
 | `context_forwarded` | 항상 `false` |
 | `identifiers` | `PSEUDONYMIZED_PER_RUN` |
@@ -84,10 +88,12 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 ```json
 {"request_id": "cv-<run>-b<n>", "conversation_id": "cv-<run>", "turn_id": "t<위치>-u|a",
  "content": "<그 발화 본문>", "claim_candidates": [{"id": "K<n>", "text": "..."}],
- "evidence": [], "provenance_ids": ["co-thoughts:cv-<run>:b<n>"]}
+ "evidence": [{"id": "S<n>", "url": "<사용자 인용 URL>", "snippet": "USER_SUPPLIED_SOURCE_URL"}],
+ "provenance_ids": ["co-thoughts:cv-<run>:b<n>"]}
 ```
 
 - 다른 턴의 본문, 요청 `context`, 백엔드 evidence, 백엔드가 주장한 상태는 보내지 않는다.
+- `evidence`에는 그 호출에 든 claim들에 사용자가 인용한 URL만 넣는다(호출당 최대 10개, 넘으면 계획 단계에서 `SOURCE_URLS_PER_CALL_EXCEEDED`). SARA는 한 턴의 evidence를 그 턴의 모든 claim에 적용하므로, 같은 호출의 다른 claim도 이 URL을 근거 후보로 본다. URL 자체는 신뢰하지 않는 후보이며, SARA가 자기 출처 어댑터로 원문을 다시 읽어야 근거가 된다(SARA `SARA_OPEN_SOURCES_WEB_DOMAINS`).
 - claim은 SARA 호출 1회에 최대 8개다(`SARAv3Connection.max_claims`). 넘으면 같은 본문으로 배치를 나눈다.
 
 ## 7. 결과
@@ -110,6 +116,8 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 - 호출 단위로 보면 노출이 최소화된다. 하지만 대화 전체를 검증하면 claim이 있는 발화 대부분이 결국 provider로 간다.
 - 가명을 써도 같은 실행의 호출들은 같은 가명 `conversation_id`를 공유한다. 따라서 provider는 그 실행 안의 호출들을 하나로 묶을 수 있다. 막을 수 있는 것은 실제 ID 노출과, 서로 다른 실행 사이의 연결이다.
 - 다른 턴을 가리키는 주장("그 정책은…")은 맥락이 없어 `NOT_ASSESSED`가 되기 쉽다. claim을 추출할 때 자기완결형 문장으로 만드는 것이 좋다.
+- 사용자 인용 URL은 SARA로 가고, SARA는 그 페이지를 가져와 provider LLM에게 관계 판정을 맡긴다. 따라서 URL과 그 페이지 내용도 외부 provider에 노출된다.
+- 2026-11-13 확인: 정책브리핑 정책뉴스 기사를 인용하면 SARA가 본문을 `ABSTRACT`로 읽고 관계를 판정했다(Gemini `SUPPORTS`). HTML에서 읽은 본문은 `ABSTRACT`라서 claim은 `UNVERIFIED`로 남았다(`FULL_TEXT_NOT_ACCESSED`).
 
 ## 9. 검증 상태
 

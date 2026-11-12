@@ -405,6 +405,76 @@ def test_user_claims_reach_the_record_through_workflow_paths():
     assert report["coverage"]["claims_not_assessed"] == 0
 
 
+# --- User-cited source URLs ---------------------------------------------------------------
+
+PRESS = "https://www.korea.kr/news/policyNewsView.do?newsId=148975578"
+STATS = "https://doi.org/10.1101/2021.05.18.21257385"
+
+
+def test_user_cited_urls_go_only_with_their_own_utterance():
+    sara = RecordingSARA()
+    rt = runtime(Backend(), sara)
+    rt.run(request("TURN-1", user_claims=[{"id": "U1", "text": USER_CLAIM[0]["text"],
+                                           "source_urls": [PRESS, STATS, PRESS]}]))
+    plan, result = verify(rt)
+    assert plan["preview"]["source_urls_sent"] == 2
+    user_call, assistant_call = sara.turns
+    assert user_call["evidence"] == [
+        {"id": "S1", "url": PRESS, "snippet": "USER_SUPPLIED_SOURCE_URL"},
+        {"id": "S2", "url": STATS, "snippet": "USER_SUPPLIED_SOURCE_URL"}]
+    assert assistant_call["evidence"] == []
+    assert result["batches"][0]["sent_scope"]["source_urls"] == 2
+
+
+def test_backend_supplied_urls_are_never_forwarded():
+    sara = RecordingSARA()
+    backend = Backend(claims=[{"id": "C1", "text": ASSISTANT_TEXT, "source_urls": [PRESS]}],
+                      user_claims=[{"text": "Cases fell by a fifth.", "source_urls": [STATS]}])
+    rt = runtime(backend, sara)
+    rt.run(request())
+    plan, _ = verify(rt)
+    assert plan["preview"]["source_urls_sent"] == 0
+    assert all(turn["evidence"] == [] for turn in sara.turns)
+
+
+@pytest.mark.parametrize("urls", [
+    "https://www.korea.kr/x",                          # not a list
+    ["http://www.korea.kr/x"],                         # not https
+    ["https://user:pw@www.korea.kr/x"],                # credentials
+    ["https://www.korea.kr/x#top"],                    # fragment
+    ["https://www.korea.kr:8443/x"],                   # non-default port
+    ["https://www.korea.kr/a b"],                      # whitespace
+    ["https:///nohost"],                               # no host
+    [f"https://www.korea.kr/{i}" for i in range(6)],   # more than five
+    [7],
+])
+def test_invalid_user_source_urls_are_rejected_before_backend_call(urls):
+    backend = Backend()
+    with pytest.raises(ValueError, match="USER_CLAIMS_INVALID"):
+        runtime(backend, RecordingSARA()).run(
+            request(user_claims=[{"id": "U1", "text": "x", "source_urls": urls}]))
+    assert backend.requests == []
+
+
+def test_too_many_urls_in_one_call_is_refused_at_planning():
+    claims = [{"id": f"U{i}", "text": f"Claim {i}.",
+               "source_urls": [f"https://www.korea.kr/{i}-{j}" for j in range(5)]} for i in range(3)]
+    rt = runtime(Backend(), RecordingSARA())
+    rt.run(request(user_claims=claims))
+    with pytest.raises(ValueError, match="SOURCE_URLS_PER_CALL_EXCEEDED"):
+        rt.plan_conversation_verification("CONV-1")
+    narrowed = rt.plan_conversation_verification("CONV-1", claim_refs=["TURN-1:USER:U0", "TURN-1:USER:U1"])
+    assert narrowed["preview"]["source_urls_sent"] == 10
+
+
+def test_changing_cited_urls_changes_the_plan_id():
+    rt = runtime(Backend(), RecordingSARA())
+    rt.run(request(user_claims=[{"id": "U1", "text": "x", "source_urls": [PRESS]}]))
+    first = rt.plan_conversation_verification("CONV-1")["plan_id"]
+    rt.run(request(user_claims=[{"id": "U1", "text": "x", "source_urls": [STATS]}]))
+    assert rt.plan_conversation_verification("CONV-1")["plan_id"] != first
+
+
 # --- Ledger -------------------------------------------------------------------------------------
 
 def test_retried_turn_replaces_its_record():

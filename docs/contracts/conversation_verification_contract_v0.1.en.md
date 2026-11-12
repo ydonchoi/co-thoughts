@@ -20,6 +20,7 @@ The SARA v3 call therefore moves from **automatic on every turn** to **once, ove
 | Default range | The whole conversation. It can be narrowed with `turn_ids` or `claim_refs` |
 | Confirmation | The plan preview is shown first; the run needs that plan's `plan_id` as confirmation |
 | Identifiers | `conversation_id`, `request_id`, `turn_id`, claim ids and provenance ids sent to SARA are pseudonyms generated per run. The mapping to real ids stays local |
+| User-cited sources (added 2026-11-13) | Only the host's `user_claims[].source_urls` go as `evidence` in that utterance's SARA call. URLs a backend attaches are not sent |
 
 ## 3. Flow
 
@@ -44,6 +45,8 @@ User asks for verification
   - The request's `user_claims` (set by the host) are used first. Without them, the backend output's `user_claims` (extracted by the backend) are used.
   - Co-thoughts does not extract claims from user text itself.
   - Claims without an id get `UC-n`.
+  - An item in the request's `user_claims` may carry `source_urls`, the URLs the user cites. Up to five per claim, HTTPS on the default port only; one with credentials, a fragment or whitespace is rejected before the backend call with `USER_CLAIMS_INVALID`. Duplicates are merged.
+  - `source_urls` on the backend output's `claims` or `user_claims` are backend evidence and are not recorded.
   - Requests through `run_workflow` and `run_natural_language` carry `user_claims` through to the record as well (pinned by a regression test).
 - **User utterance body:** the request's `task`
 - **Assistant body:** the output's `response`. If it is empty, the claim texts are joined.
@@ -70,6 +73,7 @@ User asks for verification
 | `turns_sent`, `turn_ids_sent` | Turns that will be sent |
 | `claims_sent`, `claims_by_role` | Claims that will be sent (USER / ASSISTANT) |
 | `content_chars_sent` | Total body characters sent |
+| `source_urls_sent` | User-cited URLs that will be sent (summed over calls) |
 | `send_unit` | `ONE_UTTERANCE_BODY_PER_CALL` |
 | `context_forwarded` | Always `false` |
 | `identifiers` | `PSEUDONYMIZED_PER_RUN` |
@@ -84,10 +88,12 @@ User asks for verification
 ```json
 {"request_id": "cv-<run>-b<n>", "conversation_id": "cv-<run>", "turn_id": "t<position>-u|a",
  "content": "<that utterance body>", "claim_candidates": [{"id": "K<n>", "text": "..."}],
- "evidence": [], "provenance_ids": ["co-thoughts:cv-<run>:b<n>"]}
+ "evidence": [{"id": "S<n>", "url": "<user-cited URL>", "snippet": "USER_SUPPLIED_SOURCE_URL"}],
+ "provenance_ids": ["co-thoughts:cv-<run>:b<n>"]}
 ```
 
 - Other turns' bodies, request `context`, backend evidence and backend-asserted statuses are not sent.
+- `evidence` holds only the URLs the user cited for the claims in that call (at most 10 per call; more is refused at planning with `SOURCE_URLS_PER_CALL_EXCEEDED`). SARA applies a turn's evidence to every claim in it, so the other claims of the same call also see these URLs as candidates. A URL is an untrusted candidate: it becomes evidence only once SARA rereads the page through its own source adapters (SARA `SARA_OPEN_SOURCES_WEB_DOMAINS`).
 - Each SARA call carries at most 8 claims (`SARAv3Connection.max_claims`). Beyond that, batches are split over the same body.
 
 ## 7. Result
@@ -110,6 +116,8 @@ User asks for verification
 - Per call, exposure is minimal. But verifying the whole conversation eventually sends most claim-bearing utterances to the provider.
 - Even with pseudonyms, the calls of one run share the same pseudonymous `conversation_id`, so the provider can group the calls within that run. What pseudonyms prevent is exposure of the real ids and linkage across separate runs.
 - Claims that point at other turns ("that policy …") lack context and tend to end as `NOT_ASSESSED`. Claims are best extracted as self-contained sentences.
+- User-cited URLs go to SARA, which fetches the page and has the provider LLM assess the relation, so the URL and the page content are exposed to the external provider too.
+- Checked 2026-11-13: citing a 정책브리핑 policy-news article, SARA read its body as `ABSTRACT` and assessed the relation (Gemini: `SUPPORTS`). Page text read from HTML is `ABSTRACT`, so the claim stayed `UNVERIFIED` (`FULL_TEXT_NOT_ACCESSED`).
 
 ## 9. Verification status
 

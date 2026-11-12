@@ -19,19 +19,46 @@ import hashlib
 import json
 import secrets
 from typing import Any, Iterable, Mapping
+from urllib.parse import urlparse
 
 from sara_integration import SARAv3Connection, SARAv3Error, _ERROR_CODE, _validated_v3_result
 
 ROLES = ("USER", "ASSISTANT")
 RESULT_SCHEMA = "co-thoughts.conversation-verification.v1"
 PLAN_SCHEMA = "co-thoughts.conversation-verification-plan.v1"
+MAX_SOURCE_URLS_PER_CLAIM = 5
+MAX_SOURCE_URLS_PER_CALL = 10
+USER_SOURCE_SNIPPET = "USER_SUPPLIED_SOURCE_URL"
 SARA_NO_TRIGGER = "NO_INFERENCE_TRIGGER"
 
 
-def normalize_claims(value: Any, *, prefix: str, error: str) -> list[dict[str, str]]:
-    """Return [{id, text}] from a claim list; ids default to ``prefix-N``.
+def _source_urls(value: Any, error: str) -> list[str]:
+    """Validate the source URLs a user cites for a claim (HTTPS, no credentials or fragment)."""
+    if not isinstance(value, (list, tuple)) or len(value) > MAX_SOURCE_URLS_PER_CLAIM:
+        raise ValueError(error)
+    urls: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item or len(item) > 2048 or any(c.isspace() for c in item):
+            raise ValueError(error)
+        try:
+            parsed = urlparse(item)
+            port = parsed.port
+        except ValueError:
+            raise ValueError(error) from None
+        if (parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password
+                or parsed.fragment or port not in (None, 443)):
+            raise ValueError(error)
+        if item not in urls:
+            urls.append(item)
+    return urls
 
-    Identical texts within one utterance are kept once.
+
+def normalize_claims(value: Any, *, prefix: str, error: str, allow_sources: bool = False) -> list[dict[str, Any]]:
+    """Return [{id, text[, source_urls]}] from a claim list; ids default to ``prefix-N``.
+
+    Identical texts within one utterance are kept once. ``source_urls`` are kept
+    only when ``allow_sources`` (claims the host supplies for the user); a
+    backend's URLs are backend evidence, which is never forwarded, so they are dropped.
     """
     if value is None:
         return []
@@ -51,7 +78,12 @@ def normalize_claims(value: Any, *, prefix: str, error: str) -> list[dict[str, s
         seen_texts.add(text)
         claim_id = item.get("id")
         claim_id = str(claim_id).strip() if claim_id is not None and str(claim_id).strip() else f"{prefix}-{index + 1}"
-        claims.append({"id": claim_id, "text": text})
+        claim: dict[str, Any] = {"id": claim_id, "text": text}
+        if allow_sources and item.get("source_urls") is not None:
+            urls = _source_urls(item["source_urls"], error)
+            if urls:
+                claim["source_urls"] = urls
+        claims.append(claim)
     return claims
 
 
@@ -134,10 +166,16 @@ def build_plan(
                 matched_refs.add(ref)
                 claims.append({**claim, "claim_ref": ref})
             for start in range(0, len(claims), max_claims_per_call):
+                chunk = claims[start:start + max_claims_per_call]
+                # SARA applies a turn's evidence to every claim in it, so the call carries
+                # the URLs cited for any claim of this chunk, and only those.
+                urls = list(dict.fromkeys(u for claim in chunk for u in claim.get("source_urls", [])))
+                if len(urls) > MAX_SOURCE_URLS_PER_CALL:
+                    raise ValueError("SOURCE_URLS_PER_CALL_EXCEEDED")
                 batches.append({
                     "batch": len(batches) + 1, "turn_id": turn["turn_id"], "turn_position": position,
                     "role": role, "content": utterance["content"],
-                    "claims": claims[start:start + max_claims_per_call],
+                    "claims": chunk, "source_urls": urls,
                 })
     if wanted_refs is not None and not wanted_refs <= matched_refs:
         raise ValueError("CLAIM_REF_NOT_RECORDED")
@@ -151,6 +189,7 @@ def build_plan(
         "claims_sent": sum(len(item["claims"]) for item in batches),
         "claims_by_role": {role: sum(len(b["claims"]) for b in batches if b["role"] == role) for role in ROLES},
         "content_chars_sent": sum(len(item["content"]) for item in batches),
+        "source_urls_sent": sum(len(item["source_urls"]) for item in batches),
         "send_unit": "ONE_UTTERANCE_BODY_PER_CALL",
         "context_forwarded": False,
         "identifiers": "PSEUDONYMIZED_PER_RUN",
@@ -210,12 +249,16 @@ def run_plan(plan: Mapping[str, Any], connection: SARAv3Connection) -> dict[str,
             "turn_id": f"t{batch['turn_position']}-{batch['role'][0].lower()}",
             "content": batch["content"],
             "claim_candidates": candidates,
-            "evidence": [],
+            # User-cited URLs only; SARA treats them as untrusted candidates and reads
+            # them through its own source adapters before any relation is assessed.
+            "evidence": [{"id": f"S{n}", "url": url, "snippet": USER_SOURCE_SNIPPET}
+                         for n, url in enumerate(batch.get("source_urls", []), start=1)],
             "provenance_ids": [f"co-thoughts:cv-{run_tag}:b{batch['batch']}"],
         }
         report = {
             "batch": batch["batch"], "turn_id": batch["turn_id"], "role": batch["role"],
             "sent_scope": {"sara_claim_ids": list(id_map), "content_chars": len(batch["content"]),
+                           "source_urls": len(batch.get("source_urls", [])),
                            "context_forwarded": False, "identifiers": "PSEUDONYMIZED_PER_RUN"},
         }
         envelopes: list[dict[str, Any]] = []
