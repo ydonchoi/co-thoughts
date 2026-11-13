@@ -21,6 +21,7 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 | 전송 전 확인 | 계획(`plan`)의 미리보기를 보여 준 뒤, 그 `plan_id`를 확인값으로 받아야 실행한다 |
 | 식별자 | SARA로 가는 `conversation_id`·`request_id`·`turn_id`·claim ID·provenance ID는 실행마다 새로 만든 가명이다. 실제 ID와의 대응은 로컬에만 둔다 |
 | 사용자 인용 출처 (2026-11-13 추가) | 호스트가 준 `user_claims[].source_urls`만 그 발화의 SARA 호출에 `evidence`로 보낸다. 백엔드가 붙인 URL은 보내지 않는다 |
+| 사용자 제공 원문 (2026-11-13 추가) | SARA가 일부만 읽을 수 있는 출처는 사용자가 직접 구한 원문 파일(`user_documents`)로 보완할 수 있다. 해당 claim의 호출에만 붙인다. 파일 이름은 보내지 않는다. 문서가 인용 출처가 맞는지와 그 문서를 얼마나 신뢰할지는 SARA가 정한다(§10) |
 
 ## 3. 흐름
 
@@ -74,6 +75,8 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 | `claims_sent`, `claims_by_role` | 전송될 claim 수(USER / ASSISTANT) |
 | `content_chars_sent` | 전송될 본문 글자 수 합 |
 | `source_urls_sent` | 전송될 사용자 인용 URL 수(호출별 합) |
+| `user_documents` | 문서별 `document`(`D<n>`), `file_name`, `media_type`, `pages`, `cites`, `claim_refs`, `sha256`, `chars`, `calls`. 본문은 넣지 않는다 |
+| `document_chars_to_sara`, `document_excerpt_chars_per_claim_max` | SARA로 가는 문서 글자 수(호출별 합)와, SARA가 claim마다 외부 provider에 보내는 발췌 상한(30,000자) |
 | `send_unit` | `ONE_UTTERANCE_BODY_PER_CALL` |
 | `context_forwarded` | 항상 `false` |
 | `identifiers` | `PSEUDONYMIZED_PER_RUN` |
@@ -95,6 +98,7 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 - 다른 턴의 본문, 요청 `context`, 백엔드 evidence, 백엔드가 주장한 상태는 보내지 않는다.
 - `evidence`에는 그 호출에 든 claim들에 사용자가 인용한 URL만 넣는다(호출당 최대 10개, 넘으면 계획 단계에서 `SOURCE_URLS_PER_CALL_EXCEEDED`). SARA는 한 턴의 evidence를 그 턴의 모든 claim에 적용하므로, 같은 호출의 다른 claim도 이 URL을 근거 후보로 본다. URL 자체는 신뢰하지 않는 후보이며, SARA가 자기 출처 어댑터로 원문을 다시 읽어야 근거가 된다(SARA `SARA_OPEN_SOURCES_WEB_DOMAINS`).
 - claim은 SARA 호출 1회에 최대 8개다(`SARAv3Connection.max_claims`). 넘으면 같은 본문으로 배치를 나눈다.
+- 사용자 문서가 붙은 호출에는 `"user_documents": [{"id": "D<n>", "cites": "<인용 URL>", "text": "<추출한 본문>", "sha256": "<본문의 SHA-256>"}]`이 추가된다. 호출당 최대 5개다(넘으면 `USER_DOCUMENTS_PER_CALL_EXCEEDED`).
 
 ## 7. 결과
 
@@ -102,6 +106,8 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 - `coverage`: `claims_total`, `claims_assessed`, `claims_not_required_by_sara`, `claims_not_assessed`
 - `claim_results`: claim별 `claim_ref`(`<turn_id>:<USER|ASSISTANT>:<claim_id>`), `turn_id`, `role`, `claim_id`, `text`, `sara_claim_id`, `status`(`ASSESSED`/`NOT_REQUIRED_BY_SARA`/`NOT_ASSESSED`), `sara_verification_status` 또는 `reason_codes`
 - `batches`: 배치별 `sent_scope`, `execution_status`, `error_code`, `sara_reason_codes`
+- claim의 `user_documents`: SARA가 그 claim을 판정하며 본 문서별 결과. `document`, `file_name`, `cites`, `identity`(`MATCHED`/`UNMATCHED`/`UNVERIFIED`), `reason_code`, `title_score`, `abstract_score`를 담는다. 이 계획이 보낸 문서와 digest가 다른 보고는 버린다.
+- claim의 `full_text_requests`와 최상위 `full_text_requests`: SARA가 초록이나 스니펫만 읽어 판정하지 못한 출처 목록이다. 최상위 목록은 URL별로 묶고 `claim_refs`를 단다. 호스트는 이 목록을 보고 사용자에게 원문을 요청하면 된다.
 - `assessment_envelopes`: SARA 원본 envelope. 수정하지 않고, claim ID는 가명 `K<n>`이다. 다음 턴에 `sara_assessment_envelopes`로 전달할 수 있다.
 - `verification_status`는 항상 `UNVERIFIED`, `is_evidence`는 `false`, `truthfulness_status`는 `UNASSESSED`다. SARA의 판정은 `claim_results` 안에만 있고, Co-thoughts가 자기 출력을 승격하지 않는다.
 
@@ -125,4 +131,36 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 |---|---|
 | 기록·계획·확인·배치·가명화·결과 대응 | 단위 테스트 (가짜 SARA, `tests/unit/test_sara_v3_integration.py`) |
 | SARA CLI 프로세스 fail-closed | 실제 SARA 체크아웃으로 실행됨 (provider 설정 없음) |
+| 사용자 제공 원문 | 단위 테스트(`tests/unit/test_user_documents.py`: 추출, 연결, 계획 확인, 결과 매핑). 2026-11-13 실제 확인: arXiv PDF(1706.03762, 15쪽, 39,521자)를 co-thoughts로 추출해 SARA CLI와 Gemini(`gemini-3.1-flash-lite`)로 왕복했다. 신원 대조는 `MATCHED`(제목 1.0, 초록 0.942)였다. `SARA_TRUST_USER_DOCUMENTS=1`에서는 claim이 `VERIFIED`가 됐다(근거: 원문 발췌 `SUPPORTS`). 같은 PDF를 다른 논문(BERT)의 원문으로 주면 `UNMATCHED`(초록 0.019)였다. 기본값(`0`) 왕복은 judgment가 3회 모두 실패해 실제로는 확인하지 못했다(503 1회, 무효 출력 2회). 이 경우는 단위 테스트로만 확인했다(`PARTIALLY_VERIFIED`, `USER_DOCUMENT_TRUST_NOT_ENABLED`) |
 | 실제 provider 왕복 | 조건부 확인 (2026-11-12). Gemini API(`gemini-3.1-flash-lite`, 무료 등급)로 라이브 테스트가 3/3 통과했다(추론형 주장 2개, envelope 2개, 다음 턴 `PRESERVED`). 조건: (1) SARA의 Gemini 요청을 `responseSchema`에서 `responseJsonSchema`로 고친 **로컬 복사본**으로 실행했다. 원본 SARA는 Gemini에서 `additionalProperties` 때문에 항상 HTTP 400이 난다. (2) Brave 검색 키가 없어 envelope는 모두 `UNVERIFIED`(`BRAVE_SEARCH_API_KEY_REQUIRED`)였고, 출처 기반 판정은 시험하지 않았다. (3) 별도 시험 3회 중 1회는 judgment가 `INVALID_OUTPUT`을 내 주장 1개가 `NOT_ASSESSED`였다. 2026-11-04 Anthropic 시도는 크레딧 부족(HTTP 400)으로 실패했다 |
+
+## 10. 사용자 제공 원문 (`user_documents`)
+
+SARA는 자기가 직접 가져온 본문만 원문(`FULL_TEXT`)으로 친다. 유료 논문이나 robots.txt가 자동 접근을 막은 사이트처럼 SARA가 원문을 읽을 수 없는 출처는, 사용자가 직접 받은 파일로 보완할 수 있다.
+
+```python
+docs = [{"path": "paper.pdf", "cites": "https://doi.org/10.1000/xyz", "claim_refs": ["T1:USER:U1"]}]
+plan = runtime.plan_conversation_verification(cid, user_documents=docs)   # 미리보기: 본문 없음
+result = runtime.verify_conversation(cid, confirmation=plan["plan_id"], user_documents=docs)
+```
+
+- **형식**
+  - PDF: 선택 설치 패키지 `pypdf`로 읽는다. 없으면 `PDF_SUPPORT_UNAVAILABLE`이다.
+  - `.txt`, `.md`: UTF-8로 읽고, 안 되면 CP949로 읽는다.
+  - `.html`: 스크립트와 스타일을 뺀 텍스트만 쓴다.
+  - 파일 50 MB 이하, 추출 텍스트 500~2,000,000자만 받는다. 스캔 PDF처럼 텍스트 층이 없으면 `USER_DOCUMENT_TEXT_TOO_SHORT`로 거부한다.
+- **연결**
+  - 문서는 `claim_refs`에 든 claim의 호출, 또는 `cites`와 같은 URL을 `source_urls`로 인용한 호출에 붙는다.
+  - 어느 호출에도 붙지 않는 문서는 `USER_DOCUMENT_NOT_ATTACHED`로 거부한다. 선택 범위를 좁혀 빠진 경우도 마찬가지다.
+  - 기록에 없는 claim을 가리키면 `USER_DOCUMENT_CLAIM_REF_NOT_RECORDED`다.
+- **확인**
+  - 계획 ID에는 각 문서의 digest와 `cites`가 들어간다. 미리보기 뒤에 파일이 바뀌면 `VERIFICATION_PLAN_NOT_CONFIRMED`다.
+  - 같은 파일을 같은 출처로 두 번 주면 한 번만 보내고 `claim_refs`를 합친다.
+- **SARA의 판단**
+  - SARA는 인용 출처를 직접 가져와 제목과 초록이 문서에 들어 있는지 대조한다. 일치하는 문서만 원문 근거로 쓴다.
+  - 기본값에서는 그 문서만으로 `VERIFIED`·`CONTRADICTED`가 되지 않는다. 운영자가 SARA에 `SARA_TRUST_USER_DOCUMENTS=1`을 켜야, 인용 출처의 신뢰 도메인 정책에 따라 승격된다.
+  - 판정에 쓰이면 `USER_SUPPLIED_DOCUMENT_USED`가 남는다.
+- **노출**
+  - 문서 전체는 로컬에서 실행되는 SARA 프로세스까지만 간다. 외부 provider에는 claim마다 최대 30,000자 발췌가 간다.
+  - 파일 이름과 `claim_refs`는 보내지 않는다.
+  - 유료 논문 원문을 외부 provider에 보내도 되는지는 그 문서의 이용 조건에 따라 사용자가 판단해야 한다.
