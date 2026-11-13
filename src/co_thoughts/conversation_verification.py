@@ -397,9 +397,12 @@ def _document_reports(envelope: Mapping[str, Any], summaries: list[Mapping[str, 
         if not isinstance(report, Mapping) or not isinstance(report.get("id"), str) or report["id"] not in by_id:
             continue
         local = by_id[report["id"]]
-        if report.get("sha256") != local["sha256"]:
-            continue  # not the document this plan sent
         identity = report.get("identity") if isinstance(report.get("identity"), str) else None
+        # A report must carry the digest of the document this plan sent. The one exception is
+        # SARA's report for a document it refused at validation: no digest, and only UNVERIFIED.
+        refused = report.get("sha256") is None and identity == "UNVERIFIED"
+        if report.get("sha256") != local["sha256"] and not refused:
+            continue  # not the document this plan sent
         reason = report.get("reason_code")
         out.append({"document": report["id"], "file_name": local["file_name"], "cites": local["cites"],
                     "identity": identity if identity in {"MATCHED", "UNMATCHED", "UNVERIFIED"} else "UNVERIFIED",

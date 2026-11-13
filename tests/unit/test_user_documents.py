@@ -363,3 +363,30 @@ def test_a_plan_takes_a_bounded_number_and_size_of_documents(tmp_path, monkeypat
     with pytest.raises(ValueError, match="USER_DOCUMENTS_TOO_LARGE"):
         module.load_user_documents(items[:3])
     assert len(reads) == 3  # the third document crossed the total and was not kept
+
+
+class RefusingSARA(RecordingSARA):
+    """Refuses every document at validation, as SARA does for a bad digest: no digest in the report."""
+
+    def __call__(self, turn, timeout_seconds):
+        self.turns.append(json.loads(json.dumps(turn)))
+        envelopes = []
+        for item in turn["claim_candidates"]:
+            env = envelope(item["id"], status="UNVERIFIED")
+            env["user_documents"] = [{"id": d["id"], "cites": d["cites"], "sha256": None, "identity": "UNVERIFIED",
+                                      "reason_code": "USER_DOCUMENT_DIGEST_MISMATCH"}
+                                     for d in turn.get("user_documents", [])]
+            # A digest-less report may only say UNVERIFIED; one claiming a match is not trusted.
+            env["user_documents"] += [{"id": d["id"], "sha256": None, "identity": "MATCHED"}
+                                      for d in turn.get("user_documents", [])]
+            envelopes.append(env)
+        return sara_result(*envelopes)
+
+
+def test_a_document_sara_refused_is_reported_back_with_its_reason(files):
+    rt, _ = setup(sara=RefusingSARA())
+    docs = [{"path": files["txt"], "cites": CITES, "claim_refs": ["TURN-1:USER:U1"]}]
+    _, result = verify(rt, user_documents=docs)
+    user = [c for c in result["claim_results"] if c["role"] == "USER"][0]
+    assert user["user_documents"] == [{"document": "D1", "file_name": "paper.txt", "cites": CITES,
+                                       "identity": "UNVERIFIED", "reason_code": "USER_DOCUMENT_DIGEST_MISMATCH"}]
