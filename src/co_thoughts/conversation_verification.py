@@ -159,11 +159,10 @@ def build_plan(
     if wanted_refs is not None:
         # Turn ids and claim ids may contain ":", so two recorded claims can share one
         # reference string. Such a reference cannot name a single claim, and selecting it
-        # would send an utterance the user did not choose, so it is refused.
+        # would send an utterance the user did not choose, so it is refused. Ambiguity is
+        # judged against the whole record, not only the turns a selection narrows to.
         ref_counts: dict[str, int] = {}
         for turn in turns:
-            if wanted_turns is not None and turn["turn_id"] not in wanted_turns:
-                continue
             for role in ROLES:
                 for claim in (turn["utterances"].get(role) or {}).get("claims", []):
                     ref = claim_ref(turn["turn_id"], role, claim["id"])

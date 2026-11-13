@@ -262,10 +262,15 @@ def test_ambiguous_selection_reference_is_refused_before_anything_is_sent():
         rt.verify_conversation("CONV-1", confirmation="cvp-any", claim_refs=[ambiguous])
     assert sara.turns == []
 
-    # Narrowing by turn leaves one claim behind the reference, which is then unambiguous.
-    plan, result = verify(rt, turn_ids=["T"], claim_refs=[ambiguous])
-    assert [turn["content"] for turn in sara.turns] == ["Second utterance."]
-    assert [(item["turn_id"], item["claim_id"]) for item in result["claim_results"]] == [("T", "x:USER:y")]
+    # Ambiguity is judged against the whole record: narrowing by turn does not make it acceptable.
+    for turn_ids in (["T"], ["T:USER:x"]):
+        with pytest.raises(ValueError, match="CLAIM_REF_AMBIGUOUS"):
+            rt.plan_conversation_verification("CONV-1", turn_ids=turn_ids, claim_refs=[ambiguous])
+    assert sara.turns == []
+    # The colliding claims can still be verified by turn, without a claim reference.
+    plan, result = verify(rt, turn_ids=["T"])
+    assert [(item["turn_id"], item["claim_id"]) for item in result["claim_results"]] == [
+        ("T", "x:USER:y"), ("T", "C1")]
 
     # Unambiguous references in the same conversation select exactly their claim.
     sara.turns.clear()
