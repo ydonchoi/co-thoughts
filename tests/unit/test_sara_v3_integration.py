@@ -248,6 +248,36 @@ def test_selection_limits_the_send_scope():
     assert [item["claim_ref"] for item in result["claim_results"]] == ["TURN-1:USER:U1"]
 
 
+def test_ambiguous_selection_reference_is_refused_before_anything_is_sent():
+    # Turn "T:USER:x" with claim "y" and turn "T" with claim "x:USER:y" both give the
+    # reference "T:USER:x:USER:y"; selecting it would send both utterances.
+    sara = RecordingSARA()
+    rt = runtime(Backend(), sara)
+    rt.run(request("T:USER:x", task="First utterance.", user_claims=[{"id": "y", "text": "First claim."}]))
+    rt.run(request("T", task="Second utterance.", user_claims=[{"id": "x:USER:y", "text": "Second claim."}]))
+    ambiguous = "T:USER:x:USER:y"
+    with pytest.raises(ValueError, match="CLAIM_REF_AMBIGUOUS"):
+        rt.plan_conversation_verification("CONV-1", claim_refs=[ambiguous])
+    with pytest.raises(ValueError, match="CLAIM_REF_AMBIGUOUS"):
+        rt.verify_conversation("CONV-1", confirmation="cvp-any", claim_refs=[ambiguous])
+    assert sara.turns == []
+
+    # Narrowing by turn leaves one claim behind the reference, which is then unambiguous.
+    plan, result = verify(rt, turn_ids=["T"], claim_refs=[ambiguous])
+    assert [turn["content"] for turn in sara.turns] == ["Second utterance."]
+    assert [(item["turn_id"], item["claim_id"]) for item in result["claim_results"]] == [("T", "x:USER:y")]
+
+    # Unambiguous references in the same conversation select exactly their claim.
+    sara.turns.clear()
+    plan, result = verify(rt, claim_refs=["T:ASSISTANT:C1"])
+    assert plan["preview"]["turn_ids_sent"] == ["T"]
+    assert [item["claim_ref"] for item in result["claim_results"]] == ["T:ASSISTANT:C1"]
+    # The whole conversation, with no selection, still covers every claim.
+    sara.turns.clear()
+    plan, result = verify(rt)
+    assert plan["preview"]["claims_sent"] == 4
+
+
 # --- Results ------------------------------------------------------------------------------------
 
 def test_results_map_back_to_turns_roles_and_claims():

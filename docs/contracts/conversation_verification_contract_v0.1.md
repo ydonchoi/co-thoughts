@@ -21,6 +21,7 @@ SARA v3는 턴마다 외부 LLM·검색 provider를 호출한다(judgment와 응
 | 전송 전 확인 | 계획(`plan`)의 미리보기를 보여 준 뒤, 그 `plan_id`를 확인값으로 받아야 실행한다 |
 | 식별자 | SARA로 가는 `conversation_id`·`request_id`·`turn_id`·claim ID·provenance ID는 실행마다 새로 만든 가명이다. 실제 ID와의 대응은 로컬에만 둔다 |
 | 사용자 인용 출처 (2026-11-13 추가) | 호스트가 준 `user_claims[].source_urls`만 그 발화의 SARA 호출에 `evidence`로 보낸다. 백엔드가 붙인 URL은 보내지 않는다 |
+| 선택 참조의 모호성 (2026-11-13 추가) | `claim_refs`의 참조(`<turn_id>:<USER\|ASSISTANT>:<claim_id>`)는 정확히 claim 하나를 가리켜야 한다. `turn_id`와 claim ID에 `:`가 들어갈 수 있어서, 서로 다른 claim이 같은 참조가 될 수 있다(예: 턴 `T:USER:x`의 claim `y`와 턴 `T`의 claim `x:USER:y`는 모두 `T:USER:x:USER:y`). 선택 범위(`turn_ids`를 주면 그 턴들) 안에서 두 개 이상의 claim과 일치하는 참조가 있으면, 계획과 실행 모두 아무것도 보내지 않고 `CLAIM_REF_AMBIGUOUS`로 거부한다. `turn_ids`로 범위를 줄여 하나만 남으면 허용한다. 참조 형식과 선택하지 않은 경우의 동작은 바뀌지 않는다 |
 
 ## 3. 흐름
 

@@ -156,6 +156,20 @@ def build_plan(
     if wanted_turns is not None and not wanted_turns <= known_turns:
         raise ValueError("TURN_NOT_RECORDED")
     wanted_refs = _selection(claim_refs, "CLAIM_REFS_INVALID")
+    if wanted_refs is not None:
+        # Turn ids and claim ids may contain ":", so two recorded claims can share one
+        # reference string. Such a reference cannot name a single claim, and selecting it
+        # would send an utterance the user did not choose, so it is refused.
+        ref_counts: dict[str, int] = {}
+        for turn in turns:
+            if wanted_turns is not None and turn["turn_id"] not in wanted_turns:
+                continue
+            for role in ROLES:
+                for claim in (turn["utterances"].get(role) or {}).get("claims", []):
+                    ref = claim_ref(turn["turn_id"], role, claim["id"])
+                    ref_counts[ref] = ref_counts.get(ref, 0) + 1
+        if any(ref_counts.get(ref, 0) > 1 for ref in wanted_refs):
+            raise ValueError("CLAIM_REF_AMBIGUOUS")
 
     batches: list[dict[str, Any]] = []
     matched_refs: set[str] = set()
