@@ -148,7 +148,7 @@ result = runtime.verify_conversation(cid, confirmation=plan["plan_id"], user_doc
   - PDF: 선택 설치 패키지 `pypdf`로 읽는다. 없으면 `PDF_SUPPORT_UNAVAILABLE`이다.
   - `.txt`, `.md`: UTF-8로 읽고, 안 되면 CP949로 읽는다.
   - `.html`: 스크립트와 스타일을 뺀 텍스트만 쓴다.
-  - 파일 50 MB 이하, 추출 텍스트 500~2,000,000자만 받는다. 스캔 PDF처럼 텍스트 층이 없으면 `USER_DOCUMENT_TEXT_TOO_SHORT`로 거부한다.
+  - 파일 50 MB 이하, 추출 텍스트 500~2,000,000자만 받는다. 계획 하나에는 문서 20개, 텍스트 합계 10,000,000자까지만 받는다(`USER_DOCUMENTS_TOO_MANY`, `USER_DOCUMENTS_TOO_LARGE`). 개수는 파일을 읽기 전에 확인하고, PDF는 상한을 넘는 쪽에서 추출을 멈춘다. 스캔 PDF처럼 텍스트 층이 없으면 `USER_DOCUMENT_TEXT_TOO_SHORT`로 거부한다.
 - **연결**
   - 문서는 `claim_refs`에 든 claim의 호출, 또는 `cites`와 같은 URL을 `source_urls`로 인용한 호출에 붙는다.
   - 어느 호출에도 붙지 않는 문서는 `USER_DOCUMENT_NOT_ATTACHED`로 거부한다. 선택 범위를 좁혀 빠진 경우도 마찬가지다.

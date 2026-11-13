@@ -319,3 +319,47 @@ def test_an_ambiguous_claim_reference_is_refused(files):
     docs = [{"path": files["txt"], "cites": CITES, "claim_refs": [ambiguous]}]
     with pytest.raises(ValueError, match="USER_DOCUMENT_CLAIM_REF_AMBIGUOUS"):
         rt.plan_conversation_verification("CONV-1", user_documents=docs)
+
+
+@needs_pypdf
+def test_pdf_extraction_stops_once_the_text_is_over_the_raw_bound(tmp_path, monkeypatch):
+    import user_documents as module
+    monkeypatch.setattr(module, "MAX_TEXT_CHARS", 1_000)  # raw bound becomes 4,000 characters
+    seen = []
+    import pypdf
+    real = pypdf.PageObject.extract_text
+
+    def counting(self, *args, **kwargs):
+        seen.append(1)
+        return "x" * 3_000
+
+    monkeypatch.setattr(pypdf.PageObject, "extract_text", counting)
+    path = tmp_path / "many.pdf"
+    writer = pypdf.PdfWriter()
+    for _ in range(10):
+        writer.add_blank_page(width=100, height=100)
+    with open(path, "wb") as handle:
+        writer.write(handle)
+    with pytest.raises(ValueError, match="USER_DOCUMENT_TEXT_TOO_LONG"):
+        module.load_user_document(path, cites=CITES)
+    assert len(seen) == 2  # stopped at the page that crossed the bound, not after all ten
+    monkeypatch.setattr(pypdf.PageObject, "extract_text", real)
+
+
+def test_a_plan_takes_a_bounded_number_and_size_of_documents(tmp_path, monkeypatch):
+    import user_documents as module
+    items = []
+    for n in range(module.MAX_DOCUMENTS_PER_PLAN + 1):
+        path = tmp_path / f"d{n}.txt"
+        path.write_text(TEXT + f" {n}", encoding="utf-8")
+        items.append({"path": path, "cites": f"{CITES}{n}"})
+    reads = []
+    real_load = module.load_user_document
+    monkeypatch.setattr(module, "load_user_document", lambda *a, **k: reads.append(1) or real_load(*a, **k))
+    with pytest.raises(ValueError, match="USER_DOCUMENTS_TOO_MANY"):
+        module.load_user_documents(items)
+    assert reads == []  # refused before any file was read
+    monkeypatch.setattr(module, "MAX_TOTAL_TEXT_CHARS", len(TEXT) * 2 + 10)  # room for two documents
+    with pytest.raises(ValueError, match="USER_DOCUMENTS_TOO_LARGE"):
+        module.load_user_documents(items[:3])
+    assert len(reads) == 3  # the third document crossed the total and was not kept

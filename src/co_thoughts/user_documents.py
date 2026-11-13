@@ -22,6 +22,9 @@ MAX_FILE_BYTES = 50_000_000
 # SARA's limits for one document's extracted text.
 MIN_TEXT_CHARS = 500
 MAX_TEXT_CHARS = 2_000_000
+# Plan-wide bounds: every loaded text is kept in memory until the run ends.
+MAX_DOCUMENTS_PER_PLAN = 20
+MAX_TOTAL_TEXT_CHARS = 10_000_000
 TEXT_SUFFIXES = {".txt": "text/plain", ".md": "text/markdown"}
 HTML_SUFFIXES = {".html": "text/html", ".htm": "text/html"}
 PDF_SUFFIX = ".pdf"
@@ -74,9 +77,17 @@ def _pdf_text(path: Path) -> tuple[str, int]:
         reader = PdfReader(str(path))
         if reader.is_encrypted and not reader.decrypt(""):
             raise ValueError("PDF_ENCRYPTED")
-        pages = [page.extract_text() or "" for page in reader.pages]
+        pages: list[str] = []
+        total = 0
+        for page in reader.pages:
+            text = page.extract_text() or ""
+            total += len(text)
+            # Stop at the page that crosses the bound, before keeping the rest.
+            if total > MAX_TEXT_CHARS * RAW_TEXT_FACTOR:
+                raise ValueError("USER_DOCUMENT_TEXT_TOO_LONG")
+            pages.append(text)
     except ValueError as exc:
-        if str(exc) == "PDF_ENCRYPTED":
+        if str(exc) in {"PDF_ENCRYPTED", "USER_DOCUMENT_TEXT_TOO_LONG"}:
             raise
         raise ValueError("PDF_UNREADABLE") from None
     except Exception:
@@ -150,8 +161,12 @@ def load_user_documents(value: Any) -> list[dict[str, Any]]:
         return []
     if isinstance(value, (str, bytes, Mapping)) or not isinstance(value, Iterable):
         raise ValueError("USER_DOCUMENTS_INVALID")
+    items = list(value)
+    if len(items) > MAX_DOCUMENTS_PER_PLAN:
+        raise ValueError("USER_DOCUMENTS_TOO_MANY")  # before any file is read
     loaded: list[dict[str, Any]] = []
-    for item in value:
+    total = 0
+    for item in items:
         if not isinstance(item, Mapping):
             raise ValueError("USER_DOCUMENTS_INVALID")
         refs = item.get("claim_refs", ())
@@ -162,6 +177,9 @@ def load_user_documents(value: Any) -> list[dict[str, Any]]:
         if same is not None:
             same["claim_refs"] = list(dict.fromkeys(same["claim_refs"] + doc["claim_refs"]))
             continue
+        total += doc["chars"]
+        if total > MAX_TOTAL_TEXT_CHARS:
+            raise ValueError("USER_DOCUMENTS_TOO_LARGE")
         loaded.append(doc)
     return loaded
 

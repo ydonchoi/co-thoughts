@@ -148,7 +148,7 @@ result = runtime.verify_conversation(cid, confirmation=plan["plan_id"], user_doc
   - PDF, read with the optional `pypdf` package. Without it, loading fails with `PDF_SUPPORT_UNAVAILABLE`.
   - `.txt` and `.md`, read as UTF-8, falling back to CP949.
   - `.html`, using its text only, without scripts or styles.
-  - Files must be at most 50 MB, with 500 to 2,000,000 characters of extracted text. A file without a text layer, such as a scanned PDF, is refused with `USER_DOCUMENT_TEXT_TOO_SHORT`.
+  - Files must be at most 50 MB, with 500 to 2,000,000 characters of extracted text. One plan takes at most 20 documents and 10,000,000 characters of text in total (`USER_DOCUMENTS_TOO_MANY`, `USER_DOCUMENTS_TOO_LARGE`). The count is checked before any file is read, and PDF extraction stops at the page that crosses the bound. A file without a text layer, such as a scanned PDF, is refused with `USER_DOCUMENT_TEXT_TOO_SHORT`.
 - **Attachment**
   - A document goes with the calls of the claims in its `claim_refs`, and with calls that cite its `cites` URL in `source_urls`.
   - A document attached to no call is refused with `USER_DOCUMENT_NOT_ATTACHED`, including one left out by a narrowed selection.
