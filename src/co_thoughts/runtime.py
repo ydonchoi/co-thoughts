@@ -9,6 +9,7 @@ from execution import MODES, EPISTEMIC_TYPES
 from external_tools import ToolRegistry, assess_external_tool_needs
 from sara_integration import SARAConnection, SARAv3Connection, validate_assessment_envelopes
 from conversation_verification import ConversationLedger, build_plan, claim_ref, normalize_claims, run_plan
+from user_documents import load_user_documents
 from workflows import build_workflow_request, route_workflow_natural_language
 from request_validation import normalize_mode, validate_routing_request
 
@@ -230,25 +231,36 @@ class CognitiveRuntime:
             recorded["warnings"] = warnings
         return recorded
 
-    def plan_conversation_verification(self, conversation_id: str, *, turn_ids=None, claim_refs=None) -> dict[str, Any]:
-        """Preview what a verification run would send. Nothing leaves the process."""
+    def plan_conversation_verification(self, conversation_id: str, *, turn_ids=None, claim_refs=None,
+                                       user_documents=None) -> dict[str, Any]:
+        """Preview what a verification run would send. Nothing leaves the process.
+
+        ``user_documents`` is ``[{"path", "cites", "claim_refs"?}, ...]``: files the user
+        obtained for sources SARA can read only in part. The preview lists each file's
+        name, cited URL, digest and size, never its text.
+        """
+        return self._plan(conversation_id, turn_ids, claim_refs, load_user_documents(user_documents))[0]
+
+    def _plan(self, conversation_id, turn_ids, claim_refs, documents):
         if self.sara_v3_connection is None:
             raise RuntimeError("SARA_V3_NOT_CONFIGURED")
-        return build_plan(self.conversation_ledger, conversation_id,
+        plan = build_plan(self.conversation_ledger, conversation_id,
                           max_claims_per_call=self.sara_v3_connection.max_claims,
-                          turn_ids=turn_ids, claim_refs=claim_refs)
+                          turn_ids=turn_ids, claim_refs=claim_refs, documents=documents)
+        return plan, documents
 
     def verify_conversation(self, conversation_id: str, *, confirmation: str, turn_ids=None,
-                            claim_refs=None) -> dict[str, Any]:
+                            claim_refs=None, user_documents=None) -> dict[str, Any]:
         """Run the user-requested verification after the user confirmed the plan.
 
         ``confirmation`` must equal the ``plan_id`` of a plan built for the same
-        selection; a changed conversation or selection yields a different id.
+        selection and documents; a changed conversation, selection or file yields
+        a different id.
         """
-        plan = self.plan_conversation_verification(conversation_id, turn_ids=turn_ids, claim_refs=claim_refs)
+        plan, documents = self._plan(conversation_id, turn_ids, claim_refs, load_user_documents(user_documents))
         if not isinstance(confirmation, str) or confirmation != plan["plan_id"]:
             raise PermissionError("VERIFICATION_PLAN_NOT_CONFIRMED")
-        return run_plan(plan, self.sara_v3_connection)
+        return run_plan(plan, self.sara_v3_connection, documents)
 
     def run_workflow(self, workflow: str, request: Mapping[str, Any]) -> dict[str, Any]:
         """Run exactly one selected workflow cluster in one backend call."""

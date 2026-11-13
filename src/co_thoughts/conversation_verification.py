@@ -10,6 +10,12 @@ Send scope per SARA call: one utterance body (user or assistant) of one turn
 and the claims taken from that utterance. Other turns, request context and
 backend evidence are never attached. Identifiers sent to SARA are pseudonyms
 generated per run; the mapping back to real turn and claim ids stays local.
+
+The user may also supply the full text of a source SARA can read only in part
+(``user_documents``). A document goes with the calls whose claims it is for,
+or that cite the same URL. SARA checks it against the source it cites and
+reports, per claim, which sources it could not read in full
+(``full_text_requests``), so the host can ask the user for those.
 """
 
 from __future__ import annotations
@@ -22,12 +28,16 @@ from typing import Any, Iterable, Mapping
 from urllib.parse import urlparse
 
 from sara_integration import SARAv3Connection, SARAv3Error, _ERROR_CODE, _validated_v3_result
+from user_documents import document_summary
 
 ROLES = ("USER", "ASSISTANT")
 RESULT_SCHEMA = "co-thoughts.conversation-verification.v1"
 PLAN_SCHEMA = "co-thoughts.conversation-verification-plan.v1"
 MAX_SOURCE_URLS_PER_CLAIM = 5
 MAX_SOURCE_URLS_PER_CALL = 10
+# SARA's limits: documents per call, and how much of one it gives its relation assessor.
+MAX_USER_DOCUMENTS_PER_CALL = 5
+SARA_DOCUMENT_EXCERPT_CHARS = 30_000
 USER_SOURCE_SNIPPET = "USER_SUPPLIED_SOURCE_URL"
 SARA_NO_TRIGGER = "NO_INFERENCE_TRIGGER"
 
@@ -144,8 +154,13 @@ def build_plan(
     max_claims_per_call: int,
     turn_ids: Iterable[str] | None = None,
     claim_refs: Iterable[str] | None = None,
+    documents: list[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Describe exactly what a verification run would send, without sending it."""
+    """Describe exactly what a verification run would send, without sending it.
+
+    ``documents`` are loaded user documents (see ``user_documents``). The plan
+    refers to them by position and digest; their text is not part of the plan.
+    """
     if not isinstance(conversation_id, str) or not conversation_id.strip():
         raise ValueError("CONVERSATION_ID_REQUIRED")
     turns = ledger.turns(conversation_id)
@@ -188,6 +203,35 @@ def build_plan(
     if wanted_refs is not None and not wanted_refs <= matched_refs:
         raise ValueError("CLAIM_REF_NOT_RECORDED")
 
+    documents = list(documents or [])
+    # Turn and claim ids may contain colons, so one reference string can name two claims.
+    # A document goes only where the user meant it, so such a reference is refused.
+    ref_counts: dict[str, int] = {}
+    for t in turns:
+        for role in ROLES:
+            for c in (t["utterances"].get(role) or {}).get("claims", []):
+                ref = claim_ref(t["turn_id"], role, c["id"])
+                ref_counts[ref] = ref_counts.get(ref, 0) + 1
+    attached = [0] * len(documents)
+    for index, doc in enumerate(documents):
+        if not set(doc["claim_refs"]) <= set(ref_counts):
+            raise ValueError("USER_DOCUMENT_CLAIM_REF_NOT_RECORDED")
+        if any(ref_counts[ref] > 1 for ref in doc["claim_refs"]):
+            raise ValueError("USER_DOCUMENT_CLAIM_REF_AMBIGUOUS")
+    for batch in batches:
+        refs = {claim["claim_ref"] for claim in batch["claims"]}
+        # A document goes with a call when it is for one of the call's claims, or when the
+        # call already cites the source it is the full text of.
+        batch["documents"] = [index for index, doc in enumerate(documents)
+                              if refs & set(doc["claim_refs"]) or doc["cites"] in batch["source_urls"]]
+        if len(batch["documents"]) > MAX_USER_DOCUMENTS_PER_CALL:
+            raise ValueError("USER_DOCUMENTS_PER_CALL_EXCEEDED")
+        for index in batch["documents"]:
+            attached[index] += 1
+    if any(count == 0 for count in attached):
+        # A document for no call in this selection would be silently unused.
+        raise ValueError("USER_DOCUMENT_NOT_ATTACHED")
+
     sent_turns = sorted({item["turn_id"] for item in batches}, key=[t["turn_id"] for t in turns].index)
     preview = {
         "destination": "SARA_V3_EXTERNAL_PROVIDERS",
@@ -198,6 +242,12 @@ def build_plan(
         "claims_by_role": {role: sum(len(b["claims"]) for b in batches if b["role"] == role) for role in ROLES},
         "content_chars_sent": sum(len(item["content"]) for item in batches),
         "source_urls_sent": sum(len(item["source_urls"]) for item in batches),
+        # The full text goes to SARA, which runs locally; its relation assessor sends at most
+        # an excerpt of each document, per claim, to the external provider.
+        "user_documents": [{**document_summary(doc), "document": f"D{index + 1}",
+                            "calls": attached[index]} for index, doc in enumerate(documents)],
+        "document_chars_to_sara": sum(documents[i]["chars"] for b in batches for i in b["documents"]),
+        "document_excerpt_chars_per_claim_max": SARA_DOCUMENT_EXCERPT_CHARS if documents else 0,
         "send_unit": "ONE_UTTERANCE_BODY_PER_CALL",
         "context_forwarded": False,
         "identifiers": "PSEUDONYMIZED_PER_RUN",
@@ -205,7 +255,9 @@ def build_plan(
         "turns_evicted_before_plan": ledger.evicted(conversation_id),
     }
     digest_input = {"conversation_id": conversation_id, "batches": batches,
-                    "evicted": preview["turns_evicted_before_plan"], "max_claims": max_claims_per_call}
+                    "evicted": preview["turns_evicted_before_plan"], "max_claims": max_claims_per_call,
+                    # A changed file, or a document for another source, is a different plan.
+                    "documents": [{"sha256": d["sha256"], "cites": d["cites"]} for d in documents]}
     plan_id = "cvp-" + hashlib.sha256(
         json.dumps(digest_input, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()[:32]
     return {"schema_version": PLAN_SCHEMA, "conversation_id": conversation_id, "plan_id": plan_id,
@@ -223,12 +275,20 @@ def _selection(value: Iterable[str] | None, error: str) -> set[str] | None:
     return set(items)
 
 
-def run_plan(plan: Mapping[str, Any], connection: SARAv3Connection) -> dict[str, Any]:
-    """Send each planned batch to SARA v3 under per-run pseudonyms."""
+def run_plan(plan: Mapping[str, Any], connection: SARAv3Connection,
+             documents: list[Mapping[str, Any]] | None = None) -> dict[str, Any]:
+    """Send each planned batch to SARA v3 under per-run pseudonyms.
+
+    ``documents`` must be the documents the plan was built with, in order.
+    """
+    documents = list(documents or [])
+    if [{"sha256": d["sha256"], "cites": d["cites"]} for d in documents] != [
+            {"sha256": d["sha256"], "cites": d["cites"]} for d in plan["preview"].get("user_documents", [])]:
+        raise ValueError("USER_DOCUMENTS_DO_NOT_MATCH_PLAN")
     base = {
         "schema_version": RESULT_SCHEMA, "conversation_id": plan["conversation_id"], "plan_id": plan["plan_id"],
         "preview": plan["preview"], "verification_status": "UNVERIFIED",
-        "truthfulness_status": "UNASSESSED", "is_evidence": False,
+        "truthfulness_status": "UNASSESSED", "is_evidence": False, "full_text_requests": [],
     }
     if not connection.connected:
         return {**base, "execution_status": "NOT_CONNECTED", "claim_results": [], "batches": [],
@@ -263,10 +323,17 @@ def run_plan(plan: Mapping[str, Any], connection: SARAv3Connection) -> dict[str,
                          for n, url in enumerate(batch.get("source_urls", []), start=1)],
             "provenance_ids": [f"co-thoughts:cv-{run_tag}:b{batch['batch']}"],
         }
+        if batch.get("documents"):
+            # File names and claim links stay local; SARA gets a per-plan id, the cited URL,
+            # the text and its digest.
+            payload["user_documents"] = [{"id": f"D{i + 1}", "cites": documents[i]["cites"],
+                                          "text": documents[i]["text"], "sha256": documents[i]["sha256"]}
+                                         for i in batch["documents"]]
         report = {
             "batch": batch["batch"], "turn_id": batch["turn_id"], "role": batch["role"],
             "sent_scope": {"sara_claim_ids": list(id_map), "content_chars": len(batch["content"]),
                            "source_urls": len(batch.get("source_urls", [])),
+                           "user_documents": [f"D{i + 1}" for i in batch.get("documents", [])],
                            "context_forwarded": False, "identifiers": "PSEUDONYMIZED_PER_RUN"},
         }
         envelopes: list[dict[str, Any]] = []
@@ -293,7 +360,14 @@ def run_plan(plan: Mapping[str, Any], connection: SARAv3Connection) -> dict[str,
                      "claim_id": claim["id"], "text": claim["text"], "sara_claim_id": sara_id,
                      "batch": batch["batch"]}
             if sara_id in by_claim:
-                entry.update(status="ASSESSED", sara_verification_status=by_claim[sara_id]["verification_status"])
+                found = by_claim[sara_id]
+                entry.update(status="ASSESSED", sara_verification_status=found["verification_status"])
+                reports = _document_reports(found, plan["preview"].get("user_documents", []))
+                if reports:
+                    entry["user_documents"] = reports
+                requests = _full_text_requests(found)
+                if requests:
+                    entry["full_text_requests"] = requests
             elif report.get("sara_activation_action") == SARA_NO_TRIGGER:
                 # SARA itself judged, with high confidence, that this utterance needs no
                 # verification. That is SARA's decision, not a failure to assess.
@@ -308,7 +382,63 @@ def run_plan(plan: Mapping[str, Any], connection: SARAv3Connection) -> dict[str,
     failed = sum(1 for item in batch_reports if item["execution_status"] != "SUCCEEDED")
     status = "SUCCEEDED" if not failed else ("FAILED" if failed == len(batch_reports) else "PARTIALLY_FAILED")
     return {**base, "execution_status": status, "coverage": _coverage(claim_results),
-            "claim_results": claim_results, "batches": batch_reports, "assessment_envelopes": envelopes_out}
+            "claim_results": claim_results, "batches": batch_reports, "assessment_envelopes": envelopes_out,
+            "full_text_requests": _collect_requests(claim_results)}
+
+
+def _document_reports(envelope: Mapping[str, Any], summaries: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """SARA's verdict on each supplied document, mapped back to the user's file."""
+    by_id = {item["document"]: item for item in summaries}
+    out = []
+    reports = envelope.get("user_documents")
+    for report in reports if isinstance(reports, list) else []:
+        # SARA's extension fields are optional and unvalidated upstream: check each type
+        # before using it, and drop what is malformed rather than fail the batch.
+        if not isinstance(report, Mapping) or not isinstance(report.get("id"), str) or report["id"] not in by_id:
+            continue
+        local = by_id[report["id"]]
+        identity = report.get("identity") if isinstance(report.get("identity"), str) else None
+        # A report must carry the digest of the document this plan sent. The one exception is
+        # SARA's report for a document it refused at validation: no digest, and only UNVERIFIED.
+        refused = report.get("sha256") is None and identity == "UNVERIFIED"
+        if report.get("sha256") != local["sha256"] and not refused:
+            continue  # not the document this plan sent
+        reason = report.get("reason_code")
+        out.append({"document": report["id"], "file_name": local["file_name"], "cites": local["cites"],
+                    "identity": identity if identity in {"MATCHED", "UNMATCHED", "UNVERIFIED"} else "UNVERIFIED",
+                    **({"reason_code": reason} if isinstance(reason, str) and _ERROR_CODE.fullmatch(reason) else {}),
+                    **{key: report[key] for key in ("title_score", "abstract_score")
+                       if isinstance(report.get(key), (int, float)) and not isinstance(report.get(key), bool)}})
+    return out
+
+
+def _full_text_requests(envelope: Mapping[str, Any]) -> list[dict[str, Any]]:
+    out = []
+    requests = envelope.get("full_text_requests")
+    for item in requests if isinstance(requests, list) else []:
+        if not isinstance(item, Mapping):
+            continue
+        url, title = item.get("url"), item.get("title")
+        try:
+            ok = isinstance(url, str) and urlparse(url).scheme == "https"
+        except ValueError:
+            ok = False
+        if ok:
+            level = item.get("access_level")
+            out.append({"url": url, "title": title if isinstance(title, str) else url,
+                        "access_level": level if isinstance(level, str) and level in {
+                            "ABSTRACT", "SEARCH_SNIPPET", "METADATA"} else "UNKNOWN"})
+    return out
+
+
+def _collect_requests(claim_results: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """One entry per source the user could supply, with the claims it would help settle."""
+    by_url: dict[str, dict[str, Any]] = {}
+    for entry in claim_results:
+        for item in entry.get("full_text_requests", []):
+            found = by_url.setdefault(item["url"], {**item, "claim_refs": []})
+            found["claim_refs"].append(entry["claim_ref"])
+    return list(by_url.values())
 
 
 def _coverage(claim_results: list[Mapping[str, Any]]) -> dict[str, int]:
