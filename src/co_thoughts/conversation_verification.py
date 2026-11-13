@@ -204,12 +204,20 @@ def build_plan(
         raise ValueError("CLAIM_REF_NOT_RECORDED")
 
     documents = list(documents or [])
-    known_refs = {claim_ref(t["turn_id"], role, c["id"]) for t in turns for role in ROLES
-                  for c in (t["utterances"].get(role) or {}).get("claims", [])}
+    # Turn and claim ids may contain colons, so one reference string can name two claims.
+    # A document goes only where the user meant it, so such a reference is refused.
+    ref_counts: dict[str, int] = {}
+    for t in turns:
+        for role in ROLES:
+            for c in (t["utterances"].get(role) or {}).get("claims", []):
+                ref = claim_ref(t["turn_id"], role, c["id"])
+                ref_counts[ref] = ref_counts.get(ref, 0) + 1
     attached = [0] * len(documents)
     for index, doc in enumerate(documents):
-        if not set(doc["claim_refs"]) <= known_refs:
+        if not set(doc["claim_refs"]) <= set(ref_counts):
             raise ValueError("USER_DOCUMENT_CLAIM_REF_NOT_RECORDED")
+        if any(ref_counts[ref] > 1 for ref in doc["claim_refs"]):
+            raise ValueError("USER_DOCUMENT_CLAIM_REF_AMBIGUOUS")
     for batch in batches:
         refs = {claim["claim_ref"] for claim in batch["claims"]}
         # A document goes with a call when it is for one of the call's claims, or when the
@@ -382,13 +390,16 @@ def _document_reports(envelope: Mapping[str, Any], summaries: list[Mapping[str, 
     """SARA's verdict on each supplied document, mapped back to the user's file."""
     by_id = {item["document"]: item for item in summaries}
     out = []
-    for report in envelope.get("user_documents") or []:
-        if not isinstance(report, Mapping) or report.get("id") not in by_id:
+    reports = envelope.get("user_documents")
+    for report in reports if isinstance(reports, list) else []:
+        # SARA's extension fields are optional and unvalidated upstream: check each type
+        # before using it, and drop what is malformed rather than fail the batch.
+        if not isinstance(report, Mapping) or not isinstance(report.get("id"), str) or report["id"] not in by_id:
             continue
         local = by_id[report["id"]]
         if report.get("sha256") != local["sha256"]:
             continue  # not the document this plan sent
-        identity = report.get("identity")
+        identity = report.get("identity") if isinstance(report.get("identity"), str) else None
         reason = report.get("reason_code")
         out.append({"document": report["id"], "file_name": local["file_name"], "cites": local["cites"],
                     "identity": identity if identity in {"MATCHED", "UNMATCHED", "UNVERIFIED"} else "UNVERIFIED",
@@ -400,7 +411,8 @@ def _document_reports(envelope: Mapping[str, Any], summaries: list[Mapping[str, 
 
 def _full_text_requests(envelope: Mapping[str, Any]) -> list[dict[str, Any]]:
     out = []
-    for item in envelope.get("full_text_requests") or []:
+    requests = envelope.get("full_text_requests")
+    for item in requests if isinstance(requests, list) else []:
         if not isinstance(item, Mapping):
             continue
         url, title = item.get("url"), item.get("title")
@@ -409,8 +421,9 @@ def _full_text_requests(envelope: Mapping[str, Any]) -> list[dict[str, Any]]:
         except ValueError:
             ok = False
         if ok:
+            level = item.get("access_level")
             out.append({"url": url, "title": title if isinstance(title, str) else url,
-                        "access_level": item.get("access_level") if item.get("access_level") in {
+                        "access_level": level if isinstance(level, str) and level in {
                             "ABSTRACT", "SEARCH_SNIPPET", "METADATA"} else "UNKNOWN"})
     return out
 

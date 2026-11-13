@@ -26,7 +26,11 @@ TEXT_SUFFIXES = {".txt": "text/plain", ".md": "text/markdown"}
 HTML_SUFFIXES = {".html": "text/html", ".htm": "text/html"}
 PDF_SUFFIX = ".pdf"
 _SPACES = re.compile(r"[ \t\f\v]+")
+_LINE_EDGES = re.compile(r" *\n *")
 _BLANK_LINES = re.compile(r"\n{3,}")
+# Whitespace shrinks in normalization, so raw text may exceed the cap somewhat; beyond
+# this it is refused before any normalization work is done.
+RAW_TEXT_FACTOR = 4
 
 
 class _TextOnly(HTMLParser):
@@ -83,8 +87,9 @@ def _pdf_text(path: Path) -> tuple[str, int]:
 
 
 def _tidy(text: str) -> str:
-    lines = [_SPACES.sub(" ", line).strip() for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
-    return _BLANK_LINES.sub("\n\n", "\n".join(lines)).strip()
+    # Whole-string substitutions: no per-line list is built, whatever the line count.
+    text = _SPACES.sub(" ", text.replace("\r\n", "\n").replace("\r", "\n"))
+    return _BLANK_LINES.sub("\n\n", _LINE_EDGES.sub("\n", text)).strip()
 
 
 def _cites(value: Any) -> str:
@@ -126,6 +131,8 @@ def load_user_document(path: Any, *, cites: Any, claim_refs: Iterable[str] = ())
         raw_text, media_type = "".join(parser.parts), HTML_SUFFIXES[suffix]
     else:
         raise ValueError("USER_DOCUMENT_TYPE_UNSUPPORTED")
+    if len(raw_text) > MAX_TEXT_CHARS * RAW_TEXT_FACTOR:
+        raise ValueError("USER_DOCUMENT_TEXT_TOO_LONG")
     text = _tidy(raw_text)
     if len(text) < MIN_TEXT_CHARS:
         # A scanned PDF or an image-only page: there is nothing to check or assess.

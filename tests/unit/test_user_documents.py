@@ -262,3 +262,60 @@ def test_results_without_documents_still_carry_an_empty_request_list():
     _, result = verify(rt)
     assert result["full_text_requests"] == []
     assert all("user_documents" not in c for c in result["claim_results"])
+
+
+# -- review hardening ---------------------------------------------------------------------------
+class MalformedSARA(RecordingSARA):
+    """Returns extension fields of the wrong types; the batch must still succeed."""
+
+    def __call__(self, turn, timeout_seconds):
+        self.turns.append(json.loads(json.dumps(turn)))
+        envelopes = []
+        for item in turn["claim_candidates"]:
+            env = envelope(item["id"], status="PARTIALLY_VERIFIED")
+            env["user_documents"] = [{"id": ["D1"], "sha256": "0" * 64}, {"id": "D1", "identity": ["MATCHED"]},
+                                     {"id": {"x": 1}}, "not a mapping"]
+            env["full_text_requests"] = [{"url": OTHER, "access_level": ["ABSTRACT"]}, {"url": ["x"]}]
+            envelopes.append(env)
+        return sara_result(*envelopes)
+
+
+def test_malformed_sara_extension_values_are_dropped_not_fatal(files):
+    rt, _ = setup(sara=MalformedSARA())
+    docs = [{"path": files["txt"], "cites": CITES, "claim_refs": ["TURN-1:USER:U1"]}]
+    _, result = verify(rt, user_documents=docs)
+    assert result["execution_status"] == "SUCCEEDED"
+    user = [c for c in result["claim_results"] if c["role"] == "USER"][0]
+    assert "user_documents" not in user  # nothing well-formed came back for this document
+    assert user["full_text_requests"] == [{"url": OTHER, "title": OTHER, "access_level": "UNKNOWN"}]
+
+
+def test_whitespace_heavy_text_is_bounded_before_it_is_normalized(tmp_path, monkeypatch):
+    import user_documents as module
+    monkeypatch.setattr(module, "MAX_TEXT_CHARS", 1_000)
+    big = tmp_path / "big.txt"
+    big.write_text("word\n" * 1_000, encoding="utf-8")  # 5,000 characters before normalization
+    calls = []
+    monkeypatch.setattr(module, "_tidy", lambda text: calls.append(len(text)) or text)
+    with pytest.raises(ValueError, match="USER_DOCUMENT_TEXT_TOO_LONG"):
+        module.load_user_document(big, cites=CITES)
+    assert calls == []  # refused before any line splitting
+
+
+def test_tidy_does_not_split_into_a_line_list(monkeypatch):
+    import user_documents as module
+    text = "  a  \n\n\n\n b\t\tc  \r\n d "
+    assert module._tidy(text) == "a\n\nb c\nd"
+
+
+def test_an_ambiguous_claim_reference_is_refused(files):
+    # Ids may contain colons, so "T:USER:x:ASSISTANT:y" can name two different claims.
+    rt, _ = setup()
+    rt.run(request(turn_id="T:USER:x", user_claims=[{"id": "y", "text": "Claim on turn T:USER:x."}]))
+    rt.run(request(turn_id="T", user_claims=[{"id": "x:ASSISTANT:y", "text": "Claim on turn T."}]))
+    ambiguous = "T:USER:x:USER:y"
+    assert ambiguous == "T:USER:x" + ":USER:" + "y" == "T" + ":USER:" + "x:USER:y"
+    rt.run(request(turn_id="T", user_claims=[{"id": "x:USER:y", "text": "Claim on turn T."}]))
+    docs = [{"path": files["txt"], "cites": CITES, "claim_refs": [ambiguous]}]
+    with pytest.raises(ValueError, match="USER_DOCUMENT_CLAIM_REF_AMBIGUOUS"):
+        rt.plan_conversation_verification("CONV-1", user_documents=docs)
